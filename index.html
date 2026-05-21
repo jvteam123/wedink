@@ -378,17 +378,17 @@ footer p{font-size:.78rem}
             <div style="font-size:.8rem;color:var(--muted)">Choose how matches are generated (organizer excluded from pool)</div>
           </div>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-            <button class="tab-btn active" id="mm-mode-rr" onclick="setMMMode('roundrobin')">🔄 Round Robin</button>
+            <button class="tab-btn active" id="mm-mode-rr" onclick="setMMMode('roundrobin')">🎯 1v1 Match</button>
             <button class="tab-btn" id="mm-mode-se" onclick="setMMMode('winlose')">🏆 Win vs Win / Lose vs Lose</button>
           </div>
         </div>
         <div id="mm-mode-desc" style="background:var(--green-pale);border-radius:10px;padding:.85rem 1rem;font-size:.82rem;color:var(--green-dark);margin-bottom:1.25rem">
           Every approved player faces every other player in 1v1 matches each round. All rounds are generated upfront.
         </div>
-        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+        <div id="mm-max-rounds-row" style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
           <label style="font-size:.82rem;font-weight:600;color:var(--mid);margin:0">Max Rounds</label>
-          <input type="number" id="mm-max-rounds" value="5" min="1" max="15" style="width:70px;padding:6px 10px;font-size:.875rem"/>
-          <span style="font-size:.75rem;color:var(--muted)">1 – 15 rounds</span>
+          <input type="number" id="mm-max-rounds" value="5" min="1" max="30" style="width:70px;padding:6px 10px;font-size:.875rem"/>
+          <span style="font-size:.75rem;color:var(--muted)">1 – 30 rounds (1v1 Match only)</span>
         </div>
         <button class="btn btn-primary" onclick="generateMatches()" id="btn-generate-matches">⚡ Generate Matches</button>
         <button class="btn btn-secondary" style="margin-left:.5rem" onclick="clearMatches()" id="btn-clear-matches">🗑 Clear & Reset</button>
@@ -1329,16 +1329,18 @@ window.setMMMode = (mode) => {
   mmMode = mode;
   document.getElementById('mm-mode-rr').classList.toggle('active', mode==='roundrobin');
   document.getElementById('mm-mode-se').classList.toggle('active', mode==='winlose');
+  // Max Rounds only applies to 1v1 Match (round robin) — hide it for Win/Lose
+  document.getElementById('mm-max-rounds-row').style.display = mode === 'roundrobin' ? 'flex' : 'none';
   document.getElementById('mm-mode-desc').textContent = mode === 'roundrobin'
-    ? 'Every approved player faces every other player in 1v1 matches each round. All rounds are generated upfront.'
-    : 'Winners play winners, losers play losers each round (1v1). New rounds are revealed automatically after all results are in.';
+    ? 'Every player gets a random 1v1 opponent each round. All rounds are generated upfront up to the Max Rounds limit.'
+    : 'Winners play winners, losers play losers each round (1v1). Rounds keep generating automatically until only 1 player remains in each bracket — no round limit.';
 };
 
 window.generateMatches = async () => {
   if (!currentManageEventId || !mmEventData) return;
   const players = Object.values(mmEventData.players||{}).filter(p=>p.status==='approved' && p.role!=='organizer');
   if (players.length < 2) { toast('Need at least 2 approved players.','error'); return; }
-  const maxRounds = Math.min(15, Math.max(1, parseInt(document.getElementById('mm-max-rounds').value)||5));
+  const maxRounds = Math.min(30, Math.max(1, parseInt(document.getElementById('mm-max-rounds').value)||5));
 
   let matches = [];
   if (mmMode === 'roundrobin') {
@@ -1398,7 +1400,7 @@ function buildMatch1v1(id, playerA, playerB) {
 }
 
 function generateRoundRobin(players, maxRounds) {
-  const numRounds = Math.min(maxRounds || 5, 15);
+  const numRounds = Math.min(maxRounds || 5, 30);
   const rounds = [];
   for (let r = 0; r < numRounds; r++) {
     const pairs = pairPlayers(players);
@@ -1430,7 +1432,7 @@ window.setWinner = async (matchId, winner) => {
     matches: round.matches.map(m => m.id !== matchId ? m : { ...m, winner, status:'done' })
   }));
   let finalMatches = matches;
-  if (mm.mode === 'winlose') finalMatches = tryAdvanceWinLose(matches, mm.maxRounds || 15);
+  if (mm.mode === 'winlose') finalMatches = tryAdvanceWinLose(matches);
   await updateDoc(doc(db,'events',currentManageEventId), {
     'matchmaker.matches': finalMatches,
     'matchmaker.updatedAt': new Date().toISOString()
@@ -1438,30 +1440,26 @@ window.setWinner = async (matchId, winner) => {
   toast('Result saved ✓','success');
 };
 
-function tryAdvanceWinLose(rounds, maxRounds) {
-  // Find all rounds at the highest roundNum (there may be a Winners and a Losers round at same level)
+function tryAdvanceWinLose(rounds) {
+  // Find the highest roundNum across all stored rounds
   const maxRoundNum = Math.max(...rounds.map(r => r.roundNum));
   const lastRounds = rounds.filter(r => r.roundNum === maxRoundNum);
 
-  // Check all real matches in all last rounds are done
+  // Only advance when every real match in the current frontier is done
   const allDone = lastRounds.every(r =>
     r.matches.filter(m => m.status !== 'bye').every(m => m.status === 'done')
   );
   if (!allDone) return rounds;
-  if (maxRoundNum >= maxRounds) return rounds;
+  // No hard maxRounds cap for Win/Lose — keep going until brackets are too small
 
   const nextNum = maxRoundNum + 1;
   const newRounds = [...rounds];
 
-  // Collect winners and losers across all last rounds
+  // Collect winners and losers from ALL frontier rounds
   const winners = [], losers = [];
   lastRounds.forEach(r => {
     r.matches.forEach(m => {
-      if (m.status === 'bye') {
-        // bye advances to winners
-        winners.push(m.teamA.p1);
-        return;
-      }
+      if (m.status === 'bye') { winners.push(m.teamA.p1); return; }
       const w = m.winner === 'teamA' ? m.teamA.p1 : m.teamB.p1;
       const l = m.winner === 'teamA' ? m.teamB.p1 : m.teamA.p1;
       if (w.uid !== 'BYE') winners.push(w);
@@ -1469,10 +1467,11 @@ function tryAdvanceWinLose(rounds, maxRounds) {
     });
   });
 
-  function makeNextRound(playerList, label, roundType) {
+  function makeNextRound(playerList, label) {
+    // Need at least 2 players to make a match — otherwise bracket is finished
     if (playerList.length < 2) return null;
     const pairs = pairPlayers(playerList);
-    const round = { roundNum: nextNum, label, matches: [], type: roundType };
+    const round = { roundNum: nextNum, label, matches: [], type: 'winlose' };
     pairs.forEach((pair, idx) => {
       round.matches.push(buildMatch1v1(
         `r${nextNum}_${label.replace(/[\s–]/g,'')}_m${idx+1}`,
@@ -1482,8 +1481,8 @@ function tryAdvanceWinLose(rounds, maxRounds) {
     return round;
   }
 
-  const wR = makeNextRound(winners, `Round ${nextNum} – Winners`, 'winlose');
-  const lR = makeNextRound(losers,  `Round ${nextNum} – Losers`,  'winlose');
+  const wR = makeNextRound(winners, `Round ${nextNum} – Winners`);
+  const lR = makeNextRound(losers,  `Round ${nextNum} – Losers`);
   if (wR) newRounds.push(wR);
   if (lR) newRounds.push(lR);
   return newRounds;
@@ -1513,6 +1512,7 @@ function renderMatchmaker(e) {
   mmMode = mm.mode;
   document.getElementById('mm-mode-rr').classList.toggle('active', mm.mode==='roundrobin');
   document.getElementById('mm-mode-se').classList.toggle('active', mm.mode==='winlose');
+  document.getElementById('mm-max-rounds-row').style.display = mm.mode === 'roundrobin' ? 'flex' : 'none';
   if (mm.maxRounds) document.getElementById('mm-max-rounds').value = mm.maxRounds;
 
   const standings = computeStandings(mm.matches);
