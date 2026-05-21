@@ -351,6 +351,10 @@ footer p{font-size:.78rem}
 
     <!-- APPROVED TAB -->
     <div class="manage-tab-pane" id="tab-approved">
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+        <input type="text" id="manual-player-name" placeholder="Player name (e.g. Juan dela Cruz)" style="flex:1;min-width:180px" onkeydown="if(event.key==='Enter')addManualPlayer()"/>
+        <button class="btn btn-primary btn-sm" onclick="addManualPlayer()">+ Add Player</button>
+      </div>
       <div id="approved-list"><div class="empty-state"><div class="icon">✅</div>No approved players yet.</div></div>
     </div>
 
@@ -1180,7 +1184,7 @@ function renderManageModal(e) {
             ${avatarHtml(p.displayName,p.photoURL,38)}
             <div>
               <div class="player-row-name">${p.displayName}</div>
-              <div class="player-row-meta">${p.skillLevel||'—'} · ${p.city||'—'}</div>
+              <div class="player-row-meta">${p.manual?'<span class="badge badge-blue" style="font-size:.65rem">Manual</span> ':''}${p.skillLevel||'—'} · ${p.city||'—'}</div>
             </div>
           </div>
           <div class="player-row-actions">
@@ -1261,6 +1265,32 @@ window.removePlayer = async (uid) => {
   delete players[uid];
   await updateDoc(eRef, { players });
   toast('Player removed.');
+};
+window.addManualPlayer = async () => {
+  if (!currentManageEventId) return;
+  const nameEl = document.getElementById('manual-player-name');
+  const name = nameEl.value.trim();
+  if (!name) { toast('Please enter a player name.','error'); return; }
+  const uid = 'manual_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  const playerEntry = {
+    uid,
+    displayName: name,
+    email: '',
+    photoURL: '',
+    skillLevel: '—',
+    city: '',
+    status: 'approved',
+    paid: false,
+    manual: true,
+    joinedAt: new Date().toISOString()
+  };
+  try {
+    await updateDoc(doc(db,'events',currentManageEventId), { [`players.${uid}`]: playerEntry });
+    nameEl.value = '';
+    toast(`${name} added! ✓`,'success');
+  } catch(err) {
+    toast('Could not add player — insufficient permission.','error');
+  }
 };
 
 window.togglePaid = async (uid, paid) => {
