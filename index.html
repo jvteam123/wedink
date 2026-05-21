@@ -11,26 +11,29 @@
   --green:#2D6A4F;--green-mid:#40916C;--green-light:#52B788;--green-pale:#D8F3DC;--green-dark:#1B4332;
   --yellow:#F4D03F;--yellow-dark:#D4AC0D;--yellow-pale:#FEF9C3;
   --off-white:#F9F7F2;--white:#FFFFFF;--dark:#1A1A1A;--mid:#4A4A4A;--muted:#8A8A8A;--border:#E5E0D5;
-  --red:#E74C3C;--blue:#2980B9;
+  --red:#E74C3C;--blue:#2980B9;--orange:#E67E22;
 }
 html{scroll-behavior:smooth}
 body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--dark);overflow-x:hidden}
-
-/* ─── UTILITY ─── */
 .hidden{display:none!important}
 .badge{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:3px 10px;border-radius:100px}
 .badge-yellow{background:var(--yellow-pale);color:#92610A}
 .badge-green{background:var(--green-pale);color:var(--green-dark)}
 .badge-blue{background:#EBF5FB;color:#1A5276}
 .badge-red{background:#FDEDEC;color:#922B21}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 22px;border-radius:100px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;font-family:'DM Sans',sans-serif;text-decoration:none}
+.badge-orange{background:#FEF0E6;color:#9A4E0A}
+.badge-gray{background:#F0F0F0;color:#555}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 22px;border-radius:100px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;font-family:'DM Sans',sans-serif;text-decoration:none;white-space:nowrap}
 .btn-primary{background:var(--green);color:#fff}.btn-primary:hover{background:var(--green-dark)}
 .btn-secondary{background:transparent;border:1.5px solid var(--green);color:var(--green)}.btn-secondary:hover{background:var(--green-pale)}
 .btn-ghost-white{background:transparent;border:1.5px solid rgba(255,255,255,.5);color:#fff}.btn-ghost-white:hover{border-color:#fff}
 .btn-yellow{background:var(--yellow);color:var(--dark)}.btn-yellow:hover{background:var(--yellow-dark);color:#fff}
 .btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#C0392B}
+.btn-orange{background:var(--orange);color:#fff}.btn-orange:hover{background:#C0392B}
+.btn-success{background:var(--green-light);color:#fff}.btn-success:hover{background:var(--green)}
 .btn-google{background:#fff;border:1.5px solid var(--border);color:var(--dark);padding:12px 24px;font-size:1rem;border-radius:12px;width:100%}.btn-google:hover{background:#f5f5f5}
-.btn-sm{padding:7px 16px;font-size:.8rem}
+.btn-sm{padding:6px 14px;font-size:.78rem}
+.btn-xs{padding:4px 10px;font-size:.72rem}
 .section-label{font-size:.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:.6rem}
 .section-title{font-family:'DM Serif Display',serif;font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.15;margin-bottom:.75rem}
 .section-sub{color:var(--mid);font-size:.95rem;line-height:1.7;max-width:500px}
@@ -41,17 +44,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--green)}
 label{font-size:.82rem;font-weight:600;color:var(--mid);display:block;margin-bottom:4px}
 .form-group{margin-bottom:1rem}
 .error-msg{color:var(--red);font-size:.8rem;margin-top:4px}
-.success-msg{color:var(--green);font-size:.8rem;margin-top:4px}
-
-/* ─── MODAL OVERLAY ─── */
+/* ─── MODAL ─── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)}
-.modal{background:#fff;border-radius:20px;padding:2.5rem;max-width:440px;width:100%;position:relative;max-height:90vh;overflow-y:auto}
+.modal{background:#fff;border-radius:20px;padding:2.5rem;max-width:460px;width:100%;position:relative;max-height:92vh;overflow-y:auto}
+.modal-wide{max-width:720px}
 .modal h2{font-family:'DM Serif Display',serif;font-size:1.6rem;margin-bottom:.3rem}
 .modal p.sub{color:var(--muted);font-size:.875rem;margin-bottom:1.5rem}
-.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted);line-height:1}
+.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted);line-height:1;z-index:2}
 .divider{display:flex;align-items:center;gap:1rem;margin:1.25rem 0;color:var(--muted);font-size:.8rem}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
-
 /* ─── NAV ─── */
 nav{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;padding:0 2rem}
 .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
@@ -61,14 +62,12 @@ nav{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;
 .nav-links a{text-decoration:none;color:var(--mid);font-size:.875rem;font-weight:500;transition:color .2s}
 .nav-links a:hover{color:var(--green)}
 .nav-right{display:flex;align-items:center;gap:.75rem}
-#nav-user-info{display:flex;align-items:center;gap:.6rem}
-.user-avatar{width:36px;height:36px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:var(--green-dark);overflow:hidden}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:var(--green-dark);overflow:hidden;cursor:pointer;flex-shrink:0}
 .user-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.user-name-nav{font-size:.875rem;font-weight:600;color:var(--dark)}
-
+.user-name-nav{font-size:.875rem;font-weight:600;color:var(--dark);cursor:pointer}
 /* ─── HERO ─── */
 .hero{background:var(--green-dark);color:#fff;padding:6rem 2rem 5rem;text-align:center;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 110%,rgba(82,183,136,.25) 0%,transparent 70%)}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 110%,rgba(82,183,136,.25),transparent 70%)}
 .court-bg{position:absolute;inset:0;opacity:.05;background-image:repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 48px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 48px)}
 .hero-content{position:relative;max-width:720px;margin:0 auto}
 .hero-pill{display:inline-block;background:var(--yellow);color:var(--dark);font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:1.5rem}
@@ -82,7 +81,6 @@ nav{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 .hero-content>*{animation:fadeUp .6s ease both}
 .hero-pill{animation-delay:.05s}.hero h1{animation-delay:.15s}.hero p{animation-delay:.25s}.hero-ctas{animation-delay:.35s}.hero-stats{animation-delay:.45s}
-
 /* ─── FEATURES ─── */
 .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1.25rem;margin-top:3rem}
 .feature-card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:1.6rem;transition:transform .2s,box-shadow .2s}
@@ -90,7 +88,6 @@ nav{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;
 .feature-icon{width:46px;height:46px;border-radius:12px;background:var(--green-pale);display:flex;align-items:center;justify-content:center;margin-bottom:1rem;font-size:1.3rem}
 .feature-card h3{font-size:.95rem;font-weight:600;margin-bottom:.4rem}
 .feature-card p{font-size:.83rem;color:var(--mid);line-height:1.6}
-
 /* ─── EVENTS ─── */
 .events-bg{background:#fff}
 .events-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:1.25rem;margin-top:2.5rem}
@@ -103,14 +100,13 @@ nav{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;
 .event-body{padding:1.25rem}
 .event-body h3{font-size:.95rem;font-weight:600;margin:.6rem 0 .4rem}
 .event-meta{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:3px;margin-bottom:.9rem}
-.event-footer{display:flex;align-items:center;justify-content:space-between;padding-top:.75rem;border-top:1px solid var(--border)}
+.event-footer{display:flex;align-items:center;justify-content:space-between;padding-top:.75rem;border-top:1px solid var(--border);gap:.5rem;flex-wrap:wrap}
 .spots-text{font-size:.78rem;color:var(--muted)}.spots-text strong{color:var(--green)}
 .events-loading{text-align:center;padding:3rem;color:var(--muted);font-size:.9rem}
 .no-events{text-align:center;padding:3rem;color:var(--muted)}
 .events-tabs{display:flex;gap:.5rem;margin-top:1.5rem;flex-wrap:wrap}
 .tab-btn{padding:7px 18px;border-radius:100px;border:1.5px solid var(--border);background:transparent;font-size:.82rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--mid);transition:all .2s}
 .tab-btn.active{background:var(--green);color:#fff;border-color:var(--green)}
-
 /* ─── LEADERBOARD ─── */
 .lb-bg{background:var(--green-dark);color:#fff}
 .lb-bg .section-label{color:var(--yellow)}
@@ -128,82 +124,114 @@ nav{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;
 .lb-rating{font-weight:600;color:var(--yellow)}
 .lb-wins{opacity:.8;font-size:.875rem}
 .trend-up{font-size:.75rem;font-weight:700;color:#52B788}
-.trend-down{font-size:.75rem;font-weight:700;color:#E74C3C}
-.lb-loading{text-align:center;padding:2rem;color:rgba(255,255,255,.5);font-size:.9rem}
-
-/* ─── HOW IT WORKS ─── */
+/* ─── DASHBOARD ─── */
+.dashboard-section{padding:3rem 2rem;background:var(--off-white)}
+.dashboard-inner{max-width:1100px;margin:0 auto}
+.dashboard-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;gap:1rem;flex-wrap:wrap}
+.dashboard-welcome{font-family:'DM Serif Display',serif;font-size:1.8rem}
+.dashboard-welcome span{color:var(--green)}
+.dashboard-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-bottom:2rem}
+.dash-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:1.25rem}
+.dash-card h4{font-size:.72rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
+.dash-card .big-num{font-family:'DM Serif Display',serif;font-size:2rem;color:var(--green-dark)}
+.dash-card .sub-text{font-size:.78rem;color:var(--muted);margin-top:2px}
+.dash-section-title{font-size:1rem;font-weight:600;margin-bottom:1rem;margin-top:1.5rem}
+.my-events-list{display:flex;flex-direction:column;gap:.75rem}
+.my-event-item{background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.my-event-info h4{font-size:.9rem;font-weight:600}
+.my-event-info p{font-size:.78rem;color:var(--muted);margin-top:2px}
+/* ─── MANAGE EVENT MODAL ─── */
+.manage-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:.75rem;flex-wrap:wrap}
+.manage-tab{padding:6px 16px;border-radius:100px;border:none;background:transparent;font-size:.82rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--mid);transition:all .2s}
+.manage-tab.active{background:var(--green);color:#fff}
+.manage-tab-pane{display:none}
+.manage-tab-pane.active{display:block}
+/* player rows */
+.player-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.85rem 1rem;border:1px solid var(--border);border-radius:12px;margin-bottom:.6rem;background:#fff;flex-wrap:wrap}
+.player-row-info{display:flex;align-items:center;gap:.75rem;flex:1;min-width:0}
+.player-row-avatar{width:38px;height:38px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:var(--green-dark);flex-shrink:0;overflow:hidden}
+.player-row-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.player-row-name{font-size:.875rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-row-meta{font-size:.75rem;color:var(--muted);margin-top:1px}
+.player-row-actions{display:flex;align-items:center;gap:.4rem;flex-shrink:0;flex-wrap:wrap}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.dot-pending{background:var(--orange)}
+.dot-approved{background:var(--green-light)}
+.dot-rejected{background:var(--red)}
+.dot-paid{background:var(--yellow-dark)}
+/* payment summary */
+.pay-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.25rem}
+.pay-stat{background:var(--off-white);border-radius:10px;padding:.9rem;text-align:center}
+.pay-stat .num{font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--green-dark)}
+.pay-stat .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:2px}
+/* event settings */
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:.85rem 0;border-bottom:1px solid var(--border)}
+.settings-row:last-child{border-bottom:none}
+.settings-row label{margin:0;font-size:.875rem;font-weight:500;color:var(--dark)}
+.settings-row p{font-size:.78rem;color:var(--muted);margin-top:2px}
+/* toggle */
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#ccc;border-radius:24px;cursor:pointer;transition:.3s}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.toggle-slider{background:var(--green)}
+.toggle input:checked+.toggle-slider:before{transform:translateX(20px)}
+/* empty state */
+.empty-state{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.875rem}
+.empty-state .icon{font-size:2rem;margin-bottom:.5rem}
+/* status bar on event card */
+.event-status-bar{display:flex;align-items:center;gap:.5rem;padding:.5rem 1.25rem;background:var(--off-white);border-top:1px solid var(--border);font-size:.75rem;color:var(--mid)}
+/* HOW */
 .how-bg{background:var(--off-white)}
 .steps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:2rem;margin-top:3rem}
 .step-box{text-align:center}
 .step-num{width:50px;height:50px;border-radius:50%;background:var(--green);color:#fff;font-family:'DM Serif Display',serif;font-size:1.3rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}
 .step-box h3{font-size:.95rem;font-weight:600;margin-bottom:.4rem}
 .step-box p{font-size:.83rem;color:var(--mid);line-height:1.6}
-
-/* ─── DASHBOARD (logged-in view) ─── */
-.dashboard-section{padding:3rem 2rem}
-.dashboard-inner{max-width:1100px;margin:0 auto}
-.dashboard-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:gap}
-.dashboard-welcome{font-family:'DM Serif Display',serif;font-size:1.8rem}
-.dashboard-welcome span{color:var(--green)}
-.dashboard-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem;margin-bottom:2rem}
-.dash-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:1.25rem}
-.dash-card h4{font-size:.72rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
-.dash-card .big-num{font-family:'DM Serif Display',serif;font-size:2rem;color:var(--green-dark)}
-.dash-card .sub-text{font-size:.78rem;color:var(--muted);margin-top:2px}
-.dash-section-title{font-size:1rem;font-weight:600;margin-bottom:1rem}
-.my-events-list{display:flex;flex-direction:column;gap:.75rem}
-.my-event-item{background:#fff;border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
-.my-event-info h4{font-size:.9rem;font-weight:600}
-.my-event-info p{font-size:.78rem;color:var(--muted);margin-top:2px}
-@media(max-width:700px){.dashboard-grid{grid-template-columns:1fr 1fr}.lb-header,.lb-row{grid-template-columns:36px 1fr 60px 50px;}.lb-header span:last-child,.lb-row span:last-child{display:none}}
-@media(max-width:480px){.dashboard-grid{grid-template-columns:1fr}.hero-stats{gap:1.5rem}.nav-links{display:none}}
-
-/* ─── CREATE EVENT FORM ─── */
-.create-event-modal .modal{max-width:540px}
-
-/* ─── PROFILE ─── */
-.profile-card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:2rem;max-width:520px;margin:0 auto}
-.profile-avatar-big{width:80px;height:80px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:2rem;color:var(--green-dark);overflow:hidden;margin:0 auto 1rem}
-.profile-avatar-big img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-
-/* ─── CTA ─── */
-.cta-section{padding:5rem 2rem;text-align:center;background:var(--off-white)}
+/* CTA */
+.cta-section{padding:5rem 2rem;text-align:center}
 .cta-box{background:#fff;border:1px solid var(--border);border-radius:22px;padding:3.5rem 2rem;max-width:600px;margin:0 auto}
 .cta-box h2{font-family:'DM Serif Display',serif;font-size:clamp(1.7rem,4vw,2.4rem);margin-bottom:.9rem;line-height:1.2}
 .cta-box p{color:var(--mid);margin-bottom:2rem;font-size:.95rem;line-height:1.7}
-
-/* ─── FOOTER ─── */
+/* FOOTER */
 footer{background:var(--dark);color:rgba(255,255,255,.45);padding:2.5rem 2rem;text-align:center}
 .footer-logo{font-family:'DM Serif Display',serif;font-size:1.4rem;color:#fff;margin-bottom:.4rem}
 .footer-logo span{color:var(--yellow)}
 footer p{font-size:.78rem}
-
-/* ─── TOAST ─── */
-.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(100px);background:var(--dark);color:#fff;padding:12px 24px;border-radius:100px;font-size:.875rem;font-weight:500;z-index:9999;transition:transform .35s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+/* TOAST */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(100px);background:var(--dark);color:#fff;padding:12px 24px;border-radius:100px;font-size:.875rem;font-weight:500;z-index:9999;transition:transform .35s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .toast.success{background:var(--green)}
 .toast.error{background:var(--red)}
-
-/* ─── SPINNER ─── */
-.spinner{width:22px;height:22px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+/* SPINNER */
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* PROFILE */
+.profile-avatar-big{width:80px;height:80px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:2rem;color:var(--green-dark);overflow:hidden;margin:0 auto 1rem}
+.profile-avatar-big img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+/* NOTIFY BADGE */
+.notify-badge{position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:.6rem;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+.nav-btn-wrap{position:relative;display:inline-flex}
+/* PENDING BADGE on event card */
+.pending-chip{background:var(--yellow-pale);color:#9A6E00;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:100px;display:inline-flex;align-items:center;gap:3px}
+@media(max-width:700px){.dashboard-grid{grid-template-columns:1fr 1fr}.lb-header,.lb-row{grid-template-columns:36px 1fr 60px 50px}.lb-header span:last-child,.lb-row span:last-child{display:none}.nav-links{display:none}}
+@media(max-width:480px){.dashboard-grid{grid-template-columns:1fr}.hero-stats{gap:1.5rem}.pay-summary{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<!-- ─── AUTH MODAL ─── -->
+<!-- ══════════════════════════════════════════════════
+     AUTH MODAL
+══════════════════════════════════════════════════ -->
 <div class="modal-overlay hidden" id="auth-modal">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('auth-modal')">✕</button>
     <div id="auth-login-view">
       <h2>Welcome back 🏓</h2>
       <p class="sub">Sign in to find games, join events, and track your rating.</p>
-      <button class="btn btn-google" id="btn-google-signin">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" style="vertical-align:middle;margin-right:8px"/> Continue with Google
-      </button>
+      <button class="btn btn-google" id="btn-google-signin"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" style="vertical-align:middle;margin-right:8px"/> Continue with Google</button>
       <div class="divider">or</div>
       <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@example.com"/></div>
       <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"/></div>
@@ -214,15 +242,12 @@ footer p{font-size:.78rem}
     <div id="auth-register-view" class="hidden">
       <h2>Join WeDink 🏓</h2>
       <p class="sub">Create your free account and start playing today.</p>
-      <button class="btn btn-google" id="btn-google-signup">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" style="vertical-align:middle;margin-right:8px"/> Continue with Google
-      </button>
+      <button class="btn btn-google" id="btn-google-signup"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" style="vertical-align:middle;margin-right:8px"/> Continue with Google</button>
       <div class="divider">or</div>
       <div class="form-group"><label>Full Name</label><input type="text" id="reg-name" placeholder="Your Name"/></div>
       <div class="form-group"><label>Email</label><input type="email" id="reg-email" placeholder="you@example.com"/></div>
       <div class="form-group"><label>Password</label><input type="password" id="reg-password" placeholder="Min. 6 characters"/></div>
-      <div class="form-group">
-        <label>Skill Level (DUPR Rating)</label>
+      <div class="form-group"><label>Skill Level (DUPR)</label>
         <select id="reg-skill">
           <option value="2.0-2.5">2.0–2.5 (Beginner)</option>
           <option value="2.5-3.0">2.5–3.0 (Novice)</option>
@@ -234,81 +259,155 @@ footer p{font-size:.78rem}
       <div class="form-group"><label>City</label><input type="text" id="reg-city" placeholder="e.g. Makati, Manila"/></div>
       <div id="reg-error" class="error-msg hidden"></div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem" id="btn-email-signup">Create Account</button>
-      <p style="text-align:center;margin-top:1rem;font-size:.83rem;color:var(--muted)">Already have an account? <a href="#" style="color:var(--green);font-weight:600" onclick="switchAuth('login')">Sign in</a></p>
+      <p style="text-align:center;margin-top:1rem;font-size:.83rem;color:var(--muted)">Have an account? <a href="#" style="color:var(--green);font-weight:600" onclick="switchAuth('login')">Sign in</a></p>
     </div>
   </div>
 </div>
 
-<!-- ─── CREATE EVENT MODAL ─── -->
-<div class="modal-overlay hidden create-event-modal" id="create-event-modal">
+<!-- ══════════════════════════════════════════════════
+     CREATE EVENT MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="create-event-modal">
   <div class="modal" style="max-width:540px">
     <button class="modal-close" onclick="closeModal('create-event-modal')">✕</button>
     <h2>Create Event</h2>
-    <p class="sub">Fill in the details to post your pickleball event.</p>
+    <p class="sub">Post a game, tournament, or clinic for the community.</p>
     <div class="form-group"><label>Event Name</label><input type="text" id="ev-name" placeholder="e.g. Saturday Drop-in @ BGC"/></div>
-    <div class="form-group">
-      <label>Type</label>
-      <select id="ev-type">
-        <option value="drop-in">Drop-in</option>
-        <option value="tournament">Tournament</option>
-        <option value="league">League</option>
-        <option value="clinic">Clinic</option>
-      </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-group"><label>Type</label>
+        <select id="ev-type">
+          <option value="drop-in">Drop-in</option>
+          <option value="tournament">Tournament</option>
+          <option value="league">League</option>
+          <option value="clinic">Clinic</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Skill Level</label>
+        <select id="ev-skill">
+          <option value="All Levels">All Levels</option>
+          <option value="Beginner (2.0-2.5)">Beginner</option>
+          <option value="Novice (2.5-3.0)">Novice</option>
+          <option value="Intermediate (3.0-3.5)">Intermediate</option>
+          <option value="Advanced (3.5-4.0)">Advanced</option>
+          <option value="Pro (4.0+)">Pro (4.0+)</option>
+        </select>
+      </div>
     </div>
     <div class="form-group"><label>Date & Time</label><input type="datetime-local" id="ev-date"/></div>
-    <div class="form-group"><label>Location / Venue</label><input type="text" id="ev-location" placeholder="e.g. BGC Courts, Taguig"/></div>
-    <div class="form-group"><label>City</label><input type="text" id="ev-city" placeholder="e.g. Taguig"/></div>
-    <div class="form-group">
-      <label>Skill Level</label>
-      <select id="ev-skill">
-        <option value="All Levels">All Levels</option>
-        <option value="Beginner (2.0-2.5)">Beginner (2.0–2.5)</option>
-        <option value="Novice (2.5-3.0)">Novice (2.5–3.0)</option>
-        <option value="Intermediate (3.0-3.5)">Intermediate (3.0–3.5)</option>
-        <option value="Advanced (3.5-4.0)">Advanced (3.5–4.0)</option>
-        <option value="Pro (4.0+)">Pro (4.0+)</option>
-      </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-group"><label>Venue / Location</label><input type="text" id="ev-location" placeholder="e.g. BGC Courts"/></div>
+      <div class="form-group"><label>City</label><input type="text" id="ev-city" placeholder="e.g. Taguig"/></div>
     </div>
-    <div class="form-group"><label>Max Players</label><input type="number" id="ev-max" value="16" min="2" max="200"/></div>
-    <div class="form-group"><label>Description (optional)</label><textarea id="ev-desc" rows="3" placeholder="Tell players what to expect..."></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div class="form-group"><label>Max Players</label><input type="number" id="ev-max" value="16" min="2" max="200"/></div>
+      <div class="form-group"><label>Fee (₱, 0 = free)</label><input type="number" id="ev-fee" value="0" min="0"/></div>
+    </div>
+    <div class="form-group"><label>Description (optional)</label><textarea id="ev-desc" rows="2" placeholder="Tell players what to expect..."></textarea></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:.75rem;background:var(--off-white);padding:.85rem 1rem;border-radius:10px">
+      <label class="toggle" style="margin:0"><input type="checkbox" id="ev-approval" checked/><span class="toggle-slider"></span></label>
+      <div><div style="font-size:.875rem;font-weight:600">Require Approval</div><div style="font-size:.75rem;color:var(--muted)">Manually approve each player who joins</div></div>
+    </div>
     <div id="ev-error" class="error-msg hidden"></div>
     <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem" id="btn-create-event">Post Event</button>
   </div>
 </div>
 
-<!-- ─── PROFILE MODAL ─── -->
-<div class="modal-overlay hidden" id="profile-modal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('profile-modal')">✕</button>
-    <h2>My Profile</h2>
-    <div class="profile-card" style="border:none;padding:0">
-      <div class="profile-avatar-big" id="profile-avatar-big"></div>
-      <div style="text-align:center;margin-bottom:1.5rem">
-        <div style="font-size:1.1rem;font-weight:600" id="profile-display-name"></div>
-        <div style="font-size:.83rem;color:var(--muted)" id="profile-email-display"></div>
-        <div style="margin-top:.5rem" id="profile-badge-display"></div>
+<!-- ══════════════════════════════════════════════════
+     MANAGE EVENT MODAL (Organizer)
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="manage-event-modal">
+  <div class="modal modal-wide">
+    <button class="modal-close" onclick="closeModal('manage-event-modal')">✕</button>
+    <h2 id="manage-event-title">Manage Event</h2>
+    <p class="sub" id="manage-event-sub"></p>
+    <div class="manage-tabs">
+      <button class="manage-tab active" onclick="switchManageTab(this,'pending')">⏳ Pending <span id="pending-count-badge" class="badge badge-orange" style="margin-left:4px"></span></button>
+      <button class="manage-tab" onclick="switchManageTab(this,'approved')">✅ Approved</button>
+      <button class="manage-tab" onclick="switchManageTab(this,'payments')">💰 Payments</button>
+      <button class="manage-tab" onclick="switchManageTab(this,'settings')">⚙️ Settings</button>
+    </div>
+
+    <!-- PENDING TAB -->
+    <div class="manage-tab-pane active" id="tab-pending">
+      <div id="pending-list"><div class="empty-state"><div class="icon">⏳</div>No pending requests.</div></div>
+    </div>
+
+    <!-- APPROVED TAB -->
+    <div class="manage-tab-pane" id="tab-approved">
+      <div id="approved-list"><div class="empty-state"><div class="icon">✅</div>No approved players yet.</div></div>
+    </div>
+
+    <!-- PAYMENTS TAB -->
+    <div class="manage-tab-pane" id="tab-payments">
+      <div class="pay-summary">
+        <div class="pay-stat"><div class="num" id="pay-total">0</div><div class="lbl">Total Players</div></div>
+        <div class="pay-stat"><div class="num" id="pay-paid">0</div><div class="lbl">Paid</div></div>
+        <div class="pay-stat"><div class="num" id="pay-unpaid">0</div><div class="lbl">Unpaid</div></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.5rem">
-        <div class="dash-card"><h4>Games Joined</h4><div class="big-num" id="profile-games">0</div></div>
-        <div class="dash-card"><h4>Skill Level</h4><div style="font-size:1rem;font-weight:600;color:var(--green-dark);margin-top:.25rem" id="profile-skill">—</div></div>
+      <div id="fee-display" style="font-size:.83rem;color:var(--muted);margin-bottom:1rem"></div>
+      <div id="payments-list"><div class="empty-state"><div class="icon">💰</div>No approved players to track yet.</div></div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="manage-tab-pane" id="tab-settings">
+      <div class="settings-row">
+        <div><label>Require Approval</label><p>New join requests need your approval first</p></div>
+        <label class="toggle"><input type="checkbox" id="settings-approval" onchange="updateEventSetting('requireApproval',this.checked)"/><span class="toggle-slider"></span></label>
       </div>
-      <div class="form-group"><label>City</label><input type="text" id="profile-city-input"/></div>
-      <div class="form-group"><label>Skill Level</label>
-        <select id="profile-skill-input">
-          <option value="2.0-2.5">2.0–2.5 (Beginner)</option>
-          <option value="2.5-3.0">2.5–3.0 (Novice)</option>
-          <option value="3.0-3.5">3.0–3.5 (Intermediate)</option>
-          <option value="3.5-4.0">3.5–4.0 (Advanced)</option>
-          <option value="4.0+">4.0+ (Pro)</option>
+      <div class="settings-row">
+        <div><label>Event Status</label><p>Control whether this event is open or closed</p></div>
+        <select id="settings-status" style="width:140px" onchange="updateEventSetting('status',this.value)">
+          <option value="open">Open</option>
+          <option value="closed">Closed</option>
+          <option value="cancelled">Cancelled</option>
         </select>
       </div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-save-profile">Save Changes</button>
-      <button class="btn btn-danger" style="width:100%;justify-content:center;margin-top:.6rem" id="btn-signout">Sign Out</button>
+      <div class="settings-row">
+        <div><label>Fee Amount (₱)</label><p>Entry/contribution fee per player</p></div>
+        <input type="number" id="settings-fee" style="width:120px" min="0" onchange="updateEventSetting('fee',parseFloat(this.value)||0)"/>
+      </div>
+      <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <button class="btn btn-danger btn-sm" onclick="deleteEvent()">🗑 Delete Event</button>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- ─── NAV ─── -->
+<!-- ══════════════════════════════════════════════════
+     PROFILE MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="profile-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('profile-modal')">✕</button>
+    <h2>My Profile</h2>
+    <div class="profile-avatar-big" id="profile-avatar-big"></div>
+    <div style="text-align:center;margin-bottom:1.5rem">
+      <div style="font-size:1.1rem;font-weight:600" id="profile-display-name"></div>
+      <div style="font-size:.83rem;color:var(--muted)" id="profile-email-display"></div>
+      <div style="margin-top:.5rem" id="profile-badge-display"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.25rem">
+      <div class="dash-card"><h4>Events Joined</h4><div class="big-num" id="profile-games">0</div></div>
+      <div class="dash-card"><h4>Skill Level</h4><div style="font-size:1rem;font-weight:600;color:var(--green-dark);margin-top:.25rem" id="profile-skill">—</div></div>
+    </div>
+    <div class="form-group"><label>City</label><input type="text" id="profile-city-input"/></div>
+    <div class="form-group"><label>Skill Level</label>
+      <select id="profile-skill-input">
+        <option value="2.0-2.5">2.0–2.5 (Beginner)</option>
+        <option value="2.5-3.0">2.5–3.0 (Novice)</option>
+        <option value="3.0-3.5">3.0–3.5 (Intermediate)</option>
+        <option value="3.5-4.0">3.5–4.0 (Advanced)</option>
+        <option value="4.0+">4.0+ (Pro)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-save-profile">Save Changes</button>
+    <button class="btn btn-danger" style="width:100%;justify-content:center;margin-top:.6rem" id="btn-signout">Sign Out</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     NAV
+══════════════════════════════════════════════════ -->
 <nav>
   <div class="nav-inner">
     <a class="logo" href="#">We<span>Dink</span> 🏓</a>
@@ -321,17 +420,22 @@ footer p{font-size:.78rem}
       <div id="nav-guest">
         <button class="btn btn-primary btn-sm" onclick="openModal('auth-modal')">Sign In / Join</button>
       </div>
-      <div id="nav-user-info" class="hidden">
-        <button class="btn btn-secondary btn-sm" onclick="openModal('create-event-modal')">+ Post Event</button>
-        <div id="nav-avatar" class="user-avatar" style="cursor:pointer" onclick="openProfileModal()"></div>
-        <span class="user-name-nav" id="nav-name" style="cursor:pointer" onclick="openProfileModal()"></span>
+      <div id="nav-user-info" class="hidden" style="display:flex;align-items:center;gap:.75rem">
+        <button class="btn btn-secondary btn-sm" onclick="openPostEvent()">+ Post Event</button>
+        <div class="nav-btn-wrap">
+          <div id="nav-avatar" class="user-avatar" onclick="openProfileModal()"></div>
+          <div id="nav-pending-badge" class="notify-badge hidden">!</div>
+        </div>
+        <span class="user-name-nav" id="nav-name" onclick="openProfileModal()"></span>
       </div>
     </div>
   </div>
 </nav>
 
-<!-- ─── HERO ─── -->
-<section class="hero" id="hero-section">
+<!-- ══════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════ -->
+<section class="hero">
   <div class="court-bg"></div>
   <div class="hero-content">
     <div class="hero-pill">🏓 Philippines #1 Pickleball Platform</div>
@@ -349,26 +453,38 @@ footer p{font-size:.78rem}
   </div>
 </section>
 
-<!-- ─── DASHBOARD (shown when logged in) ─── -->
+<!-- ══════════════════════════════════════════════════
+     DASHBOARD (logged in)
+══════════════════════════════════════════════════ -->
 <section class="dashboard-section hidden" id="dashboard-section">
   <div class="dashboard-inner">
     <div class="dashboard-header">
-      <div class="dashboard-welcome" id="dashboard-welcome">Welcome back, <span id="dash-first-name">Player</span>!</div>
-      <button class="btn btn-primary" onclick="openModal('create-event-modal')">+ Post New Event</button>
+      <div class="dashboard-welcome">Welcome back, <span id="dash-first-name">Player</span>!</div>
+      <button class="btn btn-primary" onclick="openPostEvent()">+ Post New Event</button>
     </div>
     <div class="dashboard-grid">
-      <div class="dash-card"><h4>Your Events Joined</h4><div class="big-num" id="dash-joined">0</div><div class="sub-text">events registered</div></div>
-      <div class="dash-card"><h4>Skill Level</h4><div class="big-num" style="font-size:1.25rem" id="dash-skill">—</div><div class="sub-text">DUPR range</div></div>
-      <div class="dash-card"><h4>Your City</h4><div class="big-num" style="font-size:1.25rem" id="dash-city">—</div><div class="sub-text">home location</div></div>
+      <div class="dash-card"><h4>Events Joined</h4><div class="big-num" id="dash-joined">0</div><div class="sub-text">total registered</div></div>
+      <div class="dash-card"><h4>Skill Level</h4><div class="big-num" style="font-size:1.1rem;margin-top:.2rem" id="dash-skill">—</div><div class="sub-text">DUPR range</div></div>
+      <div class="dash-card"><h4>Your City</h4><div class="big-num" style="font-size:1.1rem;margin-top:.2rem" id="dash-city">—</div><div class="sub-text">home location</div></div>
     </div>
+
+    <!-- My Joined Events -->
     <div class="dash-section-title">Your Upcoming Events</div>
     <div class="my-events-list" id="my-events-list">
-      <div style="color:var(--muted);font-size:.875rem">Loading your events...</div>
+      <div style="color:var(--muted);font-size:.875rem">Loading...</div>
+    </div>
+
+    <!-- Events I'm Organizing -->
+    <div class="dash-section-title" style="margin-top:2rem">Events You're Organizing <span id="org-pending-alert" class="hidden badge badge-orange" style="margin-left:.5rem"></span></div>
+    <div class="my-events-list" id="my-org-events-list">
+      <div style="color:var(--muted);font-size:.875rem">Loading...</div>
     </div>
   </div>
 </section>
 
-<!-- ─── FEATURES ─── -->
+<!-- ══════════════════════════════════════════════════
+     FEATURES
+══════════════════════════════════════════════════ -->
 <section class="section" id="features-section">
   <div class="section-inner">
     <p class="section-label">Everything You Need</p>
@@ -376,38 +492,40 @@ footer p{font-size:.78rem}
     <p class="section-sub">From casual drop-ins to competitive brackets — WeDink handles it all so you can focus on the game.</p>
     <div class="features-grid">
       <div class="feature-card"><div class="feature-icon">📍</div><h3>Find Local Games</h3><p>Discover drop-ins, open courts, and clubs near you. Filter by skill level, date, and distance.</p></div>
-      <div class="feature-card"><div class="feature-icon">🏆</div><h3>Tournaments & Brackets</h3><p>Set up and join competitions with automated bracket generation, scheduling, and live score tracking.</p></div>
-      <div class="feature-card"><div class="feature-icon">👥</div><h3>Club Management</h3><p>Create your club, manage members, collect registrations, and keep everyone in the loop effortlessly.</p></div>
+      <div class="feature-card"><div class="feature-icon">🏆</div><h3>Tournaments & Brackets</h3><p>Set up and join competitions with automated bracket generation and live score tracking.</p></div>
+      <div class="feature-card"><div class="feature-icon">👥</div><h3>Player Approval</h3><p>Organizers approve or reject join requests and manage their player roster with ease.</p></div>
+      <div class="feature-card"><div class="feature-icon">💰</div><h3>Payment Tracking</h3><p>Mark players as paid for entry fees or court contributions — no more chasing people.</p></div>
       <div class="feature-card"><div class="feature-icon">📊</div><h3>Player Ratings</h3><p>Track your skill progression with DUPR-compatible ratings. Find well-matched games every time.</p></div>
-      <div class="feature-card"><div class="feature-icon">💬</div><h3>Community Chat</h3><p>Connect with your club, coordinate games, and share moments with the WeDink community.</p></div>
-      <div class="feature-card"><div class="feature-icon">📅</div><h3>Smart Scheduling</h3><p>Round robins, leagues, and social events — all organized with automatic notifications and RSVPs.</p></div>
+      <div class="feature-card"><div class="feature-icon">📅</div><h3>Smart Scheduling</h3><p>Round robins, leagues, and social events — organized with automatic notifications.</p></div>
     </div>
   </div>
 </section>
 
-<!-- ─── EVENTS ─── -->
+<!-- ══════════════════════════════════════════════════
+     EVENTS
+══════════════════════════════════════════════════ -->
 <section class="section events-bg" id="events-section">
   <div class="section-inner">
     <p class="section-label">Live from Firestore</p>
     <h2 class="section-title">Upcoming Events</h2>
     <p class="section-sub">Real events posted by WeDink players. Join a game or post your own.</p>
     <div class="events-tabs">
-      <button class="tab-btn active" data-filter="all" onclick="filterEvents(this,'all')">All Events</button>
-      <button class="tab-btn" data-filter="drop-in" onclick="filterEvents(this,'drop-in')">Drop-in</button>
-      <button class="tab-btn" data-filter="tournament" onclick="filterEvents(this,'tournament')">Tournament</button>
-      <button class="tab-btn" data-filter="league" onclick="filterEvents(this,'league')">League</button>
-      <button class="tab-btn" data-filter="clinic" onclick="filterEvents(this,'clinic')">Clinic</button>
+      <button class="tab-btn active" onclick="filterEvents(this,'all')">All Events</button>
+      <button class="tab-btn" onclick="filterEvents(this,'drop-in')">Drop-in</button>
+      <button class="tab-btn" onclick="filterEvents(this,'tournament')">Tournament</button>
+      <button class="tab-btn" onclick="filterEvents(this,'league')">League</button>
+      <button class="tab-btn" onclick="filterEvents(this,'clinic')">Clinic</button>
     </div>
-    <div id="events-container">
-      <div class="events-loading">Loading events...</div>
-    </div>
+    <div id="events-container"><div class="events-loading">Loading events...</div></div>
     <div style="text-align:center;margin-top:2rem">
-      <button class="btn btn-secondary" id="btn-post-event-section" onclick="openPostEvent()">+ Post an Event</button>
+      <button class="btn btn-secondary" onclick="openPostEvent()">+ Post an Event</button>
     </div>
   </div>
 </section>
 
-<!-- ─── LEADERBOARD ─── -->
+<!-- ══════════════════════════════════════════════════
+     LEADERBOARD
+══════════════════════════════════════════════════ -->
 <section class="section lb-bg" id="leaderboard-section">
   <div class="section-inner">
     <p class="section-label">Top Players</p>
@@ -415,12 +533,14 @@ footer p{font-size:.78rem}
     <p class="section-sub">Most active players this month. Play more games to climb the board.</p>
     <div class="lb-table">
       <div class="lb-header"><span></span><span>Player</span><span>Skill</span><span>Events</span><span>Trend</span></div>
-      <div id="lb-body"><div class="lb-loading">Loading rankings...</div></div>
+      <div id="lb-body"><div class="lb-loading" style="color:rgba(255,255,255,.5);padding:2rem;text-align:center">Loading rankings...</div></div>
     </div>
   </div>
 </section>
 
-<!-- ─── HOW IT WORKS ─── -->
+<!-- ══════════════════════════════════════════════════
+     HOW IT WORKS
+══════════════════════════════════════════════════ -->
 <section class="section how-bg">
   <div class="section-inner">
     <p class="section-label">Getting Started</p>
@@ -428,14 +548,16 @@ footer p{font-size:.78rem}
     <div class="steps-grid">
       <div class="step-box"><div class="step-num">1</div><h3>Create your profile</h3><p>Sign up with Google or email, set your skill level and city. Takes under a minute.</p></div>
       <div class="step-box"><div class="step-num">2</div><h3>Discover games nearby</h3><p>Browse real events posted by players in your city, filtered by date and skill level.</p></div>
-      <div class="step-box"><div class="step-num">3</div><h3>Join or post an event</h3><p>Register for a game with one click or post your own drop-in, tournament, or league.</p></div>
-      <div class="step-box"><div class="step-num">4</div><h3>Play & build your rep</h3><p>Your profile tracks events joined, your skill level, and activity in the community.</p></div>
+      <div class="step-box"><div class="step-num">3</div><h3>Request to join</h3><p>Tap Join — the organizer approves your request. You'll see your status instantly.</p></div>
+      <div class="step-box"><div class="step-num">4</div><h3>Pay & play</h3><p>The organizer marks you as paid once contributions are collected. No more confusion.</p></div>
     </div>
   </div>
 </section>
 
-<!-- ─── CTA ─── -->
-<section class="cta-section" id="cta-section">
+<!-- ══════════════════════════════════════════════════
+     CTA
+══════════════════════════════════════════════════ -->
+<section class="cta-section">
   <div class="cta-box">
     <h2>Ready to Dink? Join WeDink Today 🏓</h2>
     <p>Create a free account to join games, post events, and connect with pickleball players across the Philippines.</p>
@@ -443,292 +565,286 @@ footer p{font-size:.78rem}
   </div>
 </section>
 
-<!-- ─── FOOTER ─── -->
 <footer>
   <div class="footer-logo">We<span>Dink</span> 🏓</div>
   <p>© 2026 WeDink. Built for pickleball players, by pickleball players.</p>
 </footer>
 
-<!-- ─── FIREBASE ─── -->
+<!-- ══════════════════════════════════════════════════
+     FIREBASE
+══════════════════════════════════════════════════ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, query, orderBy, limit, where, onSnapshot, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {
+  getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc,
+  updateDoc, deleteDoc, query, orderBy, limit, where, onSnapshot,
+  serverTimestamp, increment, arrayUnion, arrayRemove
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBTjVhhgit82lsvpP7nUAVTVwq6NaFVFj0",
-  authDomain: "wedink-eee7a.firebaseapp.com",
-  projectId: "wedink-eee7a",
-  storageBucket: "wedink-eee7a.firebasestorage.app",
-  messagingSenderId: "156012744731",
-  appId: "1:156012744731:web:c9ea2c1dc0d0d2029f28be"
-};
-
-const app = initializeApp(firebaseConfig);
+const app = initializeApp({
+  apiKey:"AIzaSyBTjVhhgit82lsvpP7nUAVTVwq6NaFVFj0",
+  authDomain:"wedink-eee7a.firebaseapp.com",
+  projectId:"wedink-eee7a",
+  storageBucket:"wedink-eee7a.firebasestorage.app",
+  messagingSenderId:"156012744731",
+  appId:"1:156012744731:web:c9ea2c1dc0d0d2029f28be"
+});
 const auth = getAuth(app);
 const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
+const gProvider = new GoogleAuthProvider();
 
 let currentUser = null;
 let allEvents = [];
 let currentFilter = 'all';
+let currentManageEventId = null;
+let manageUnsubscribe = null;
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────
-window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
-window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
-window.switchAuth = (view) => {
-  document.getElementById('auth-login-view').classList.toggle('hidden', view !== 'login');
-  document.getElementById('auth-register-view').classList.toggle('hidden', view !== 'register');
+// ── HELPERS ──────────────────────────────────────────────────────────────
+window.openModal = id => document.getElementById(id).classList.remove('hidden');
+window.closeModal = id => {
+  document.getElementById(id).classList.add('hidden');
+  if (id === 'manage-event-modal' && manageUnsubscribe) { manageUnsubscribe(); manageUnsubscribe = null; }
+};
+window.switchAuth = v => {
+  document.getElementById('auth-login-view').classList.toggle('hidden', v!=='login');
+  document.getElementById('auth-register-view').classList.toggle('hidden', v!=='register');
+};
+window.switchManageTab = (btn, tab) => {
+  document.querySelectorAll('.manage-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.manage-tab-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
 };
 
-function showToast(msg, type='') {
+function toast(msg, type='') {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  setTimeout(() => t.classList.remove('show'), 3200);
+  t.textContent = msg; t.className = 'toast show '+type;
+  setTimeout(()=>t.classList.remove('show'), 3200);
+}
+function initials(name) { return (name||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(); }
+function getStripe(t){ return t==='tournament'?'s-yellow':t==='league'?'s-dark':'s-green'; }
+function getBadge(t){ return t==='tournament'?'badge-yellow':t==='league'?'badge-green':t==='clinic'?'badge-red':'badge-blue'; }
+function fmtDate(ts){
+  if(!ts) return '—';
+  const d = ts.toDate?ts.toDate():new Date(ts);
+  return d.toLocaleDateString('en-PH',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function fmtPeso(n){ return n?`₱${Number(n).toLocaleString()}`:'Free'; }
+function avatarHtml(name,photo,size=38){
+  const s=`width:${size}px;height:${size}px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${Math.round(size*.36)}px;color:var(--green-dark);overflow:hidden;flex-shrink:0`;
+  if(photo) return `<div style="${s}"><img src="${photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/></div>`;
+  return `<div style="${s}">${initials(name)}</div>`;
 }
 
-function getInitials(name) {
-  if (!name) return '?';
-  return name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
-}
-
-function getStripe(type) {
-  if (type === 'tournament') return 's-yellow';
-  if (type === 'league') return 's-dark';
-  return 's-green';
-}
-
-function getBadgeClass(type) {
-  if (type === 'tournament') return 'badge-yellow';
-  if (type === 'league') return 'badge-green';
-  if (type === 'clinic') return 'badge-red';
-  return 'badge-blue';
-}
-
-function formatDate(ts) {
-  if (!ts) return '—';
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleDateString('en-PH', {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-}
-
-// ─── AUTH STATE ──────────────────────────────────────────────────────────
-onAuthStateChanged(auth, async (user) => {
+// ── AUTH STATE ────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
   currentUser = user;
   if (user) {
-    // Ensure user doc exists
-    const userRef = doc(db, 'users', user.uid);
-    const snap = await getDoc(userRef);
+    const uRef = doc(db,'users',user.uid);
+    const snap = await getDoc(uRef);
+    let userData = snap.exists() ? snap.data() : {};
     if (!snap.exists()) {
-      await setDoc(userRef, {
-        uid: user.uid,
-        displayName: user.displayName || user.email.split('@')[0],
-        email: user.email,
-        photoURL: user.photoURL || '',
-        skillLevel: '3.0-3.5',
-        city: '',
-        eventsJoined: 0,
-        createdAt: serverTimestamp()
-      });
+      userData = { uid:user.uid, displayName:user.displayName||user.email.split('@')[0], email:user.email, photoURL:user.photoURL||'', skillLevel:'3.0-3.5', city:'', eventsJoined:0, createdAt:serverTimestamp() };
+      await setDoc(uRef, userData);
     }
-    const userData = snap.exists() ? snap.data() : {};
-    showNavUser(user, userData);
-    showDashboard(user, userData);
+    setNavUser(user, userData);
+    setDashboard(user, userData);
     loadMyEvents(user.uid);
+    loadMyOrgEvents(user.uid);
     closeModal('auth-modal');
-    showToast('Welcome back, ' + (user.displayName || 'Player') + '! 🏓', 'success');
+    toast('Welcome back, '+(user.displayName||'Player')+'! 🏓','success');
   } else {
-    showNavGuest();
-    hideDashboard();
+    setNavGuest();
+    document.getElementById('dashboard-section').classList.add('hidden');
   }
 });
 
-function showNavUser(user, data) {
+function setNavUser(user, data) {
   document.getElementById('nav-guest').classList.add('hidden');
-  document.getElementById('nav-user-info').classList.remove('hidden');
-  const name = user.displayName || data.displayName || 'Player';
+  const ni = document.getElementById('nav-user-info');
+  ni.classList.remove('hidden'); ni.style.display='flex';
+  const name = user.displayName||data.displayName||'Player';
   document.getElementById('nav-name').textContent = name.split(' ')[0];
   const av = document.getElementById('nav-avatar');
-  if (user.photoURL) {
-    av.innerHTML = `<img src="${user.photoURL}" alt="${name}"/>`;
-  } else {
-    av.textContent = getInitials(name);
-  }
+  av.innerHTML = user.photoURL ? `<img src="${user.photoURL}"/>` : initials(name);
 }
-
-function showNavGuest() {
+function setNavGuest() {
   document.getElementById('nav-guest').classList.remove('hidden');
-  document.getElementById('nav-user-info').classList.add('hidden');
+  const ni = document.getElementById('nav-user-info');
+  ni.classList.add('hidden'); ni.style.display='none';
 }
-
-function showDashboard(user, data) {
+function setDashboard(user, data) {
   document.getElementById('dashboard-section').classList.remove('hidden');
-  const name = user.displayName || data.displayName || 'Player';
+  const name = user.displayName||data.displayName||'Player';
   document.getElementById('dash-first-name').textContent = name.split(' ')[0];
-  document.getElementById('dash-joined').textContent = data.eventsJoined || 0;
-  document.getElementById('dash-skill').textContent = data.skillLevel || '—';
-  document.getElementById('dash-city').textContent = data.city || 'Not set';
+  document.getElementById('dash-joined').textContent = data.eventsJoined||0;
+  document.getElementById('dash-skill').textContent = data.skillLevel||'—';
+  document.getElementById('dash-city').textContent = data.city||'Not set';
 }
 
-function hideDashboard() {
-  document.getElementById('dashboard-section').classList.add('hidden');
+// ── GOOGLE AUTH ───────────────────────────────────────────────────────────
+async function googleAuth() {
+  try { await signInWithPopup(auth, gProvider); }
+  catch(e) { toast('Google sign-in failed: '+e.message,'error'); }
 }
+document.getElementById('btn-google-signin').addEventListener('click', googleAuth);
+document.getElementById('btn-google-signup').addEventListener('click', googleAuth);
 
-// ─── GOOGLE SIGN IN ──────────────────────────────────────────────────────
-async function handleGoogleAuth() {
-  try {
-    await signInWithPopup(auth, googleProvider);
-  } catch(e) {
-    showToast('Google sign-in failed: ' + e.message, 'error');
-  }
-}
-
-document.getElementById('btn-google-signin').addEventListener('click', handleGoogleAuth);
-document.getElementById('btn-google-signup').addEventListener('click', handleGoogleAuth);
-
-// ─── EMAIL SIGN IN ───────────────────────────────────────────────────────
+// ── EMAIL SIGN IN ─────────────────────────────────────────────────────────
 document.getElementById('btn-email-signin').addEventListener('click', async () => {
   const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  errEl.classList.add('hidden');
-  if (!email || !password) { errEl.textContent = 'Please enter email and password.'; errEl.classList.remove('hidden'); return; }
+  const pw = document.getElementById('login-password').value;
+  const err = document.getElementById('login-error');
+  err.classList.add('hidden');
+  if (!email||!pw){ err.textContent='Enter email and password.'; err.classList.remove('hidden'); return; }
   const btn = document.getElementById('btn-email-signin');
-  btn.innerHTML = '<span class="spinner"></span>';
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-  } catch(e) {
-    errEl.textContent = e.code === 'auth/invalid-credential' ? 'Wrong email or password.' : e.message;
-    errEl.classList.remove('hidden');
-    btn.textContent = 'Sign In';
-  }
+  btn.innerHTML='<span class="spinner"></span> Signing in...';
+  try { await signInWithEmailAndPassword(auth,email,pw); }
+  catch(e){ err.textContent=e.code==='auth/invalid-credential'?'Wrong email or password.':e.message; err.classList.remove('hidden'); btn.textContent='Sign In'; }
 });
 
-// ─── EMAIL REGISTER ──────────────────────────────────────────────────────
+// ── EMAIL REGISTER ────────────────────────────────────────────────────────
 document.getElementById('btn-email-signup').addEventListener('click', async () => {
-  const name = document.getElementById('reg-name').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
-  const password = document.getElementById('reg-password').value;
-  const skill = document.getElementById('reg-skill').value;
-  const city = document.getElementById('reg-city').value.trim();
-  const errEl = document.getElementById('reg-error');
-  errEl.classList.add('hidden');
-  if (!name || !email || !password) { errEl.textContent = 'Please fill in all required fields.'; errEl.classList.remove('hidden'); return; }
-  if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.classList.remove('hidden'); return; }
-  const btn = document.getElementById('btn-email-signup');
-  btn.innerHTML = '<span class="spinner"></span>';
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pw=document.getElementById('reg-password').value;
+  const skill=document.getElementById('reg-skill').value;
+  const city=document.getElementById('reg-city').value.trim();
+  const err=document.getElementById('reg-error');
+  err.classList.add('hidden');
+  if(!name||!email||!pw){ err.textContent='Fill in all required fields.'; err.classList.remove('hidden'); return; }
+  if(pw.length<6){ err.textContent='Password must be at least 6 characters.'; err.classList.remove('hidden'); return; }
+  const btn=document.getElementById('btn-email-signup');
+  btn.innerHTML='<span class="spinner"></span>';
   try {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(cred.user, { displayName: name });
-    await setDoc(doc(db, 'users', cred.user.uid), {
-      uid: cred.user.uid,
-      displayName: name,
-      email: email,
-      photoURL: '',
-      skillLevel: skill,
-      city: city,
-      eventsJoined: 0,
-      createdAt: serverTimestamp()
-    });
+    const cred = await createUserWithEmailAndPassword(auth,email,pw);
+    await updateProfile(cred.user,{displayName:name});
+    await setDoc(doc(db,'users',cred.user.uid),{uid:cred.user.uid,displayName:name,email,photoURL:'',skillLevel:skill,city,eventsJoined:0,createdAt:serverTimestamp()});
     loadStats();
-  } catch(e) {
-    errEl.textContent = e.code === 'auth/email-already-in-use' ? 'That email is already registered.' : e.message;
-    errEl.classList.remove('hidden');
-    btn.textContent = 'Create Account';
-  }
+  } catch(e){ err.textContent=e.code==='auth/email-already-in-use'?'Email already registered.':e.message; err.classList.remove('hidden'); btn.textContent='Create Account'; }
 });
 
-// ─── SIGN OUT ────────────────────────────────────────────────────────────
-document.getElementById('btn-signout').addEventListener('click', async () => {
-  await signOut(auth);
-  closeModal('profile-modal');
-  showToast('Signed out. See you on the courts! 🏓');
-});
+// ── SIGN OUT ──────────────────────────────────────────────────────────────
+document.getElementById('btn-signout').addEventListener('click', async ()=>{ await signOut(auth); closeModal('profile-modal'); toast('Signed out. See you on the courts! 🏓'); });
 
-// ─── PROFILE MODAL ───────────────────────────────────────────────────────
+// ── PROFILE MODAL ─────────────────────────────────────────────────────────
 window.openProfileModal = async () => {
-  if (!currentUser) return;
-  const snap = await getDoc(doc(db, 'users', currentUser.uid));
-  const data = snap.data() || {};
-  const name = currentUser.displayName || data.displayName || 'Player';
+  if(!currentUser) return;
+  const snap = await getDoc(doc(db,'users',currentUser.uid));
+  const data = snap.data()||{};
+  const name = currentUser.displayName||data.displayName||'Player';
   const bigAv = document.getElementById('profile-avatar-big');
-  if (currentUser.photoURL) {
-    bigAv.innerHTML = `<img src="${currentUser.photoURL}" alt="${name}"/>`;
-  } else {
-    bigAv.textContent = getInitials(name);
-  }
+  bigAv.innerHTML = currentUser.photoURL ? `<img src="${currentUser.photoURL}"/>` : initials(name);
   document.getElementById('profile-display-name').textContent = name;
   document.getElementById('profile-email-display').textContent = currentUser.email;
-  document.getElementById('profile-games').textContent = data.eventsJoined || 0;
-  document.getElementById('profile-skill').textContent = data.skillLevel || '—';
-  document.getElementById('profile-city-input').value = data.city || '';
-  document.getElementById('profile-skill-input').value = data.skillLevel || '3.0-3.5';
-  const badgeEl = document.getElementById('profile-badge-display');
-  badgeEl.innerHTML = `<span class="badge badge-green">${data.skillLevel || 'DUPR 3.0-3.5'}</span>`;
+  document.getElementById('profile-games').textContent = data.eventsJoined||0;
+  document.getElementById('profile-skill').textContent = data.skillLevel||'—';
+  document.getElementById('profile-city-input').value = data.city||'';
+  document.getElementById('profile-skill-input').value = data.skillLevel||'3.0-3.5';
+  document.getElementById('profile-badge-display').innerHTML = `<span class="badge badge-green">${data.skillLevel||'DUPR 3.0-3.5'}</span>`;
   openModal('profile-modal');
 };
-
 document.getElementById('btn-save-profile').addEventListener('click', async () => {
-  if (!currentUser) return;
-  const city = document.getElementById('profile-city-input').value.trim();
-  const skill = document.getElementById('profile-skill-input').value;
-  await updateDoc(doc(db, 'users', currentUser.uid), { city, skillLevel: skill });
-  document.getElementById('dash-skill').textContent = skill;
-  document.getElementById('dash-city').textContent = city || 'Not set';
-  closeModal('profile-modal');
-  showToast('Profile updated! ✓', 'success');
+  if(!currentUser) return;
+  const city=document.getElementById('profile-city-input').value.trim();
+  const skill=document.getElementById('profile-skill-input').value;
+  await updateDoc(doc(db,'users',currentUser.uid),{city,skillLevel:skill});
+  document.getElementById('dash-skill').textContent=skill;
+  document.getElementById('dash-city').textContent=city||'Not set';
+  closeModal('profile-modal'); toast('Profile updated! ✓','success');
 });
 
-// ─── LOAD EVENTS ─────────────────────────────────────────────────────────
-async function loadEvents() {
+// ── LOAD EVENTS ───────────────────────────────────────────────────────────
+function loadEvents() {
   try {
-    const q = query(collection(db, 'events'), orderBy('createdAt', 'desc'), limit(30));
-    onSnapshot(q, (snap) => {
-      allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const q = query(collection(db,'events'), orderBy('createdAt','desc'), limit(40));
+    onSnapshot(q, snap => {
+      allEvents = snap.docs.map(d=>({id:d.id,...d.data()}));
       renderEvents(allEvents, currentFilter);
-      updateStatEvents(allEvents.length);
+      document.getElementById('stat-events').textContent = allEvents.length;
     });
   } catch(e) {
-    document.getElementById('events-container').innerHTML = `<div class="no-events">Could not load events. Please check Firestore rules.</div>`;
+    document.getElementById('events-container').innerHTML='<div class="no-events">Could not load events. Check Firestore rules.</div>';
   }
 }
 
 function renderEvents(events, filter) {
-  const filtered = filter === 'all' ? events : events.filter(e => e.type === filter);
-  const container = document.getElementById('events-container');
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="no-events">No ${filter === 'all' ? '' : filter} events yet. <a href="#" style="color:var(--green);font-weight:600" onclick="openPostEvent()">Post the first one!</a></div>`;
+  const list = filter==='all' ? events : events.filter(e=>e.type===filter);
+  const c = document.getElementById('events-container');
+  if(!list.length){
+    c.innerHTML=`<div class="no-events">No ${filter==='all'?'':filter} events yet. <a href="#" style="color:var(--green);font-weight:600" onclick="openPostEvent()">Post the first one!</a></div>`;
     return;
   }
-  container.innerHTML = `<div class="events-grid">${filtered.map(e => renderEventCard(e)).join('')}</div>`;
+  c.innerHTML=`<div class="events-grid">${list.map(e=>renderEventCard(e)).join('')}</div>`;
+}
+
+function getRegistrationStatus(e) {
+  // returns: 'organizer' | 'approved' | 'pending' | 'rejected' | 'none'
+  if (!currentUser) return 'none';
+  if (e.hostUid === currentUser.uid) return 'organizer';
+  const players = e.players || {};
+  const me = players[currentUser.uid];
+  if (me) return me.status || 'pending';
+  // legacy: check registeredUids
+  if (e.registeredUids && e.registeredUids.includes(currentUser.uid)) return 'approved';
+  return 'none';
 }
 
 function renderEventCard(e) {
-  const spotsLeft = (e.maxPlayers || 16) - (e.registeredCount || 0);
+  const approved = Object.values(e.players||{}).filter(p=>p.status==='approved').length;
+  const pending = Object.values(e.players||{}).filter(p=>p.status==='pending').length;
+  const spotsLeft = (e.maxPlayers||16) - approved;
   const isFull = spotsLeft <= 0;
-  const isJoined = e.registeredUids && currentUser && e.registeredUids.includes(currentUser.uid);
+  const myStatus = getRegistrationStatus(e);
+  const isOrganizer = myStatus === 'organizer';
+  const isClosed = e.status === 'closed' || e.status === 'cancelled';
+
+  let actionBtn = '';
+  if (isOrganizer) {
+    actionBtn = `
+      <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+        ${pending>0?`<span class="pending-chip">⏳ ${pending} pending</span>`:''}
+        <button class="btn btn-primary btn-sm" onclick="openManageEvent('${e.id}')">Manage</button>
+      </div>`;
+  } else if (myStatus==='approved') {
+    actionBtn = `<span class="badge badge-green">✓ Approved</span>`;
+  } else if (myStatus==='pending') {
+    actionBtn = `<span class="badge badge-orange">⏳ Pending</span>`;
+  } else if (myStatus==='rejected') {
+    actionBtn = `<span class="badge badge-red">✗ Rejected</span>`;
+  } else if (!currentUser) {
+    actionBtn = `<button class="btn btn-primary btn-sm" onclick="openModal('auth-modal')">Sign in to Join</button>`;
+  } else if (isClosed) {
+    actionBtn = `<span class="badge badge-gray">Closed</span>`;
+  } else if (isFull) {
+    actionBtn = `<button class="btn btn-sm" style="background:var(--border);color:var(--muted);cursor:not-allowed" disabled>Full</button>`;
+  } else {
+    actionBtn = `<button class="btn btn-primary btn-sm" onclick="requestJoin('${e.id}')">Request to Join</button>`;
+  }
+
   return `
     <div class="event-card">
       <div class="event-stripe ${getStripe(e.type)}"></div>
       <div class="event-body">
-        <span class="badge ${getBadgeClass(e.type)}">${e.type || 'drop-in'}</span>
+        <span class="badge ${getBadge(e.type)}">${e.type||'drop-in'}</span>
+        ${e.status&&e.status!=='open'?`<span class="badge badge-gray" style="margin-left:4px">${e.status}</span>`:''}
         <h3>${e.name}</h3>
         <div class="event-meta">
-          <span>📅 ${formatDate(e.date)}</span>
-          <span>📍 ${e.location}${e.city ? ', ' + e.city : ''}</span>
-          <span>⭐ ${e.skillLevel || 'All Levels'}</span>
-          ${e.description ? `<span style="margin-top:3px;color:var(--mid)">${e.description}</span>` : ''}
+          <span>📅 ${fmtDate(e.date)}</span>
+          <span>📍 ${e.location}${e.city?', '+e.city:''}</span>
+          <span>⭐ ${e.skillLevel||'All Levels'} · ${fmtPeso(e.fee)}</span>
+          ${e.description?`<span style="margin-top:2px">${e.description}</span>`:''}
         </div>
         <div class="event-footer">
-          <div class="spots-text">${isFull ? '<span style="color:var(--red)">Full</span>' : `Spots: <strong>${spotsLeft} left</strong>`}</div>
-          ${currentUser
-            ? isJoined
-              ? `<button class="btn btn-sm" style="background:#fff;border:1.5px solid var(--green);color:var(--green);cursor:default">✓ Joined</button>`
-              : isFull
-              ? `<button class="btn btn-sm" style="background:var(--border);color:var(--muted);cursor:not-allowed" disabled>Full</button>`
-              : `<button class="btn btn-primary btn-sm" onclick="joinEvent('${e.id}')">Join</button>`
-            : `<button class="btn btn-primary btn-sm" onclick="openModal('auth-modal')">Sign in to Join</button>`
-          }
+          <div class="spots-text">
+            ${isFull?'<span style="color:var(--red)">Full</span>':`<strong>${spotsLeft}</strong> spots left`}
+            <span style="margin-left:6px;color:var(--green)">${approved} joined</span>
+          </div>
+          ${actionBtn}
         </div>
       </div>
     </div>`;
@@ -736,147 +852,367 @@ function renderEventCard(e) {
 
 window.filterEvents = (btn, filter) => {
   currentFilter = filter;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderEvents(allEvents, filter);
 };
 
-// ─── OPEN POST EVENT (auth-gated) ────────────────────────────────────────
-window.openPostEvent = () => {
-  if (!currentUser) {
-    showToast('Please sign in to post an event 🏓', 'error');
-    openModal('auth-modal');
-    return;
+// ── REQUEST TO JOIN ───────────────────────────────────────────────────────
+window.requestJoin = async (eventId) => {
+  if (!currentUser) { openModal('auth-modal'); return; }
+  const eRef = doc(db,'events',eventId);
+  const eSnap = await getDoc(eRef);
+  if (!eSnap.exists()) return;
+  const eData = eSnap.data();
+  const players = eData.players||{};
+  if (players[currentUser.uid]) { toast('You already applied to this event!'); return; }
+  const approved = Object.values(players).filter(p=>p.status==='approved').length;
+  if (approved >= (eData.maxPlayers||16)) { toast('Sorry, this event is full.','error'); return; }
+
+  const uSnap = await getDoc(doc(db,'users',currentUser.uid));
+  const uData = uSnap.data()||{};
+  const needsApproval = eData.requireApproval !== false; // default true
+  const status = needsApproval ? 'pending' : 'approved';
+
+  const playerEntry = {
+    uid: currentUser.uid,
+    displayName: currentUser.displayName || uData.displayName || 'Player',
+    email: currentUser.email,
+    photoURL: currentUser.photoURL || uData.photoURL || '',
+    skillLevel: uData.skillLevel || '—',
+    city: uData.city || '',
+    status,
+    paid: false,
+    joinedAt: new Date().toISOString()
+  };
+
+  await updateDoc(eRef, { [`players.${currentUser.uid}`]: playerEntry });
+  if (status === 'approved') {
+    await updateDoc(doc(db,'users',currentUser.uid), { eventsJoined: increment(1) });
+    toast('You joined the event! See you on the court 🏓','success');
+  } else {
+    toast('Join request sent! Waiting for organizer approval. ⏳');
   }
+  loadMyEvents(currentUser.uid);
+};
+
+// ── MY JOINED EVENTS ──────────────────────────────────────────────────────
+async function loadMyEvents(uid) {
+  const el = document.getElementById('my-events-list');
+  try {
+    const q = query(collection(db,'events'), orderBy('createdAt','desc'), limit(20));
+    const snap = await getDocs(q);
+    const mine = snap.docs.filter(d=>{
+      const data = d.data();
+      const players = data.players||{};
+      return players[uid] && players[uid].status !== 'rejected' && data.hostUid !== uid;
+    });
+    if (!mine.length) {
+      el.innerHTML=`<div style="color:var(--muted);font-size:.875rem">You haven't joined any events yet. <a href="#events-section" style="color:var(--green);font-weight:600">Find one!</a></div>`;
+      return;
+    }
+    el.innerHTML = mine.map(d=>{
+      const e=d.data(); const me=(e.players||{})[uid];
+      const statusBadge = me.status==='approved'?`<span class="badge badge-green">Approved</span>`:me.status==='pending'?`<span class="badge badge-orange">Pending</span>`:`<span class="badge badge-red">Rejected</span>`;
+      const paidBadge = me.status==='approved' ? (me.paid?`<span class="badge" style="background:#FFFBDB;color:#7A6000">💰 Paid</span>`:`<span class="badge badge-gray">Unpaid</span>`):'';
+      return `<div class="my-event-item">
+        <div class="my-event-info"><h4>${e.name}</h4><p>${fmtDate(e.date)} · ${e.location}</p></div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap">${statusBadge}${paidBadge}</div>
+      </div>`;
+    }).join('');
+  } catch(err) {
+    el.innerHTML=`<div style="color:var(--muted);font-size:.875rem">Join events to see them here.</div>`;
+  }
+}
+
+// ── MY ORGANIZED EVENTS ───────────────────────────────────────────────────
+async function loadMyOrgEvents(uid) {
+  const el = document.getElementById('my-org-events-list');
+  try {
+    const q = query(collection(db,'events'), where('hostUid','==',uid), orderBy('createdAt','desc'), limit(10));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      el.innerHTML=`<div style="color:var(--muted);font-size:.875rem">You haven't organized any events yet. <a href="#" onclick="openPostEvent()" style="color:var(--green);font-weight:600">Post one!</a></div>`;
+      return;
+    }
+    let totalPending = 0;
+    el.innerHTML = snap.docs.map(d=>{
+      const e=d.data(); const eid=d.id;
+      const players = e.players||{};
+      const pendingCount = Object.values(players).filter(p=>p.status==='pending').length;
+      const approvedCount = Object.values(players).filter(p=>p.status==='approved').length;
+      const paidCount = Object.values(players).filter(p=>p.paid).length;
+      totalPending += pendingCount;
+      return `<div class="my-event-item">
+        <div class="my-event-info">
+          <h4>${e.name}</h4>
+          <p>${fmtDate(e.date)} · ${e.location}</p>
+        </div>
+        <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap">
+          ${pendingCount>0?`<span class="pending-chip">⏳ ${pendingCount}</span>`:''}
+          <span class="badge badge-green">${approvedCount} approved</span>
+          <span class="badge" style="background:#FFFBDB;color:#7A6000">💰 ${paidCount}/${approvedCount}</span>
+          <button class="btn btn-primary btn-sm" onclick="openManageEvent('${eid}')">Manage</button>
+        </div>
+      </div>`;
+    }).join('');
+    // show alert badge
+    if (totalPending > 0) {
+      const alertEl = document.getElementById('org-pending-alert');
+      alertEl.textContent = `${totalPending} pending`;
+      alertEl.classList.remove('hidden');
+      document.getElementById('nav-pending-badge').classList.remove('hidden');
+    }
+  } catch(err) {
+    el.innerHTML=`<div style="color:var(--muted);font-size:.875rem">Could not load your events.</div>`;
+    console.error(err);
+  }
+}
+
+// ── OPEN POST EVENT ───────────────────────────────────────────────────────
+window.openPostEvent = () => {
+  if (!currentUser) { toast('Please sign in to post an event 🏓','error'); openModal('auth-modal'); return; }
   openModal('create-event-modal');
 };
 
-// ─── JOIN EVENT ──────────────────────────────────────────────────────────
-window.joinEvent = async (eventId) => {
-  if (!currentUser) { openModal('auth-modal'); return; }
-  try {
-    const eventRef = doc(db, 'events', eventId);
-    const eventSnap = await getDoc(eventRef);
-    if (!eventSnap.exists()) return;
-    const eventData = eventSnap.data();
-    const uids = eventData.registeredUids || [];
-    if (uids.includes(currentUser.uid)) { showToast('You already joined this event!'); return; }
-    if ((eventData.registeredCount || 0) >= (eventData.maxPlayers || 16)) { showToast('Sorry, this event is full.', 'error'); return; }
-    uids.push(currentUser.uid);
-    await updateDoc(eventRef, { registeredUids: uids, registeredCount: uids.length });
-    await updateDoc(doc(db, 'users', currentUser.uid), { eventsJoined: increment(1) });
-    showToast('You joined the event! See you on the court 🏓', 'success');
-    document.getElementById('dash-joined').textContent = parseInt(document.getElementById('dash-joined').textContent || 0) + 1;
-    loadMyEvents(currentUser.uid);
-  } catch(e) {
-    showToast('Could not join event: ' + e.message, 'error');
-  }
-};
-
-// ─── MY EVENTS ───────────────────────────────────────────────────────────
-async function loadMyEvents(uid) {
-  try {
-    const q = query(collection(db, 'events'), where('registeredUids', 'array-contains', uid), orderBy('createdAt', 'desc'), limit(5));
-    const snap = await getDocs(q);
-    const el = document.getElementById('my-events-list');
-    if (snap.empty) {
-      el.innerHTML = `<div style="color:var(--muted);font-size:.875rem">You haven't joined any events yet. <a href="#events-section" style="color:var(--green);font-weight:600">Find one!</a></div>`;
-      return;
-    }
-    el.innerHTML = snap.docs.map(d => {
-      const e = d.data();
-      return `<div class="my-event-item">
-        <div class="my-event-info"><h4>${e.name}</h4><p>${formatDate(e.date)} · ${e.location}</p></div>
-        <span class="badge ${getBadgeClass(e.type)}">${e.type}</span>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    // query may need index — show fallback
-    document.getElementById('my-events-list').innerHTML = `<div style="color:var(--muted);font-size:.875rem">Join events to see them here.</div>`;
-  }
-}
-
-// ─── CREATE EVENT ────────────────────────────────────────────────────────
+// ── CREATE EVENT ──────────────────────────────────────────────────────────
 document.getElementById('btn-create-event').addEventListener('click', async () => {
   if (!currentUser) { openModal('auth-modal'); return; }
-  const name = document.getElementById('ev-name').value.trim();
-  const type = document.getElementById('ev-type').value;
-  const date = document.getElementById('ev-date').value;
-  const location = document.getElementById('ev-location').value.trim();
-  const city = document.getElementById('ev-city').value.trim();
-  const skill = document.getElementById('ev-skill').value;
-  const max = parseInt(document.getElementById('ev-max').value) || 16;
-  const desc = document.getElementById('ev-desc').value.trim();
-  const errEl = document.getElementById('ev-error');
+  const name=document.getElementById('ev-name').value.trim();
+  const type=document.getElementById('ev-type').value;
+  const date=document.getElementById('ev-date').value;
+  const location=document.getElementById('ev-location').value.trim();
+  const city=document.getElementById('ev-city').value.trim();
+  const skill=document.getElementById('ev-skill').value;
+  const max=parseInt(document.getElementById('ev-max').value)||16;
+  const fee=parseFloat(document.getElementById('ev-fee').value)||0;
+  const desc=document.getElementById('ev-desc').value.trim();
+  const requireApproval=document.getElementById('ev-approval').checked;
+  const errEl=document.getElementById('ev-error');
   errEl.classList.add('hidden');
-  if (!name || !date || !location) { errEl.textContent = 'Please fill in name, date, and location.'; errEl.classList.remove('hidden'); return; }
-  const btn = document.getElementById('btn-create-event');
-  btn.innerHTML = '<span class="spinner"></span>';
+  if(!name||!date||!location){ errEl.textContent='Please fill in name, date, and location.'; errEl.classList.remove('hidden'); return; }
+  const btn=document.getElementById('btn-create-event');
+  btn.innerHTML='<span class="spinner"></span>';
   try {
-    await addDoc(collection(db, 'events'), {
-      name, type, date: new Date(date), location, city, skillLevel: skill,
-      maxPlayers: max, description: desc,
-      hostUid: currentUser.uid,
-      hostName: currentUser.displayName || 'Anonymous',
-      registeredUids: [currentUser.uid],
-      registeredCount: 1,
-      createdAt: serverTimestamp()
+    const uSnap = await getDoc(doc(db,'users',currentUser.uid));
+    const uData = uSnap.data()||{};
+    // Host is auto-approved in their own event
+    const hostEntry = {
+      uid:currentUser.uid,
+      displayName:currentUser.displayName||uData.displayName||'Organizer',
+      email:currentUser.email,
+      photoURL:currentUser.photoURL||'',
+      skillLevel:uData.skillLevel||'—',
+      city:uData.city||city,
+      status:'approved',
+      paid:true,
+      role:'organizer',
+      joinedAt:new Date().toISOString()
+    };
+    await addDoc(collection(db,'events'),{
+      name,type,date:new Date(date),location,city,skillLevel:skill,
+      maxPlayers:max,fee,description:desc,requireApproval,
+      status:'open',
+      hostUid:currentUser.uid,
+      hostName:currentUser.displayName||'Organizer',
+      players:{[currentUser.uid]:hostEntry},
+      createdAt:serverTimestamp()
     });
-    await updateDoc(doc(db, 'users', currentUser.uid), { eventsJoined: increment(1) });
     closeModal('create-event-modal');
-    document.getElementById('ev-name').value = '';
-    document.getElementById('ev-date').value = '';
-    document.getElementById('ev-location').value = '';
-    document.getElementById('ev-city').value = '';
-    document.getElementById('ev-desc').value = '';
-    showToast('Event posted! 🏓', 'success');
+    ['ev-name','ev-date','ev-location','ev-city','ev-desc'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ev-fee').value='0';
+    toast('Event posted! 🏓','success');
     document.getElementById('events-section').scrollIntoView({behavior:'smooth'});
-  } catch(e) {
-    errEl.textContent = 'Error: ' + e.message;
-    errEl.classList.remove('hidden');
-  }
-  btn.textContent = 'Post Event';
+    loadMyOrgEvents(currentUser.uid);
+  } catch(e){ errEl.textContent='Error: '+e.message; errEl.classList.remove('hidden'); }
+  btn.textContent='Post Event';
 });
 
-// ─── LEADERBOARD ─────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  MANAGE EVENT (Organizer Panel)
+// ══════════════════════════════════════════════════════════════
+window.openManageEvent = async (eventId) => {
+  if (!currentUser) return;
+  currentManageEventId = eventId;
+
+  // Live listener on the event
+  if (manageUnsubscribe) manageUnsubscribe();
+  manageUnsubscribe = onSnapshot(doc(db,'events',eventId), snap => {
+    if (!snap.exists()) { closeModal('manage-event-modal'); return; }
+    const e = {id:snap.id,...snap.data()};
+    if (e.hostUid !== currentUser.uid) { toast('Access denied.','error'); closeModal('manage-event-modal'); return; }
+    renderManageModal(e);
+  });
+
+  openModal('manage-event-modal');
+  // Reset to pending tab
+  document.querySelectorAll('.manage-tab').forEach((b,i)=>{b.classList.toggle('active',i===0)});
+  document.querySelectorAll('.manage-tab-pane').forEach((p,i)=>{p.classList.toggle('active',i===0)});
+};
+
+function renderManageModal(e) {
+  document.getElementById('manage-event-title').textContent = e.name;
+  document.getElementById('manage-event-sub').textContent = `${fmtDate(e.date)} · ${e.location} · ${fmtPeso(e.fee)}`;
+
+  const players = e.players || {};
+  const pending = Object.values(players).filter(p=>p.status==='pending'&&p.role!=='organizer');
+  const approved = Object.values(players).filter(p=>p.status==='approved'&&p.role!=='organizer');
+  const allApproved = Object.values(players).filter(p=>p.status==='approved');
+  const paid = allApproved.filter(p=>p.paid);
+
+  // Badge
+  const badge = document.getElementById('pending-count-badge');
+  badge.textContent = pending.length || '';
+  badge.style.display = pending.length ? 'inline-block' : 'none';
+
+  // ── PENDING list ──
+  document.getElementById('pending-list').innerHTML = pending.length
+    ? pending.map(p=>`
+        <div class="player-row">
+          <div class="player-row-info">
+            ${avatarHtml(p.displayName,p.photoURL,38)}
+            <div>
+              <div class="player-row-name">${p.displayName}</div>
+              <div class="player-row-meta">${p.skillLevel||'—'} · ${p.city||'—'} · ${p.email}</div>
+            </div>
+          </div>
+          <div class="player-row-actions">
+            <button class="btn btn-success btn-xs" onclick="approvePlayer('${p.uid}')">✓ Approve</button>
+            <button class="btn btn-danger btn-xs" onclick="rejectPlayer('${p.uid}')">✗ Reject</button>
+          </div>
+        </div>`).join('')
+    : '<div class="empty-state"><div class="icon">🎉</div>No pending requests.</div>';
+
+  // ── APPROVED list ──
+  document.getElementById('approved-list').innerHTML = approved.length
+    ? approved.map(p=>`
+        <div class="player-row">
+          <div class="player-row-info">
+            ${avatarHtml(p.displayName,p.photoURL,38)}
+            <div>
+              <div class="player-row-name">${p.displayName}</div>
+              <div class="player-row-meta">${p.skillLevel||'—'} · ${p.city||'—'}</div>
+            </div>
+          </div>
+          <div class="player-row-actions">
+            <span class="badge ${p.paid?'badge-green':'badge-gray'}" style="margin-right:2px">${p.paid?'💰 Paid':'Unpaid'}</span>
+            ${p.paid
+              ? `<button class="btn btn-xs" style="border:1.5px solid var(--border);background:transparent;color:var(--mid)" onclick="togglePaid('${p.uid}',false)">Undo</button>`
+              : `<button class="btn btn-yellow btn-xs" onclick="togglePaid('${p.uid}',true)">Mark Paid</button>`
+            }
+            <button class="btn btn-danger btn-xs" onclick="removePlayer('${p.uid}')">Remove</button>
+          </div>
+        </div>`).join('')
+    : '<div class="empty-state"><div class="icon">👥</div>No approved players yet.</div>';
+
+  // ── PAYMENTS summary ──
+  document.getElementById('pay-total').textContent = allApproved.length;
+  document.getElementById('pay-paid').textContent = paid.length;
+  document.getElementById('pay-unpaid').textContent = allApproved.length - paid.length;
+  const feeAmt = e.fee||0;
+  document.getElementById('fee-display').textContent = feeAmt
+    ? `Fee: ${fmtPeso(feeAmt)} per player · Collected: ${fmtPeso(paid.length*feeAmt)} / ${fmtPeso(allApproved.length*feeAmt)}`
+    : 'This event has no entry fee.';
+
+  document.getElementById('payments-list').innerHTML = allApproved.length
+    ? allApproved.map(p=>`
+        <div class="player-row">
+          <div class="player-row-info">
+            ${avatarHtml(p.displayName,p.photoURL,38)}
+            <div>
+              <div class="player-row-name">${p.displayName}${p.role==='organizer'?' <span class="badge badge-green" style="font-size:.65rem">Host</span>':''}</div>
+              <div class="player-row-meta">${p.email}</div>
+            </div>
+          </div>
+          <div class="player-row-actions">
+            ${p.paid
+              ? `<span class="badge badge-green">💰 Paid</span> <button class="btn btn-xs" style="border:1.5px solid var(--border);background:transparent;color:var(--mid)" onclick="togglePaid('${p.uid}',false)">Undo</button>`
+              : `<span class="badge badge-gray">Unpaid</span> <button class="btn btn-yellow btn-xs" onclick="togglePaid('${p.uid}',true)">Mark Paid</button>`
+            }
+          </div>
+        </div>`).join('')
+    : '<div class="empty-state"><div class="icon">💰</div>No approved players yet.</div>';
+
+  // ── SETTINGS ──
+  document.getElementById('settings-approval').checked = e.requireApproval !== false;
+  document.getElementById('settings-status').value = e.status||'open';
+  document.getElementById('settings-fee').value = e.fee||0;
+}
+
+// ── PLAYER ACTIONS ────────────────────────────────────────────────────────
+window.approvePlayer = async (uid) => {
+  if (!currentManageEventId) return;
+  const eRef = doc(db,'events',currentManageEventId);
+  await updateDoc(eRef, { [`players.${uid}.status`]: 'approved' });
+  // increment their eventsJoined
+  await updateDoc(doc(db,'users',uid), { eventsJoined: increment(1) }).catch(()=>{});
+  toast('Player approved! ✓','success');
+  loadMyOrgEvents(currentUser.uid);
+};
+
+window.rejectPlayer = async (uid) => {
+  if (!currentManageEventId) return;
+  await updateDoc(doc(db,'events',currentManageEventId), { [`players.${uid}.status`]: 'rejected' });
+  toast('Player rejected.');
+  loadMyOrgEvents(currentUser.uid);
+};
+
+window.removePlayer = async (uid) => {
+  if (!currentManageEventId||!confirm('Remove this player from the event?')) return;
+  const eRef = doc(db,'events',currentManageEventId);
+  // Remove from players map
+  const snap = await getDoc(eRef);
+  const players = snap.data().players||{};
+  delete players[uid];
+  await updateDoc(eRef, { players });
+  toast('Player removed.');
+};
+
+window.togglePaid = async (uid, paid) => {
+  if (!currentManageEventId) return;
+  await updateDoc(doc(db,'events',currentManageEventId), { [`players.${uid}.paid`]: paid });
+  toast(paid ? '💰 Marked as paid!' : 'Payment undone.', paid ? 'success' : '');
+};
+
+// ── EVENT SETTINGS ────────────────────────────────────────────────────────
+window.updateEventSetting = async (field, value) => {
+  if (!currentManageEventId) return;
+  await updateDoc(doc(db,'events',currentManageEventId), { [field]: value });
+  toast('Setting saved ✓','success');
+};
+
+window.deleteEvent = async () => {
+  if (!currentManageEventId||!confirm('Permanently delete this event? This cannot be undone.')) return;
+  await deleteDoc(doc(db,'events',currentManageEventId));
+  closeModal('manage-event-modal');
+  toast('Event deleted.','error');
+  loadMyOrgEvents(currentUser.uid);
+};
+
+// ── LEADERBOARD ───────────────────────────────────────────────────────────
 async function loadLeaderboard() {
   try {
-    const q = query(collection(db, 'users'), orderBy('eventsJoined', 'desc'), limit(8));
+    const q = query(collection(db,'users'), orderBy('eventsJoined','desc'), limit(8));
     const snap = await getDocs(q);
     const lbBody = document.getElementById('lb-body');
-    if (snap.empty) { lbBody.innerHTML = '<div class="lb-loading">No players yet. Be the first!</div>'; return; }
-    const ranks = ['rank-gold','rank-silver','rank-bronze'];
-    const medals = ['🥇','🥈','🥉'];
-    lbBody.innerHTML = snap.docs.map((d, i) => {
-      const p = d.data();
-      const rankClass = i < 3 ? ranks[i] : 'rank-plain';
-      const medal = i < 3 ? medals[i] : `${i+1}`;
-      return `<div class="lb-row">
-        <span class="${rankClass}">${medal}</span>
-        <div><div class="player-name">${p.displayName || 'Anonymous'}</div><div class="player-club">${p.city || 'Philippines'}</div></div>
-        <span class="lb-rating">${p.skillLevel || '—'}</span>
-        <span class="lb-wins">${p.eventsJoined || 0}</span>
-        <span class="trend-up">↑</span>
-      </div>`;
+    if (snap.empty) { lbBody.innerHTML='<div style="color:rgba(255,255,255,.5);padding:2rem;text-align:center">No players yet. Be the first!</div>'; return; }
+    const ranks=['rank-gold','rank-silver','rank-bronze'];
+    const medals=['🥇','🥈','🥉'];
+    lbBody.innerHTML = snap.docs.map((d,i)=>{
+      const p=d.data();
+      const cls=i<3?ranks[i]:'rank-plain';
+      const med=i<3?medals[i]:`${i+1}`;
+      return `<div class="lb-row"><span class="${cls}">${med}</span><div><div class="player-name">${p.displayName||'Anonymous'}</div><div class="player-club">${p.city||'Philippines'}</div></div><span class="lb-rating">${p.skillLevel||'—'}</span><span class="lb-wins">${p.eventsJoined||0}</span><span class="trend-up">↑</span></div>`;
     }).join('');
-    updateStatPlayers(snap.size);
-    // cities count
-    const cities = new Set(snap.docs.map(d => d.data().city).filter(Boolean));
-    document.getElementById('stat-cities').textContent = cities.size || '—';
-  } catch(e) {
-    document.getElementById('lb-body').innerHTML = '<div class="lb-loading">Could not load rankings.</div>';
-  }
+    document.getElementById('stat-players').textContent = snap.size+'+';
+    const cities = new Set(snap.docs.map(d=>d.data().city).filter(Boolean));
+    document.getElementById('stat-cities').textContent = cities.size||'—';
+  } catch(e) { console.error(e); }
 }
 
-// ─── STATS ───────────────────────────────────────────────────────────────
-function updateStatPlayers(n) { document.getElementById('stat-players').textContent = n + '+'; }
-function updateStatEvents(n) { document.getElementById('stat-events').textContent = n; }
+function loadStats() { loadLeaderboard(); }
 
-async function loadStats() {
-  loadLeaderboard();
-}
-
-// ─── INIT ────────────────────────────────────────────────────────────────
+// ── INIT ──────────────────────────────────────────────────────────────────
 loadEvents();
 loadStats();
 </script>
