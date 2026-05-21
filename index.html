@@ -35,7 +35,6 @@
 
   /* HERO */
   .hero{background:var(--green);color:var(--white);padding:6rem 2rem 5rem;text-align:center;position:relative;overflow:hidden}
-  .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 110%,#52B78820 0%,transparent 70%)}
   .court-lines{position:absolute;inset:0;opacity:0.06;background-image:repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 48px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 48px)}
   .hero-content{position:relative;max-width:720px;margin:0 auto}
   .hero-badge{display:inline-block;background:var(--yellow);color:var(--dark);font-size:0.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:1.5rem}
@@ -43,19 +42,18 @@
   .hero h1 em{font-style:italic;color:var(--yellow)}
   .hero p{font-size:1.1rem;opacity:0.85;max-width:520px;margin:0 auto 2.5rem;line-height:1.7}
   .hero-ctas{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
-  .btn-primary{background:var(--yellow);color:var(--dark);padding:14px 32px;border-radius:100px;font-weight:700;font-size:1rem;text-decoration:none;transition:transform .15s,box-shadow .15s;display:inline-block}
+  .btn-primary{background:var(--yellow);color:var(--dark);padding:14px 32px;border-radius:100px;font-weight:700;font-size:1rem;text-decoration:none;transition:transform .15s,box-shadow .15s;display:inline-block;cursor:pointer;border:none;}
   .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.2)}
-  .btn-ghost{border:2px solid rgba(255,255,255,0.5);color:var(--white);padding:14px 32px;border-radius:100px;font-weight:600;font-size:1rem;text-decoration:none;transition:border-color .2s;display:inline-block}
-  .btn-ghost:hover{border-color:#fff}
+  .btn-ghost{border:2px solid rgba(255,255,255,0.5);color:var(--white);padding:14px 32px;border-radius:100px;font-weight:600;font-size:1rem;text-decoration:none;transition:border-color .2s;display:inline-block;cursor:pointer;background:transparent}
+  .btn-ghost:hover{border-color:#fff;background:rgba(255,255,255,0.1)}
 
-  /* MODAL BASICS */
-  .modal-overlay {position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s ease}
+  /* MODALS */
+  .modal-overlay {position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s ease;padding:1rem}
   .modal-overlay.active {opacity:1;pointer-events:all}
-  .modal-card {background:var(--white);width:100%;max-width:480px;border-radius:24px;padding:2rem;box-shadow:0 20px 40px rgba(0,0,0,0.15);position:relative;transform:translateY(20px);transition:transform 0.25s ease}
+  .modal-card {background:var(--white);width:100%;max-width:480px;border-radius:24px;padding:2rem;box-shadow:0 20px 40px rgba(0,0,0,0.15);position:relative;transform:translateY(20px);transition:transform 0.25s ease;max-height:90vh;overflow-y:auto}
   .modal-overlay.active .modal-card {transform:translateY(0)}
   .close-modal {position:absolute;top:1.5rem;right:1.5rem;background:transparent;border:none;font-size:1.5rem;cursor:pointer;color:var(--muted)}
   
-  /* USER PROFILE MODAL ELEMENTS */
   .profile-header {text-align:center;margin-bottom:1.5rem}
   .profile-avatar {width:80px;height:80px;border-radius:50%;border:3px solid var(--green-light);margin-bottom:0.5rem}
   .form-group {margin-bottom:1.25rem}
@@ -64,20 +62,37 @@
   .form-group input:disabled {background:rgba(0,0,0,0.03);color:var(--muted)}
   .form-group input:focus, .form-group select:focus {border-color:var(--green)}
   
-  /* ADMIN DASHBOARD SECTION */
-  .admin-section {background:var(--white);border-top:2px solid var(--border);border-bottom:2px solid var(--border);display:none;padding:5rem 2rem}
-  .admin-stats-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.5rem;margin-top:2rem;margin-bottom:3rem}
-  .admin-stat-card {background:var(--off-white);padding:1.5rem;border-radius:16px;border:1px solid var(--border)}
-  .table-wrapper {overflow-x:auto;background:var(--white);border:1px solid var(--border);border-radius:12px;margin-top:1.5rem}
-  .admin-table {width:100%;border-collapse:collapse;text-align:left;font-size:0.9rem}
-  .admin-table th, .admin-table td {padding:12px 16px;border-bottom:1px solid var(--border)}
-  .admin-table th {background:var(--off-white);font-weight:600;color:var(--mid)}
-  .badge-role {padding:2px 8px;border-radius:100px;font-size:0.75rem;font-weight:600}
-  .badge-role.admin {background:#FADBD8;color:#78281F}
-  .badge-role.user {background:var(--green-pale);color:var(--green)}
+  /* GRID SECTIONS */
+  .section{padding:5rem 2rem}.section-inner{max-width:1100px;margin:0 auto}.section-label{font-size:0.75rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:0.75rem}.section-title{font-family:'DM Serif Display',serif;font-size:clamp(2rem,4vw,2.8rem);line-height:1.2;color:var(--dark);margin-bottom:1rem}.section-sub{color:var(--mid);font-size:1rem;line-height:1.7;max-width:520px}
+  
+  /* TEAMS SECTION QUICK STYLING */
+  .teams-section {background: var(--green-pale); padding: 5rem 2rem;}
+  .teams-grid {display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 2.5rem;}
+  .team-card {background: var(--white); border: 1px solid var(--border); padding: 1.5rem; border-radius: 16px;}
+  .team-card h3 {font-family: 'DM Serif Display', serif; font-size: 1.3rem; margin-bottom: 0.5rem; color: var(--green);}
+  .team-meta {font-size: 0.85rem; color: var(--mid); margin-bottom: 1rem;}
 
-  /* EXISTING TEMPLATE STYLES MAINTAINED SHORTENED FOR SPACE */
-  .section{padding:5rem 2rem}.section-inner{max-width:1100px;margin:0 auto}.section-label{font-size:0.75rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:0.75rem}.section-title{font-family:'DM Serif Display',serif;font-size:clamp(2rem,4vw,2.8rem);line-height:1.2;color:var(--dark);margin-bottom:1rem}.section-sub{color:var(--mid);font-size:1rem;line-height:1.7;max-width:520px}.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;margin-top:3rem}.feature-card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:1.75rem;transition:transform .2s}.feature-icon{width:48px;height:48px;border-radius:12px;background:var(--green-pale);display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;font-size:1.4rem}.feature-card h3{font-size:1rem;font-weight:600;margin-bottom:0.5rem}.feature-card p{font-size:0.875rem;color:var(--mid);line-height:1.6}.events-section{background:var(--white);padding:5rem 2rem}.events-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:3rem}.event-card{border:1px solid var(--border);border-radius:16px;overflow:hidden}.event-banner{height:8px}.event-banner.green{background:var(--green-light)}.event-banner.yellow{background:var(--yellow)}.event-banner.dark{background:var(--green)}.event-body{padding:1.25rem}.event-tag{font-size:0.7rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:100px;display:inline-block;margin-bottom:0.75rem}.tag-tournament{background:#FEF9E7;color:#9A7D0A}.tag-club{background:var(--green-pale);color:var(--green)}.tag-dropin{background:#EBF5FB;color:#1A5276}.event-body h3{font-size:1rem;font-weight:600;margin-bottom:0.4rem}.event-meta{font-size:0.8rem;color:var(--muted);display:flex;flex-direction:column;gap:3px;margin-bottom:1rem}.event-meta span{display:flex;align-items:center;gap:5px}.event-footer{display:flex;align-items:center;justify-content:space-between;padding-top:0.75rem;border-top:1px solid var(--border)}.spots{font-size:0.8rem;color:var(--muted)}.spots strong{color:var(--green)}.btn-join{background:var(--green);color:#fff;border:none;padding:7px 18px;border-radius:100px;font-size:0.8rem;font-weight:600;cursor:pointer}.how-section{background:var(--off-white);padding:5rem 2rem}.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:2rem;margin-top:3rem}.step{text-align:center}.step-num{width:52px;height:52px;border-radius:50%;background:var(--green);color:#fff;font-family:'DM Serif Display',serif;font-size:1.4rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}.step h3{font-size:1rem;font-weight:600;margin-bottom:0.4rem}.step p{font-size:0.85rem;color:var(--mid);line-height:1.6}.leaderboard-section{background:var(--green);color:#fff;padding:5rem 2rem}.leaderboard-section .section-label{color:var(--yellow)}.leaderboard-section .section-title{color:#fff}.leaderboard-section .section-sub{color:rgba(255,255,255,0.75)}.lb-table{background:rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-top:3rem;border:1px solid rgba(255,255,255,0.1)}.lb-row{display:grid;grid-template-columns:48px 1fr 80px 80px 60px;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);gap:1rem}.rank{font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--yellow)}.rank.silver{color:#C0C0C0}.rank.bronze{color:#CD7F32}.rank.plain{color:rgba(255,255,255,0.5);font-size:1rem}.player-name{font-weight:500}.player-club{font-size:0.75rem;opacity:0.55}.rating{font-weight:600;color:var(--yellow)}.wins{opacity:0.85}.trend{font-size:0.75rem;font-weight:600}.trend.up{color:#52B788}.trend.down{color:#E74C3C}.cta-section{padding:6rem 2rem;text-align:center;background:var(--off-white)}.cta-box{background:var(--white);border:1px solid var(--border);border-radius:24px;padding:4rem 2rem;max-width:640px;margin:0 auto}.cta-box h2{font-family:'DM Serif Display',serif;font-size:clamp(1.8rem,4vw,2.6rem);margin-bottom:1rem;line-height:1.2}.cta-box p{color:var(--mid);margin-bottom:2rem;font-size:1rem;line-height:1.7}.cta-input-row{display:flex;gap:0.5rem;max-width:400px;margin:0 auto}.cta-input-row input{flex:1;padding:12px 16px;border:1.5px solid var(--border);border-radius:100px;font-size:0.9rem;outline:none}.cta-input-row button{background:var(--green);color:#fff;border:none;padding:12px 24px;border-radius:100px;font-weight:600;cursor:pointer}footer{background:var(--dark);color:rgba(255,255,255,0.5);padding:2.5rem 2rem;text-align:center}footer .logo{justify-content:center;margin-bottom:0.5rem;color:#fff}footer p{font-size:0.8rem}
+  /* EVENTS */
+  .events-section{background:var(--white);padding:5rem 2rem}
+  .events-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:3rem}
+  .event-card{border:1px solid var(--border);border-radius:16px;overflow:hidden;background:#fff}
+  .event-banner{height:8px; background: var(--green-light);}
+  .event-banner.tournament{background:var(--yellow)}
+  .event-banner.league{background:var(--green)}
+  .event-body{padding:1.25rem}
+  .event-tag{font-size:0.7rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:100px;display:inline-block;margin-bottom:0.75rem}
+  .tag-tournament{background:#FEF9E7;color:#9A7D0A}
+  .tag-league{background:var(--green-pale);color:var(--green)}
+  .tag-dropin{background:#EBF5FB;color:#1A5276}
+  .event-body h3{font-size:1.1rem;font-weight:600;margin-bottom:0.4rem; font-family: 'DM Sans', sans-serif;}
+  .event-meta{font-size:0.8rem;color:var(--muted);display:flex;flex-direction:column;gap:4px;margin-bottom:1rem}
+  .event-footer{display:flex;align-items:center;justify-content:space-between;padding-top:0.75rem;border-top:1px solid var(--border)}
+  .spots{font-size:0.8rem;color:var(--muted)}
+  .btn-join{background:var(--green);color:#fff;border:none;padding:7px 18px;border-radius:100px;font-size:0.8rem;font-weight:600;cursor:pointer}
+  .hosted-by {font-size: 0.75rem; color: var(--muted); margin-bottom: 8px; font-style: italic;}
+
+  /* LEADERBOARD & ADMIN EXTRAS */
+  .leaderboard-section{background:var(--green);color:#fff;padding:5rem 2rem}.leaderboard-section .section-label{color:var(--yellow)}.leaderboard-section .section-title{color:#fff}.leaderboard-section .section-sub{color:rgba(255,255,255,0.75)}.lb-table{background:rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-top:3rem;border:1px solid rgba(255,255,255,0.1)}.lb-row{display:grid;grid-template-columns:48px 1fr 80px 80px 60px;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);gap:1rem}.rank{font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--yellow)}.player-name{font-weight:500}.player-club{font-size:0.75rem;opacity:0.55}.rating{font-weight:600;color:var(--yellow)}.wins{opacity:0.85}.trend{font-size:0.75rem;font-weight:600}.trend.up{color:#52B788}.cta-section{padding:6rem 2rem;text-align:center;background:var(--off-white)}.cta-box{background:var(--white);border:1px solid var(--border);border-radius:24px;padding:4rem 2rem;max-width:640px;margin:0 auto}.cta-box h2{font-family:'DM Serif Display',serif;font-size:clamp(1.8rem,4vw,2.6rem);margin-bottom:1rem;line-height:1.2}.cta-box p{color:var(--mid);margin-bottom:2rem;font-size:1rem}.cta-input-row{display:flex;gap:0.5rem;max-width:400px;margin:0 auto}.cta-input-row input{flex:1;padding:12px 16px;border:1.5px solid var(--border);border-radius:100px;outline:none}.cta-input-row button{background:var(--green);color:#fff;border:none;padding:12px 24px;border-radius:100px;font-weight:600;cursor:pointer}footer{background:var(--dark);color:rgba(255,255,255,0.5);padding:2.5rem 2rem;text-align:center}footer .logo{justify-content:center;margin-bottom:0.5rem;color:#fff}footer p{font-size:0.8rem}
 </style>
 </head>
 <body>
@@ -86,10 +101,9 @@
   <div class="nav-inner">
     <div class="logo">We<span>Dink</span> 🏓</div>
     <div class="nav-links">
-      <a href="#events">Events</a>
-      <a href="#features">Features</a>
+      <a href="#events">Games</a>
+      <a href="#teams">Teams & Clubs</a>
       <a href="#leaderboard">Rankings</a>
-      <a href="#admin-dashboard" id="nav-admin-link" style="display:none; color: #E74C3C; font-weight:bold;">Admin</a>
       <div id="auth-nav-container">
         <button id="btn-login-nav" class="btn-nav">Join Now</button>
       </div>
@@ -100,47 +114,46 @@
 <section class="hero">
   <div class="court-lines"></div>
   <div class="hero-content">
-    <div class="hero-badge">🏓 #1 Pickleball Community</div>
+    <div class="hero-badge">🏓 Host & Match Engine Active</div>
     <h1>Where Every <em>Dink</em> Brings People Together</h1>
-    <p>Find local games, join tournaments, track your rating, and connect with pickleball players in your city and beyond.</p>
+    <p>Find local matches, create community teams, spin up custom tournaments, and track everything seamlessly.</p>
     <div class="hero-ctas">
-      <a href="#events" class="btn-primary">Find a Game</a>
-      <a href="#features" class="btn-ghost">How it Works</a>
+      <button class="btn-primary" id="btn-hero-host">➕ Organize a Game</button>
+      <button class="btn-ghost" id="btn-hero-team">👥 Form a Team</button>
     </div>
   </div>
 </section>
 
-<section class="admin-section" id="admin-dashboard">
+<section class="events-section" id="events">
   <div class="section-inner">
-    <p class="section-label" style="color:#E74C3C;">Control Panel</p>
-    <h2 class="section-title">Admin Management Dashboard</h2>
-    
-    <div class="admin-stats-grid">
-      <div class="admin-stat-card">
-        <div style="font-size:0.8rem; color:var(--muted); text-transform:uppercase">Total Community Users</div>
-        <div id="admin-stat-users" style="font-size:2rem; font-weight:700; margin-top:5px; color:var(--green)">0</div>
-      </div>
-      <div class="admin-stat-card">
-        <div style="font-size:0.8rem; color:var(--muted); text-transform:uppercase">Early Access Leads</div>
-        <div id="admin-stat-leads" style="font-size:2rem; font-weight:700; margin-top:5px; color:var(--yellow-dark)">0</div>
-      </div>
+    <p class="section-label">Active Matches</p>
+    <h2 class="section-title">Upcoming Games</h2>
+    <p class="section-sub">Live games hosted directly by players in the community.</p>
+    <div class="events-grid" id="live-events-container">
+      <p style="color: var(--muted);">Loading active games stream...</p>
     </div>
+  </div>
+</section>
 
-    <h3>Registered Members Directory</h3>
-    <div class="table-wrapper">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Email</th>
-            <th>Early Access Field</th>
-            <th>Skill Preference</th>
-            <th>Role</th>
-          </tr>
-        </thead>
-        <tbody id="admin-users-table-body">
-          </tbody>
-      </table>
+<section class="teams-section" id="teams">
+  <div class="section-inner">
+    <p class="section-label">Player Ecosystem</p>
+    <h2 class="section-title">Community Teams & Clubs</h2>
+    <p class="section-sub">Gather your friends, create your group, and run challenges like Reclub.</p>
+    <div class="teams-grid" id="live-teams-container">
+      <p style="color: var(--muted);">Loading community clubs...</p>
+    </div>
+  </div>
+</section>
+
+<section class="leaderboard-section" id="leaderboard">
+  <div class="section-inner">
+    <p class="section-label">Top Players</p>
+    <h2 class="section-title">Community Rankings</h2>
+    <div class="lb-table">
+      <div class="lb-row" style="opacity: 0.6; font-size: 0.8rem;"><span>Rank</span><span>Player</span><span>Rating</span><span>Wins</span><span>Trend</span></div>
+      <div class="lb-row"><span class="rank">🥇</span><div><div class="player-name">Carlo Reyes</div><div class="player-club">BGC Ballers</div></div><span class="rating">4.85</span><span>32W</span><span class="trend up">↑ +3</span></div>
+      <div class="lb-row"><span class="rank">🥈</span><div><div class="player-name">Ana Santos</div><div class="player-club">Makati Pickle Club</div></div><span class="rating">4.72</span><span>28W</span><span class="trend up">↑ +1</span></div>
     </div>
   </div>
 </section>
@@ -148,7 +161,7 @@
 <section class="cta-section" id="join">
   <div class="cta-box">
     <h2>Ready to Dink? Join WeDink Today 🏓</h2>
-    <p>Be the first to know when WeDink launches in your city. Drop your email and we'll reach out.</p>
+    <p>Drop your email to receive direct notifications about newly organized games in your area.</p>
     <div class="cta-input-row">
       <input type="email" id="early-access-email" placeholder="your@email.com"/>
       <button id="btn-early-access">Get Early Access</button>
@@ -158,47 +171,70 @@
 
 <div class="modal-overlay" id="profile-modal">
   <div class="modal-card">
-    <button class="close-modal" id="btn-close-profile">&times;</button>
+    <button class="close-modal" class="btn-close-m" onclick="document.getElementById('profile-modal').classList.remove('active')">&times;</button>
     <div class="profile-header">
       <img src="" id="prof-img" class="profile-avatar" alt="Avatar">
       <h3 id="prof-name">Player Profile</h3>
-      <p id="prof-uid-label" style="font-size:0.7rem; color:var(--muted); margin-top:2px;"></p>
     </div>
-    
+    <div class="form-group"><label>Google Email</label><input type="text" id="prof-email" disabled /></div>
     <div class="form-group">
-      <label>Google Main Account Email</label>
-      <input type="text" id="prof-email" disabled />
-    </div>
-    <div class="form-group">
-      <label>Preferred Contact (Early Access Match)</label>
-      <input type="email" id="prof-early-email" placeholder="Not submitted yet" />
-    </div>
-    <div class="form-group">
-      <label>Your Tracked Skill Level</label>
+      <label>My Skill Rating</label>
       <select id="prof-skill">
-        <option value="Not Set">Select Skill Level</option>
         <option value="Beginner (1.0 - 2.5)">Beginner (1.0 - 2.5)</option>
         <option value="Intermediate (3.0 - 3.5)">Intermediate (3.0 - 3.5)</option>
         <option value="Advanced (4.0 - 4.5)">Advanced (4.0 - 4.5)</option>
-        <option value="Pro / DUPR 5.0+">Pro / DUPR 5.0+</option>
       </select>
     </div>
+    <button class="btn-nav" id="btn-save-profile" style="width:100%; padding:12px;">Save Profile Settings</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="host-modal">
+  <div class="modal-card">
+    <button class="close-modal" onclick="document.getElementById('host-modal').classList.remove('active')">&times;</button>
+    <h3 style="font-family:'DM Serif Display',serif; font-size:1.6rem; margin-bottom:1.25rem;">Organize a New Match</h3>
     
-    <button class="btn-nav" id="btn-save-profile" style="width:100%; padding:12px; margin-top:0.5rem;">Save Preferences</button>
+    <div class="form-group"><label>Event Title</label><input type="text" id="event-title" placeholder="e.g., Saturday Morning Open Dink" /></div>
+    <div class="form-group">
+      <label>Event Format</label>
+      <select id="event-format">
+        <option value="dropin">Drop-In Play</option>
+        <option value="tournament">Tournament Bracket</option>
+        <option value="league">League Match</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Date & Time</label><input type="text" id="event-date" placeholder="e.g., Every Saturday, 8:00 AM" /></div>
+    <div class="form-group"><label>Location / Court</label><input type="text" id="event-location" placeholder="e.g., BGC Courts, Taguig" /></div>
+    <div class="form-group"><label>Target Skill Level</label><input type="text" id="event-skill" placeholder="e.g., All Levels or 3.0+ DUPR" /></div>
+    <div class="form-group"><label>Available Slots</label><input type="number" id="event-slots" value="12" /></div>
+    
+    <button class="btn-nav" id="btn-submit-game" style="width:100%; padding:12px; background: var(--yellow); color: var(--dark);">Publish Game Stream</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="team-modal">
+  <div class="modal-card">
+    <button class="close-modal" onclick="document.getElementById('team-modal').classList.remove('active')">&times;</button>
+    <h3 style="font-family:'DM Serif Display',serif; font-size:1.6rem; margin-bottom:1.25rem;">Form a New Team / Club</h3>
+    
+    <div class="form-group"><label>Team Name</label><input type="text" id="team-name" placeholder="e.g., Downtown DUPR Masters" /></div>
+    <div class="form-group"><label>Home Facility / Location</label><input type="text" id="team-court" placeholder="e.g., Rizal Memorial Sports Complex" /></div>
+    <div class="form-group"><label>Club Description</label><input type="text" id="team-desc" placeholder="e.g., Competitive group playing weekly mixers." /></div>
+    
+    <button class="btn-nav" id="btn-submit-team" style="width:100%; padding:12px;">Launch Team Page</button>
   </div>
 </div>
 
 <footer>
-  <div class="logo">We<span style="color:var(--yellow)">Dink</span> 📓</div>
+  <div class="logo">We<span>Dink</span> 🏓</div>
   <p>© 2026 WeDink. Built for pickleball players, by pickleball players.</p>
 </footer>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-  // Replace with your provided credentials
   const firebaseConfig = {
     apiKey: "AIzaSyBTjVhhgit82lsvpP7nUAVTVwq6NaFVFj0",
     authDomain: "wedink-eee7a.firebaseapp.com",
@@ -208,238 +244,160 @@
     appId: "1:156012744731:web:c9ea2c1dc0d0d2029f28be"
   };
 
-  // DEVELOPER CONFIGURATION: Replace this string with your UID from the Firebase Auth table to expose Admin operations
-  const ADMIN_UID = "ev.lorens.ebrado@gmail.com";
-
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
   const provider = new GoogleAuthProvider();
 
-  // Core DOM Hookpoints
-  const authNavContainer = document.getElementById('auth-nav-container');
-  const earlyAccessEmailInput = document.getElementById('early-access-email');
-  const earlyAccessBtn = document.getElementById('btn-early-access');
-  const adminDashboardSection = document.getElementById('admin-dashboard');
-  const navAdminLink = document.getElementById('nav-admin-link');
-  
-  // Profile Modal Hooks
-  const profileModal = document.getElementById('profile-modal');
-  const btnCloseProfile = document.getElementById('btn-close-profile');
-  const profImg = document.getElementById('prof-img');
-  const profName = document.getElementById('prof-name');
-  const profEmail = document.getElementById('prof-email');
-  const profEarlyEmail = document.getElementById('prof-early-email');
-  const profSkill = document.getElementById('prof-skill');
-  const btnSaveProfile = document.getElementById('btn-save-profile');
-  const profUidLabel = document.getElementById('prof-uid-label');
-
   let activeUser = null;
-  let adminUnsubscribe = null;
 
-  // Sign In Flow
-  async function triggerGoogleLogin() {
+  // DOM Elements
+  const authNavContainer = document.getElementById('auth-nav-container');
+  const liveEventsContainer = document.getElementById('live-events-container');
+  const liveTeamsContainer = document.getElementById('live-teams-container');
+
+  // Trigger login
+  async function login() {
     try {
-      const authResult = await signInWithPopup(auth, provider);
-      const userObj = authResult.user;
-      
-      // Merge baseline parameters on database write initializing profile
-      await setDoc(doc(db, "users", userObj.uid), {
-        uid: userObj.uid,
-        name: userObj.displayName,
-        email: userObj.email,
-        photoURL: userObj.photoURL,
-        role: userObj.uid === ADMIN_UID ? "Admin" : "User",
-        lastActive: serverTimestamp()
+      const res = await signInWithPopup(auth, provider);
+      await setDoc(doc(db, "users", res.user.uid), {
+        uid: res.user.uid,
+        name: res.user.displayName,
+        email: res.user.email,
+        photoURL: res.user.photoURL,
+        lastSeen: serverTimestamp()
       }, { merge: true });
-      
-    } catch(err) {
-      console.error("Login Interface Error:", err);
-    }
+    } catch (e) { console.error("Login failed:", e); }
   }
 
-  // Profile Modal Visibility Controls
-  function launchProfileView() {
-    if(!activeUser) return;
-    
-    profImg.src = activeUser.photoURL || 'https://via.placeholder.com/80';
-    profName.textContent = activeUser.displayName || 'Pickleball Competitor';
-    profEmail.value = activeUser.email || '';
-    profUidLabel.textContent = `UID: ${activeUser.uid}`;
-
-    // Query Document values dynamically
-    getDoc(doc(db, "users", activeUser.uid)).then((documentSnapshot) => {
-      if(documentSnapshot.exists()) {
-        const userData = documentSnapshot.data();
-        profEarlyEmail.value = userData.earlyAccessEmail || '';
-        profSkill.value = userData.skillLevel || 'Not Set';
-      }
-      profileModal.classList.add('active');
-    });
-  }
-
-  // Profile Form Updates Saving
-  async function saveProfileModifications() {
-    if(!activeUser) return;
-    btnSaveProfile.textContent = "Updating...";
-    
-    try {
-      await setDoc(doc(db, "users", activeUser.uid), {
-        earlyAccessEmail: profEarlyEmail.value.trim(),
-        skillLevel: profSkill.value,
-        preferencesUpdated: serverTimestamp()
-      }, { merge: true });
-      
-      // Synch Landing Screen Entry form matching state update
-      if(profEarlyEmail.value.trim()) {
-        earlyAccessEmailInput.value = profEarlyEmail.value.trim();
-        flagEarlyAccessSuccessState();
-      }
-      
-      btnSaveProfile.textContent = "Preferences Saved!";
-      setTimeout(() => { btnSaveProfile.textContent = "Save Preferences"; }, 1500);
-    } catch(error) {
-      console.error("Error patching user record profile:", error);
-      alert("Error saving metadata permissions.");
-    }
-  }
-
-  function closeProfileView() {
-    profileModal.classList.remove('active');
-  }
-
-  // Early access helper tracking submission UI updates
-  function flagEarlyAccessSuccessState() {
-    earlyAccessBtn.textContent = '✓ Active Member!';
-    earlyAccessBtn.style.background = '#52B788';
-    earlyAccessBtn.disabled = true;
-    earlyAccessEmailInput.disabled = true;
-  }
-
-  async function processEarlyAccessForm() {
-    const enteredEmail = earlyAccessEmailInput.value.trim();
-    if(!enteredEmail) { alert("Enter a valid address."); return; }
-
+  // Guard Helper to verify login status before executing active functions
+  function checkAuthGuard() {
     if(!activeUser) {
-      alert("Let's authenticate your profile first via secure Google Sign-in.");
-      await triggerGoogleLogin();
-      if(!auth.currentUser) return; 
+      alert("Please login / sign up with Google first to host matches or join teams!");
+      login();
+      return false;
     }
+    return true;
+  }
+
+  // Hook Modal Buttons
+  document.getElementById('btn-hero-host').addEventListener('click', () => { if(checkAuthGuard()) document.getElementById('host-modal').classList.add('active'); });
+  document.getElementById('btn-hero-team').addEventListener('click', () => { if(checkAuthGuard()) document.getElementById('team-modal').classList.add('active'); });
+
+  // Handle Game Submission
+  document.getElementById('btn-submit-game').addEventListener('click', async () => {
+    const title = document.getElementById('event-title').value.trim();
+    const format = document.getElementById('event-format').value;
+    const date = document.getElementById('event-date').value.trim();
+    const locName = document.getElementById('event-location').value.trim();
+    const skill = document.getElementById('event-skill').value.trim();
+    const slots = document.getElementById('event-slots').value;
+
+    if(!title || !date || !locName) { alert("Please complete Title, Date, and Location fields."); return; }
 
     try {
-      await setDoc(doc(db, "users", auth.currentUser.uid), {
-        earlyAccessEmail: enteredEmail,
-        requestedEarlyAccessAt: serverTimestamp()
-      }, { merge: true });
-      flagEarlyAccessSuccessState();
-    } catch(err) {
-      console.error("Firestore persistence error:", err);
-    }
-  }
-
-  // Real-time Database Pipeline syncing Admin views
-  function initializeAdminDashboardPipeline() {
-    const usersCollectionRef = collection(db, "users");
-    
-    adminUnsubscribe = onSnapshot(usersCollectionRef, (querySnapshot) => {
-      const tableBody = document.getElementById('admin-users-table-body');
-      tableBody.innerHTML = ''; // reset structure
-      
-      let totalUsersCount = 0;
-      let earlyAccessLeadsCount = 0;
-
-      querySnapshot.forEach((documentDoc) => {
-        const item = documentDoc.data();
-        totalUsersCount++;
-        if(item.earlyAccessEmail) earlyAccessLeadsCount++;
-
-        const fallbackName = item.name || "Anonymous Member";
-        const fallbackEmail = item.email || "No Main Email";
-        const earlyAccessDisplay = item.earlyAccessEmail || `<em style="color:var(--muted)">None Provided</em>`;
-        const trackingSkill = item.skillLevel || "Not Selected";
-        const parsedRole = item.uid === ADMIN_UID ? "Admin" : "User";
-
-        const markupRow = `
-          <tr>
-            <td><strong>${fallbackName}</strong></td>
-            <td>${fallbackEmail}</td>
-            <td>${earlyAccessDisplay}</td>
-            <td><span style="font-size:0.85rem; background:var(--off-white); padding:4px 8px; border-radius:4px;">${trackingSkill}</span></td>
-            <td><span class="badge-role ${parsedRole.toLowerCase()}">${parsedRole}</span></td>
-          </tr>
-        `;
-        tableBody.innerHTML += markupRow;
+      await addDoc(collection(db, "events"), {
+        title, format, date, location: locName, skill, slots,
+        hostName: activeUser.displayName,
+        hostUid: activeUser.uid,
+        createdAt: serverTimestamp()
       });
-
-      document.getElementById('admin-stat-users').textContent = totalUsersCount;
-      document.getElementById('admin-stat-leads').textContent = earlyAccessLeadsCount;
-    });
-  }
-
-  function teardownAdminPipeline() {
-    if(adminUnsubscribe) {
-      adminUnsubscribe();
-      adminUnsubscribe = null;
-    }
-    adminDashboardSection.style.display = 'none';
-    navAdminLink.style.display = 'none';
-  }
-
-  // Reactive State Authentication Router 
-  onAuthStateChanged(auth, (userSession) => {
-    if(userSession) {
-      activeUser = userSession;
-      
-      // Update entry forms matching existing attributes
-      getDoc(doc(db, "users", userSession.uid)).then((docSnap) => {
-        if(docSnap.exists() && docSnap.data().earlyAccessEmail) {
-          earlyAccessEmailInput.value = docSnap.data().earlyAccessEmail;
-          flagEarlyAccessSuccessState();
-        } else {
-          earlyAccessEmailInput.value = userSession.email;
-        }
-      });
-
-      // Update Nav Layout to show user profile + logout
-      authNavContainer.innerHTML = `
-        <div class="user-profile-nav">
-          <img src="${userSession.photoURL || 'https://via.placeholder.com/32'}" id="nav-avatar-toggle" class="user-avatar-nav" title="View Profile Options" />
-          <button id="btn-signout-action" class="btn-nav btn-signout">Sign Out</button>
-        </div>
-      `;
-
-      // Event hook listeners inside active state
-      document.getElementById('nav-avatar-toggle').addEventListener('click', launchProfileView);
-      document.getElementById('btn-signout-action').addEventListener('click', () => signOut(auth));
-
-      // Authorization Check - Expose metrics and tables if matched config constants
-      if(userSession.uid === ADMIN_UID) {
-        adminDashboardSection.style.display = 'block';
-        navAdminLink.style.display = 'inline-block';
-        initializeAdminDashboardPipeline();
-      } else {
-        teardownAdminPipeline();
-      }
-
-    } else {
-      activeUser = null;
-      teardownAdminPipeline();
-      
-      authNavContainer.innerHTML = `<button id="btn-login-nav" class="btn-nav">Join Now</button>`;
-      document.getElementById('btn-login-nav').addEventListener('click', triggerGoogleLogin);
-      
-      earlyAccessBtn.textContent = 'Get Early Access';
-      earlyAccessBtn.style.background = 'var(--green)';
-      earlyAccessBtn.disabled = false;
-      earlyAccessEmailInput.disabled = false;
-      earlyAccessEmailInput.value = '';
-    }
+      document.getElementById('host-modal').classList.remove('active');
+      alert("Match posted to community live timeline!");
+    } catch(e) { console.error(e); }
   });
 
-  // Modal Control Listener bindings
-  btnCloseProfile.addEventListener('click', closeProfileView);
-  btnSaveProfile.addEventListener('click', saveProfileModifications);
-  earlyAccessBtn.addEventListener('click', processEarlyAccessForm);
+  // Handle Team Submission
+  document.getElementById('btn-submit-team').addEventListener('click', async () => {
+    const name = document.getElementById('team-name').value.trim();
+    const court = document.getElementById('team-court').value.trim();
+    const desc = document.getElementById('team-desc').value.trim();
+
+    if(!name || !court) { alert("Please provide a Team Name and Home Facility."); return; }
+
+    try {
+      await addDoc(collection(db, "teams"), {
+        name, court, description: desc,
+        creatorName: activeUser.displayName,
+        creatorUid: activeUser.uid,
+        createdAt: serverTimestamp()
+      });
+      document.getElementById('team-modal').classList.remove('active');
+      alert("Your team page has been published successfully!");
+    } catch(e) { console.error(e); }
+  });
+
+  // Live Streams Listening Pipelines
+  onSnapshot(collection(db, "events"), (snapshot) => {
+    liveEventsContainer.innerHTML = '';
+    if(snapshot.empty) {
+      liveEventsContainer.innerHTML = `<p style="color:var(--muted)">No games scheduled yet. Be the first to organize one above!</p>`;
+      return;
+    }
+    snapshot.forEach(doc => {
+      const ev = doc.data();
+      liveEventsContainer.innerHTML += `
+        <div class="event-card">
+          <div class="event-banner ${ev.format}"></div>
+          <div class="event-body">
+            <span class="event-tag tag-${ev.format}">${ev.format}</span>
+            <h3>${ev.title}</h3>
+            <div class="hosted-by">Organized by: ${ev.hostName || "Player"}</div>
+            <div class="event-meta">
+              <span>📅 ${ev.date}</span>
+              <span>📍 ${ev.location}</span>
+              <span>⭐ Skill: ${ev.skill || "All Levels"}</span>
+            </div>
+            <div class="event-footer">
+              <div class="spots">Slots: <strong>${ev.slots || "Open"} Remaining</strong></div>
+              <button class="btn-join" onclick="alert('RSVP confirmed with Host!')">RSVP</button>
+            </div>
+          </div>
+        </div>`;
+    });
+  });
+
+  onSnapshot(collection(db, "teams"), (snapshot) => {
+    liveTeamsContainer.innerHTML = '';
+    if(snapshot.empty) {
+      liveTeamsContainer.innerHTML = `<p style="color:var(--muted)">No custom clubs active yet. Spin up your team right now!</p>`;
+      return;
+    }
+    snapshot.forEach(doc => {
+      const tm = doc.data();
+      liveTeamsContainer.innerHTML += `
+        <div class="team-card">
+          <h3>${tm.name}</h3>
+          <div class="team-meta">📍 Base: <strong>${tm.court}</strong></div>
+          <p style="font-size:0.85rem; color: var(--mid); line-height:1.5; margin-bottom:1rem;">${tm.description || "No description provided."}</p>
+          <button class="btn-join" style="width:100%; background:transparent; color:var(--green); border:1px solid var(--green)" onclick="alert('Application sent to Club Captain!')">Apply to Join Team</button>
+        </div>`;
+    });
+  });
+
+  // Handle Authentication Changes
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      activeUser = user;
+      authNavContainer.innerHTML = `
+        <div class="user-profile-nav">
+          <img src="${user.photoURL || 'https://via.placeholder.com/32'}" id="avatar-toggle" class="user-avatar-nav" />
+          <button id="btn-signout" class="btn-nav btn-signout">Sign Out</button>
+        </div>`;
+      
+      document.getElementById('avatar-toggle').addEventListener('click', () => {
+        document.getElementById('prof-img').src = user.photoURL;
+        document.getElementById('prof-name').textContent = user.displayName;
+        document.getElementById('prof-email').value = user.email;
+        document.getElementById('profile-modal').classList.add('active');
+      });
+      document.getElementById('btn-signout').addEventListener('click', () => signOut(auth));
+    } else {
+      activeUser = null;
+      authNavContainer.innerHTML = `<button id="btn-login-nav" class="btn-nav">Join Now</button>`;
+      document.getElementById('btn-login-nav').addEventListener('click', login);
+    }
+  });
 </script>
 </body>
 </html>
