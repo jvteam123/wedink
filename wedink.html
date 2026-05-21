@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WeDink – Pickleball Community</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --green:#2D6A4F;--green-light:#52B788;--green-pale:#D8F3DC;
+    --yellow:#F4D03F;--yellow-dark:#D4AC0D;
+    --off-white:#F9F7F2;--dark:#1A1A1A;--mid:#4A4A4A;--muted:#8A8A8A;
+    --white:#FFFFFF;--border:#E5E0D5;
+  }
+  html{scroll-behavior:smooth}
+  body{font-family:'DM Sans',sans-serif;background:var(--off-white);color:var(--dark);overflow-x:hidden}
+
+  /* NAV */
+  nav{background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;padding:0 2rem}
+  .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{font-family:'DM Serif Display',serif;font-size:1.6rem;color:var(--green);letter-spacing:-0.5px;display:flex;align-items:center;gap:6px}
+  .logo span{color:var(--yellow-dark)}
+  .nav-links{display:flex;align-items:center;gap:2rem}
+  .nav-links a{text-decoration:none;color:var(--mid);font-size:0.9rem;font-weight:500;transition:color .2s}
+  .nav-links a:hover{color:var(--green)}
+  .btn-nav{background:var(--green);color:var(--white);padding:8px 20px;border-radius:100px;font-size:0.875rem;font-weight:600;text-decoration:none;transition:background .2s;cursor:pointer;border:none;outline:none}
+  .btn-nav:hover{background:#1f4d38}
+  .btn-signout{background:transparent;color:var(--muted);border:1px solid var(--border);padding:8px 16px}
+  .btn-signout:hover{background:rgba(0,0,0,0.05);color:var(--dark)}
+  .user-profile{display:flex;align-items:center;gap:0.75rem;}
+  .user-name{font-size:0.875rem;font-weight:500;color:var(--dark)}
+
+  /* HERO */
+  .hero{background:var(--green);color:var(--white);padding:6rem 2rem 5rem;text-align:center;position:relative;overflow:hidden}
+  .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 110%,#52B78820 0%,transparent 70%)}
+  .court-lines{position:absolute;inset:0;opacity:0.06;background-image:repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 48px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 48px)}
+  .hero-content{position:relative;max-width:720px;margin:0 auto}
+  .hero-badge{display:inline-block;background:var(--yellow);color:var(--dark);font-size:0.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-bottom:1.5rem}
+  .hero h1{font-family:'DM Serif Display',serif;font-size:clamp(2.8rem,6vw,4.5rem);line-height:1.1;margin-bottom:1.25rem;letter-spacing:-1px}
+  .hero h1 em{font-style:italic;color:var(--yellow)}
+  .hero p{font-size:1.1rem;opacity:0.85;max-width:520px;margin:0 auto 2.5rem;line-height:1.7}
+  .hero-ctas{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+  .btn-primary{background:var(--yellow);color:var(--dark);padding:14px 32px;border-radius:100px;font-weight:700;font-size:1rem;text-decoration:none;transition:transform .15s,box-shadow .15s;display:inline-block}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.2)}
+  .btn-ghost{border:2px solid rgba(255,255,255,0.5);color:var(--white);padding:14px 32px;border-radius:100px;font-weight:600;font-size:1rem;text-decoration:none;transition:border-color .2s;display:inline-block}
+  .btn-ghost:hover{border-color:#fff}
+  .hero-stats{display:flex;gap:3rem;justify-content:center;margin-top:4rem;padding-top:3rem;border-top:1px solid rgba(255,255,255,0.15)}
+  .stat-num{font-family:'DM Serif Display',serif;font-size:2.2rem;color:var(--yellow)}
+  .stat-label{font-size:0.8rem;opacity:0.7;letter-spacing:0.5px;text-transform:uppercase;margin-top:2px}
+
+  /* FEATURES */
+  .section{padding:5rem 2rem}
+  .section-inner{max-width:1100px;margin:0 auto}
+  .section-label{font-size:0.75rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:0.75rem}
+  .section-title{font-family:'DM Serif Display',serif;font-size:clamp(2rem,4vw,2.8rem);line-height:1.2;color:var(--dark);margin-bottom:1rem}
+  .section-sub{color:var(--mid);font-size:1rem;line-height:1.7;max-width:520px}
+  .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.5rem;margin-top:3rem}
+  .feature-card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:1.75rem;transition:transform .2s,box-shadow .2s}
+  .feature-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,0.08)}
+  .feature-icon{width:48px;height:48px;border-radius:12px;background:var(--green-pale);display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;font-size:1.4rem}
+  .feature-card h3{font-size:1rem;font-weight:600;margin-bottom:0.5rem;color:var(--dark)}
+  .feature-card p{font-size:0.875rem;color:var(--mid);line-height:1.6}
+
+  /* EVENTS */
+  .events-section{background:var(--white);padding:5rem 2rem}
+  .events-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem;margin-top:3rem}
+  .event-card{border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:box-shadow .2s}
+  .event-card:hover{box-shadow:0 8px 24px rgba(0,0,0,0.1)}
+  .event-banner{height:8px}
+  .event-banner.green{background:var(--green-light)}
+  .event-banner.yellow{background:var(--yellow)}
+  .event-banner.dark{background:var(--green)}
+  .event-body{padding:1.25rem}
+  .event-tag{font-size:0.7rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:100px;display:inline-block;margin-bottom:0.75rem}
+  .tag-tournament{background:#FEF9E7;color:#9A7D0A}
+  .tag-club{background:var(--green-pale);color:var(--green)}
+  .tag-dropin{background:#EBF5FB;color:#1A5276}
+  .event-body h3{font-size:1rem;font-weight:600;margin-bottom:0.4rem;color:var(--dark)}
+  .event-meta{font-size:0.8rem;color:var(--muted);display:flex;flex-direction:column;gap:3px;margin-bottom:1rem}
+  .event-meta span{display:flex;align-items:center;gap:5px}
+  .event-footer{display:flex;align-items:center;justify-content:space-between;padding-top:0.75rem;border-top:1px solid var(--border)}
+  .spots{font-size:0.8rem;color:var(--muted)}
+  .spots strong{color:var(--green)}
+  .btn-join{background:var(--green);color:#fff;border:none;padding:7px 18px;border-radius:100px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:background .2s}
+  .btn-join:hover{background:#1f4d38}
+
+  /* HOW IT WORKS */
+  .how-section{background:var(--off-white);padding:5rem 2rem}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:2rem;margin-top:3rem;position:relative}
+  .step{text-align:center}
+  .step-num{width:52px;height:52px;border-radius:50%;background:var(--green);color:#fff;font-family:'DM Serif Display',serif;font-size:1.4rem;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem}
+  .step h3{font-size:1rem;font-weight:600;margin-bottom:0.4rem}
+  .step p{font-size:0.85rem;color:var(--mid);line-height:1.6}
+
+  /* LEADERBOARD */
+  .leaderboard-section{background:var(--green);color:#fff;padding:5rem 2rem}
+  .leaderboard-section .section-label{color:var(--yellow)}
+  .leaderboard-section .section-title{color:#fff}
+  .leaderboard-section .section-sub{color:rgba(255,255,255,0.75)}
+  .lb-table{background:rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;margin-top:3rem;border:1px solid rgba(255,255,255,0.1)}
+  .lb-row{display:grid;grid-template-columns:48px 1fr 80px 80px 60px;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.07);gap:1rem}
+  .lb-row:last-child{border-bottom:none}
+  .lb-row.header{font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;opacity:0.5;padding:0.75rem 1.5rem}
+  .rank{font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--yellow)}
+  .rank.silver{color:#C0C0C0}
+  .rank.bronze{color:#CD7F32}
+  .rank.plain{color:rgba(255,255,255,0.5);font-size:1rem}
+  .player-name{font-weight:500}
+  .player-club{font-size:0.75rem;opacity:0.55}
+  .rating{font-weight:600;color:var(--yellow)}
+  .wins{opacity:0.85}
+  .trend{font-size:0.75rem;font-weight:600}
+  .trend.up{color:#52B788}
+  .trend.down{color:#E74C3C}
+
+  /* CTA */
+  .cta-section{padding:6rem 2rem;text-align:center;background:var(--off-white)}
+  .cta-box{background:var(--white);border:1px solid var(--border);border-radius:24px;padding:4rem 2rem;max-width:640px;margin:0 auto}
+  .cta-box h2{font-family:'DM Serif Display',serif;font-size:clamp(1.8rem,4vw,2.6rem);margin-bottom:1rem;line-height:1.2}
+  .cta-box p{color:var(--mid);margin-bottom:2rem;font-size:1rem;line-height:1.7}
+  .cta-input-row{display:flex;gap:0.5rem;max-width:400px;margin:0 auto}
+  .cta-input-row input{flex:1;padding:12px 16px;border:1.5px solid var(--border);border-radius:100px;font-size:0.9rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
+  .cta-input-row input:focus{border-color:var(--green)}
+  .cta-input-row button{background:var(--green);color:#fff;border:none;padding:12px 24px;border-radius:100px;font-weight:600;font-size:0.9rem;cursor:pointer;white-space:nowrap;transition:background .2s}
+  .cta-input-row button:hover{background:#1f4d38}
+
+  /* FOOTER */
+  footer{background:var(--dark);color:rgba(255,255,255,0.5);padding:2.5rem 2rem;text-align:center}
+  footer .logo{justify-content:center;margin-bottom:0.5rem;color:#fff}
+  footer p{font-size:0.8rem}
+
+  /* ANIMATIONS */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+  .hero-content>*{animation:fadeUp .6s ease both}
+  .hero-badge{animation-delay:.1s}
+  .hero h1{animation-delay:.2s}
+  .hero p{animation-delay:.3s}
+  .hero-ctas{animation-delay:.4s}
+  .hero-stats{animation-delay:.5s}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">We<span>Dink</span> 🏓</div>
+    <div class="nav-links">
+      <a href="#events">Events</a>
+      <a href="#features">Features</a>
+      <a href="#leaderboard">Rankings</a>
+      <div id="auth-nav-container">
+        <button id="btn-login-nav" class="btn-nav">Join Now</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="court-lines"></div>
+  <div class="hero-content">
+    <div class="hero-badge">🏓 #1 Pickleball Community</div>
+    <h1>Where Every <em>Dink</em> Brings People Together</h1>
+    <p>Find local games, join tournaments, track your rating, and connect with pickleball players in your city and beyond.</p>
+    <div class="hero-ctas">
+      <a href="#events" class="btn-primary">Find a Game</a>
+      <a href="#features" class="btn-ghost">How it Works</a>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <div class="stat-num">12K+</div>
+        <div class="stat-label">Players</div>
+      </div>
+      <div>
+        <div class="stat-num">840</div>
+        <div class="stat-label">Active Clubs</div>
+      </div>
+      <div>
+        <div class="stat-num">3,200</div>
+        <div class="stat-label">Events This Month</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="section-inner">
+    <p class="section-label">Everything You Need</p>
+    <h2 class="section-title">Built for Pickleball,<br>End to End</h2>
+    <p class="section-sub">From casual drop-ins to competitive brackets — WeDink handles it all so you can focus on the game.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📍</div>
+        <h3>Find Local Games</h3>
+        <p>Discover drop-ins, open courts, and clubs near you. Filter by skill level, date, and distance.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🏆</div>
+        <h3>Tournaments & Brackets</h3>
+        <p>Set up and join competitions with automated bracket generation, scheduling, and live score tracking.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👥</div>
+        <h3>Club Management</h3>
+        <p>Create your club, manage members, collect registrations, and keep everyone in the loop effortlessly.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Player Ratings</h3>
+        <p>Track your skill progression with DUPR-compatible ratings. Find matches at your level every time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3>Community Chat</h3>
+        <p>Connect with your club, coordinate games, and share moments with the WeDink community.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📅</div>
+        <h3>Smart Scheduling</h3>
+        <p>Round robins, leagues, and social events — all organized with automatic notifications and RSVPs.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="events-section" id="events">
+  <div class="section-inner">
+    <p class="section-label">Happening Near You</p>
+    <h2 class="section-title">Upcoming Events</h2>
+    <p class="section-sub">Join games, leagues, and tournaments happening in your area right now.</p>
+    <div class="events-grid">
+      <div class="event-card">
+        <div class="event-banner yellow"></div>
+        <div class="event-body">
+          <span class="event-tag tag-tournament">Tournament</span>
+          <h3>Manila Open Pickleball Championship</h3>
+          <div class="event-meta">
+            <span>📅 June 7–8, 2026</span>
+            <span>📍 Rizal Memorial Sports Complex</span>
+            <span>⭐ Intermediate – Advanced</span>
+          </div>
+          <div class="event-footer">
+            <div class="spots">Spots: <strong>12 left</strong></div>
+            <button class="btn-join">Register</button>
+          </div>
+        </div>
+      </div>
+      <div class="event-card">
+        <div class="event-banner green"></div>
+        <div class="event-body">
+          <span class="event-tag tag-dropin">Drop-in</span>
+          <h3>Saturday Morning Drop-in @ BGC</h3>
+          <div class="event-meta">
+            <span>📅 Every Saturday, 7:00 AM</span>
+            <span>📍 BGC Courts, Taguig</span>
+            <span>⭐ All levels welcome</span>
+          </div>
+          <div class="event-footer">
+            <div class="spots">Spots: <strong>5 left</strong></div>
+            <button class="btn-join">Join</button>
+          </div>
+        </div>
+      </div>
+      <div class="event-card">
+        <div class="event-banner dark"></div>
+        <div class="event-body">
+          <span class="event-tag tag-club">League</span>
+          <h3>WeDink Summer League – Season 2</h3>
+          <div class="event-meta">
+            <span>📅 Starts June 15, 2026</span>
+            <span>📍 Multiple venues, Metro Manila</span>
+            <span>⭐ 3.0 – 4.0 DUPR</span>
+          </div>
+          <div class="event-footer">
+            <div class="spots">Spots: <strong>Open</strong></div>
+            <button class="btn-join">Join</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="how-section" id="how">
+  <div class="section-inner">
+    <p class="section-label">Getting Started</p>
+    <h2 class="section-title">Up & Playing in Minutes</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Create your profile</h3>
+        <p>Sign up, set your skill level, and tell us your city. It takes under a minute.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Discover games nearby</h3>
+        <p>Browse events, clubs, and drop-ins filtered by date, distance, and skill level.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Join or create an event</h3>
+        <p>RSVP with one click or set up your own game — brackets, round robins, and more.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Play & track your rating</h3>
+        <p>Submit scores after each match and watch your DUPR rating grow over time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="leaderboard-section" id="leaderboard">
+  <div class="section-inner">
+    <p class="section-label">Top Players</p>
+    <h2 class="section-title">Community Rankings</h2>
+    <p class="section-sub">The best dinkers in the community this month. Play more to climb the board.</p>
+    <div class="lb-table">
+      <div class="lb-row header">
+        <span></span><span>Player</span><span>Rating</span><span>Wins</span><span>Trend</span>
+      </div>
+      <div class="lb-row">
+        <span class="rank">🥇</span>
+        <div><div class="player-name">Carlo Reyes</div><div class="player-club">BGC Ballers</div></div>
+        <span class="rating">4.85</span><span class="wins">32W</span><span class="trend up">↑ +3</span>
+      </div>
+      <div class="lb-row">
+        <span class="rank silver">🥈</span>
+        <div><div class="player-name">Ana Santos</div><div class="player-club">Makati Pickle Club</div></div>
+        <span class="rating">4.72</span><span class="wins">28W</span><span class="trend up">↑ +1</span>
+      </div>
+      <div class="lb-row">
+        <span class="rank bronze">🥉</span>
+        <div><div class="player-name">Miguel Cruz</div><div class="player-club">QC Dink Masters</div></div>
+        <span class="rating">4.65</span><span class="wins">25W</span><span class="trend down">↓ −1</span>
+      </div>
+      <div class="lb-row">
+        <span class="rank plain">4</span>
+        <div><div class="player-name">Lia Fernandez</div><div class="player-club">Alabang AC</div></div>
+        <span class="rating">4.58</span><span class="wins">22W</span><span class="trend up">↑ +2</span>
+      </div>
+      <div class="lb-row">
+        <span class="rank plain">5</span>
+        <div><div class="player-name">Rico Tan</div><div class="player-club">BGC Ballers</div></div>
+        <span class="rating">4.51</span><span class="wins">19W</span><span class="trend up">↑ +1</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section" id="join">
+  <div class="cta-box">
+    <h2>Ready to Dink? Join WeDink Today 🏓</h2>
+    <p>Be the first to know when WeDink launches in your city. Drop your email and we'll reach out.</p>
+    <div class="cta-input-row">
+      <input type="email" id="early-access-email" placeholder="your@email.com"/>
+      <button id="btn-early-access">Get Early Access</button>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="logo">We<span style="color:var(--yellow)">Dink</span> 🏓</div>
+  <p>© 2026 WeDink. Built for pickleball players, by pickleball players.</p>
+</footer>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { 
+    getAuth, 
+    signInWithPopup, 
+    GoogleAuthProvider, 
+    onAuthStateChanged, 
+    signOut 
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+  import { 
+    getFirestore, 
+    doc, 
+    setDoc, 
+    serverTimestamp 
+  } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  // Your Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBTjVhhgit82lsvpP7nUAVTVwq6NaFVFj0",
+    authDomain: "wedink-eee7a.firebaseapp.com",
+    projectId: "wedink-eee7a",
+    storageBucket: "wedink-eee7a.firebasestorage.app",
+    messagingSenderId: "156012744731",
+    appId: "1:156012744731:web:c9ea2c1dc0d0d2029f28be"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  // DOM Elements
+  const authNavContainer = document.getElementById('auth-nav-container');
+  const earlyAccessEmailInput = document.getElementById('early-access-email');
+  const earlyAccessBtn = document.getElementById('btn-early-access');
+
+  let currentUser = null;
+
+  // Google Login Function
+  async function loginWithGoogle() {
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      // Save or update user account in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        name: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        lastLogin: serverTimestamp()
+      }, { merge: true });
+
+      return user;
+    } catch (error) {
+      console.error("Authentication Error: ", error);
+      alert("Failed to sign in with Google. Check your Firebase console configuration.");
+    }
+  }
+
+  // Sign out Function
+  function handleSignOut() {
+    signOut(auth).then(() => {
+      // Sign-out successful.
+    }).catch((error) => {
+      console.error("Sign-out error: ", error);
+    });
+  }
+
+  // Handle Early Access Form Submit
+  async function handleEarlyAccessSubmission() {
+    const emailValue = earlyAccessEmailInput.value.trim();
+    
+    if (!emailValue) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    // Optional email regex validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailValue)) {
+      alert("Please enter a valid email layout.");
+      return;
+    }
+
+    try {
+      // If user is not logged in, trigger Google Auth to bind account
+      if (!currentUser) {
+        alert("Let's quickly get you authenticated with Google first!");
+        const loggedInUser = await loginWithGoogle();
+        if (!loggedInUser) return; // authentication cancelled or failed
+      }
+
+      // Save early access entry tied to user UID
+      await setDoc(doc(db, "users", auth.currentUser.uid), {
+        earlyAccessEmail: emailValue,
+        requestedEarlyAccessAt: serverTimestamp()
+      }, { merge: true });
+
+      // Visual state updates
+      earlyAccessBtn.textContent = '✓ Joined!';
+      earlyAccessBtn.style.background = '#52B788';
+      earlyAccessBtn.disabled = true;
+      earlyAccessEmailInput.disabled = true;
+
+    } catch (error) {
+      console.error("Error saving data to Firestore: ", error);
+      alert("An error occurred while saving your email. Ensure Firestore rules allow writes.");
+    }
+  }
+
+  // Dynamic UI Authentication listener
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUser = user;
+      // Populate email field if empty
+      if(!earlyAccessEmailInput.value) {
+        earlyAccessEmailInput.value = user.email;
+      }
+      
+      // Update Nav Layout to show user profile + logout
+      authNavContainer.innerHTML = `
+        <div class="user-profile">
+          <span class="user-name">Hi, ${user.displayName.split(' ')[0]}</span>
+          <button id="btn-signout-nav" class="btn-nav btn-signout">Sign Out</button>
+        </div>
+      `;
+      document.getElementById('btn-signout-nav').addEventListener('click', handleSignOut);
+    } else {
+      currentUser = null;
+      // Revert Navbar to anonymous state
+      authNavContainer.innerHTML = `<button id="btn-login-nav" class="btn-nav">Join Now</button>`;
+      document.getElementById('btn-login-nav').addEventListener('click', loginWithGoogle);
+      
+      // Reset early access elements if they were locked
+      earlyAccessBtn.textContent = 'Get Early Access';
+      earlyAccessBtn.style.background = 'var(--green)';
+      earlyAccessBtn.disabled = false;
+      earlyAccessEmailInput.disabled = false;
+      earlyAccessEmailInput.value = '';
+    }
+  });
+
+  // Wire up explicit CTA event bindings
+  earlyAccessBtn.addEventListener('click', handleEarlyAccessSubmission);
+
+</script>
+</body>
+</html>
