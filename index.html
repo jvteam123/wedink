@@ -402,7 +402,7 @@ footer p{font-size:.78rem}
       <div class="events-loading">Loading events...</div>
     </div>
     <div style="text-align:center;margin-top:2rem">
-      <button class="btn btn-secondary" onclick="openModal('create-event-modal')">+ Post an Event</button>
+      <button class="btn btn-secondary" id="btn-post-event-section" onclick="openPostEvent()">+ Post an Event</button>
     </div>
   </div>
 </section>
@@ -697,7 +697,7 @@ function renderEvents(events, filter) {
   const filtered = filter === 'all' ? events : events.filter(e => e.type === filter);
   const container = document.getElementById('events-container');
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="no-events">No ${filter === 'all' ? '' : filter} events yet. <a href="#" style="color:var(--green);font-weight:600" onclick="openModal('create-event-modal')">Post the first one!</a></div>`;
+    container.innerHTML = `<div class="no-events">No ${filter === 'all' ? '' : filter} events yet. <a href="#" style="color:var(--green);font-weight:600" onclick="openPostEvent()">Post the first one!</a></div>`;
     return;
   }
   container.innerHTML = `<div class="events-grid">${filtered.map(e => renderEventCard(e)).join('')}</div>`;
@@ -739,6 +739,16 @@ window.filterEvents = (btn, filter) => {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderEvents(allEvents, filter);
+};
+
+// ─── OPEN POST EVENT (auth-gated) ────────────────────────────────────────
+window.openPostEvent = () => {
+  if (!currentUser) {
+    showToast('Please sign in to post an event 🏓', 'error');
+    openModal('auth-modal');
+    return;
+  }
+  openModal('create-event-modal');
 };
 
 // ─── JOIN EVENT ──────────────────────────────────────────────────────────
