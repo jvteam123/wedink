@@ -641,13 +641,17 @@ function avatarHtml(name,photo,size=38){
 }
 
 // ── AUTH STATE ────────────────────────────────────────────────────────────
+let _firstAuthLoad = true;
 onAuthStateChanged(auth, async user => {
   currentUser = user;
+  const isFirstLoad = _firstAuthLoad;
+  _firstAuthLoad = false;
   if (user) {
     const uRef = doc(db,'users',user.uid);
     const snap = await getDoc(uRef);
     let userData = snap.exists() ? snap.data() : {};
-    if (!snap.exists()) {
+    const isNewUser = !snap.exists();
+    if (isNewUser) {
       userData = { uid:user.uid, displayName:user.displayName||user.email.split('@')[0], email:user.email, photoURL:user.photoURL||'', skillLevel:'3.0-3.5', city:'', eventsJoined:0, createdAt:serverTimestamp() };
       await setDoc(uRef, userData);
     }
@@ -656,10 +660,16 @@ onAuthStateChanged(auth, async user => {
     loadMyEvents(user.uid);
     loadMyOrgEvents(user.uid);
     closeModal('auth-modal');
-    toast('Welcome back, '+(user.displayName||'Player')+'! 🏓','success');
+    // Only toast on fresh login (not on page reload when already signed in)
+    if (!isFirstLoad || isNewUser) {
+      toast((isNewUser ? 'Welcome to WeDink, ' : 'Welcome back, ')+(user.displayName||'Player')+'! 🏓','success');
+    }
+    // Re-render events so Join buttons update to the logged-in state
+    renderEvents(allEvents, currentFilter);
   } else {
     setNavGuest();
     document.getElementById('dashboard-section').classList.add('hidden');
+    renderEvents(allEvents, currentFilter);
   }
 });
 
@@ -795,13 +805,38 @@ function getRegistrationStatus(e) {
 }
 
 function renderEventCard(e) {
-  const approved = Object.values(e.players||{}).filter(p=>p.status==='approved').length;
-  const pending = Object.values(e.players||{}).filter(p=>p.status==='pending').length;
+  const players = e.players || {};
+  const approvedPlayers = Object.values(players).filter(p=>p.status==='approved');
+  const approved = approvedPlayers.length;
+  const pending = Object.values(players).filter(p=>p.status==='pending').length;
   const spotsLeft = (e.maxPlayers||16) - approved;
   const isFull = spotsLeft <= 0;
   const myStatus = getRegistrationStatus(e);
   const isOrganizer = myStatus === 'organizer';
   const isClosed = e.status === 'closed' || e.status === 'cancelled';
+
+  // Organizer info row
+  const organizerHtml = `
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:.75rem;padding:.6rem .75rem;background:var(--green-pale);border-radius:10px">
+      ${avatarHtml(e.hostName||'Organizer', e.hostPhoto||'', 28)}
+      <div>
+        <div style="font-size:.72rem;color:var(--muted);line-height:1">Organizer</div>
+        <div style="font-size:.82rem;font-weight:600;color:var(--green-dark)">${e.hostName||'Anonymous'}</div>
+      </div>
+    </div>`;
+
+  // Joined players avatars (show up to 5)
+  const joinedHtml = approved > 0 ? `
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:.75rem">
+      <div style="display:flex;margin-right:4px">
+        ${approvedPlayers.slice(0,5).map(p=>`<div title="${p.displayName}" style="margin-right:-8px;border:2px solid #fff;border-radius:50%">${avatarHtml(p.displayName,p.photoURL||'',26)}</div>`).join('')}
+      </div>
+      <span style="font-size:.78rem;color:var(--mid);margin-left:10px">
+        <strong style="color:var(--green-dark)">${approved}</strong> joined
+        ${approved>5?`<span style="color:var(--muted)"> (+${approved-5} more)</span>`:''}
+        ${pending>0&&isOrganizer?`· <span style="color:#D4AC0D">${pending} pending</span>`:''}
+      </span>
+    </div>` : `<div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">No players yet — be the first!</div>`;
 
   let actionBtn = '';
   if (isOrganizer) {
@@ -811,7 +846,7 @@ function renderEventCard(e) {
         <button class="btn btn-primary btn-sm" onclick="openManageEvent('${e.id}')">Manage</button>
       </div>`;
   } else if (myStatus==='approved') {
-    actionBtn = `<span class="badge badge-green">✓ Approved</span>`;
+    actionBtn = `<span class="badge badge-green">✓ Joined</span>`;
   } else if (myStatus==='pending') {
     actionBtn = `<span class="badge badge-orange">⏳ Pending</span>`;
   } else if (myStatus==='rejected') {
@@ -830,19 +865,22 @@ function renderEventCard(e) {
     <div class="event-card">
       <div class="event-stripe ${getStripe(e.type)}"></div>
       <div class="event-body">
-        <span class="badge ${getBadge(e.type)}">${e.type||'drop-in'}</span>
-        ${e.status&&e.status!=='open'?`<span class="badge badge-gray" style="margin-left:4px">${e.status}</span>`:''}
-        <h3>${e.name}</h3>
-        <div class="event-meta">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.3rem">
+          <span class="badge ${getBadge(e.type)}">${e.type||'drop-in'}</span>
+          ${e.status&&e.status!=='open'?`<span class="badge badge-gray">${e.status}</span>`:''}
+        </div>
+        <h3 style="margin-bottom:.6rem">${e.name}</h3>
+        ${organizerHtml}
+        <div class="event-meta" style="margin-bottom:.75rem">
           <span>📅 ${fmtDate(e.date)}</span>
           <span>📍 ${e.location}${e.city?', '+e.city:''}</span>
           <span>⭐ ${e.skillLevel||'All Levels'} · ${fmtPeso(e.fee)}</span>
-          ${e.description?`<span style="margin-top:2px">${e.description}</span>`:''}
+          ${e.description?`<span style="margin-top:2px;font-style:italic">${e.description}</span>`:''}
         </div>
+        ${joinedHtml}
         <div class="event-footer">
           <div class="spots-text">
-            ${isFull?'<span style="color:var(--red)">Full</span>':`<strong>${spotsLeft}</strong> spots left`}
-            <span style="margin-left:6px;color:var(--green)">${approved} joined</span>
+            ${isFull?'<span style="color:var(--red);font-weight:600">Full</span>':`<strong>${spotsLeft}</strong> of ${e.maxPlayers||16} spots left`}
           </div>
           ${actionBtn}
         </div>
@@ -1014,7 +1052,8 @@ document.getElementById('btn-create-event').addEventListener('click', async () =
       maxPlayers:max,fee,description:desc,requireApproval,
       status:'open',
       hostUid:currentUser.uid,
-      hostName:currentUser.displayName||'Organizer',
+      hostName:currentUser.displayName||uData.displayName||'Organizer',
+      hostPhoto:currentUser.photoURL||'',
       players:{[currentUser.uid]:hostEntry},
       createdAt:serverTimestamp()
     });
