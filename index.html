@@ -1395,29 +1395,32 @@ function buildMatch(id, teamA, teamB) {
 }
 
 function generateRoundRobin(players) {
-  // Build teams first, then round-robin the teams
-  const teams = makeTeams(players);
-  const ts = [...teams];
-  if (ts.length % 2 !== 0) ts.push({ p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE2',name:'',photo:''} });
-  const n = ts.length;
+  // Re-randomize teammates each round so partners rotate
+  // Determine number of rounds = players - 1 (or players if odd), teams = players/2
+  const ps = [...players];
+  if (ps.length % 2 !== 0) ps.push({ uid:'BYE', displayName:'BYE', photoURL:'' });
+  const numPlayers = ps.length;
+  const numRounds = numPlayers - 1;
   const rounds = [];
-  const half = n / 2;
-  const rotating = ts.slice(1);
-  for (let r = 0; r < n - 1; r++) {
+
+  for (let r = 0; r < numRounds; r++) {
+    // Fresh random teams each round
+    const teams = makeTeams(players); // uses shuffled() internally
+    const ts = [...teams];
+    if (ts.length % 2 !== 0) ts.push({ p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE',name:'',photo:''} });
+
     const round = { roundNum: r+1, label: `Round ${r+1}`, matches: [] };
-    const circle = [ts[0], ...rotating];
-    for (let i = 0; i < half; i++) {
-      const tA = circle[i], tB = circle[n-1-i];
-      const isBye = tA.p1.uid==='BYE'||tB.p1.uid==='BYE';
+    for (let i = 0; i+1 < ts.length; i+=2) {
+      const tA = ts[i], tB = ts[i+1];
+      const isBye = tA.p1.uid==='BYE' || tB.p1.uid==='BYE';
       round.matches.push({
-        id: `r${r+1}m${i+1}`,
+        id: `r${r+1}m${Math.floor(i/2)+1}`,
         teamA: tA, teamB: tB,
         winner: null,
         status: isBye ? 'bye' : 'pending'
       });
     }
     rounds.push(round);
-    rotating.unshift(rotating.pop());
   }
   return rounds;
 }
@@ -1462,6 +1465,16 @@ window.setWinner = async (matchId, winner) => {
   toast('Result saved ✓','success');
 };
 
+// Flatten a list of teams back to individual players
+function flattenPlayers(teams) {
+  const players = [];
+  teams.forEach(t => {
+    if (t.p1.uid !== 'BYE') players.push(t.p1);
+    if (t.p2.uid !== 'BYE' && t.p2.uid !== '') players.push(t.p2);
+  });
+  return players;
+}
+
 function tryAdvanceWinLose(rounds) {
   const lastRound = rounds[rounds.length-1];
   const realMatches = lastRound.matches.filter(m=>m.status!=='bye');
@@ -1477,21 +1490,39 @@ function tryAdvanceWinLose(rounds) {
   const nextNum = rounds.length + 1;
   const newRounds = [...rounds];
 
-  function pairTeams(teams, label) {
-    if (teams.length < 2) return null;
-    const round = { roundNum: nextNum, label, matches:[], type:'winlose' };
-    for (let i = 0; i+1 < teams.length; i+=2) {
-      round.matches.push({ id:`r${nextNum}_${label.replace(/\s/g,'')}_m${Math.floor(i/2)+1}`, teamA:teams[i], teamB:teams[i+1], winner:null, status:'pending' });
+  function pairRandomTeams(teams, label) {
+    // Flatten to individual players, re-shuffle, re-pair into fresh random teams
+    const players = shuffled(flattenPlayers(teams));
+    const newTeams = [];
+    for (let i = 0; i+1 < players.length; i+=2) {
+      newTeams.push({ p1: players[i], p2: players[i+1] });
     }
-    if (teams.length%2!==0) {
-      const bye=teams[teams.length-1];
-      round.matches.push({ id:`r${nextNum}_bye`, teamA:bye, teamB:{p1:{uid:'BYE',name:'BYE',photo:''},p2:{uid:'BYE',name:'',photo:''}}, winner:'teamA', status:'bye' });
+    if (players.length % 2 !== 0) {
+      newTeams.push({ p1: players[players.length-1], p2: {uid:'BYE',name:'TBD',photo:''} });
+    }
+
+    if (newTeams.length < 2) return null;
+    const round = { roundNum: nextNum, label, matches:[], type:'winlose' };
+    for (let i = 0; i+1 < newTeams.length; i+=2) {
+      round.matches.push({
+        id: `r${nextNum}_${label.replace(/\s/g,'')}_m${Math.floor(i/2)+1}`,
+        teamA: newTeams[i], teamB: newTeams[i+1],
+        winner: null, status: 'pending'
+      });
+    }
+    if (newTeams.length % 2 !== 0) {
+      const bye = newTeams[newTeams.length-1];
+      round.matches.push({
+        id: `r${nextNum}_bye`,
+        teamA: bye, teamB: {p1:{uid:'BYE',name:'BYE',photo:''},p2:{uid:'BYE',name:'',photo:''}},
+        winner: 'teamA', status: 'bye'
+      });
     }
     return round;
   }
 
-  const wR = pairTeams(winTeams, `Round ${nextNum} – Winners`);
-  const lR = pairTeams(loseTeams, `Round ${nextNum} – Losers`);
+  const wR = pairRandomTeams(winTeams, `Round ${nextNum} – Winners`);
+  const lR = pairRandomTeams(loseTeams, `Round ${nextNum} – Losers`);
   if (wR) newRounds.push(wR);
   if (lR) newRounds.push(lR);
   return newRounds;
