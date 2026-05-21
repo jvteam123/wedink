@@ -941,7 +941,7 @@ window.requestJoin = async (eventId) => {
     }
     loadMyEvents(currentUser.uid);
   } catch(err) {
-    toast('Could not send request: ' + err.message, 'error');
+    toast('Could not send request — insufficient permission.', 'error');
   }
 };
 
