@@ -385,6 +385,11 @@ footer p{font-size:.78rem}
         <div id="mm-mode-desc" style="background:var(--green-pale);border-radius:10px;padding:.85rem 1rem;font-size:.82rem;color:var(--green-dark);margin-bottom:1.25rem">
           Every approved player faces every other player once. All matches are generated upfront.
         </div>
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+          <label style="font-size:.82rem;font-weight:600;color:var(--mid);margin:0">Max Rounds</label>
+          <input type="number" id="mm-max-rounds" value="5" min="1" max="15" style="width:70px;padding:6px 10px;font-size:.875rem"/>
+          <span style="font-size:.75rem;color:var(--muted)">1 – 15 rounds</span>
+        </div>
         <button class="btn btn-primary" onclick="generateMatches()" id="btn-generate-matches">⚡ Generate Matches</button>
         <button class="btn btn-secondary" style="margin-left:.5rem" onclick="clearMatches()" id="btn-clear-matches">🗑 Clear & Reset</button>
       </div>
@@ -1337,16 +1342,17 @@ window.generateMatches = async () => {
   // Exclude organizer from matchmaker pool
   const players = Object.values(mmEventData.players||{}).filter(p=>p.status==='approved' && p.role!=='organizer');
   if (players.length < 4) { toast('Need at least 4 approved players for 2v2.','error'); return; }
+  const maxRounds = Math.min(15, Math.max(1, parseInt(document.getElementById('mm-max-rounds').value)||5));
 
   let matches = [];
   if (mmMode === 'roundrobin') {
-    matches = generateRoundRobin(players);
+    matches = generateRoundRobin(players, maxRounds);
   } else {
     matches = generateWinLoseRound1(players);
   }
 
   await updateDoc(doc(db,'events',currentManageEventId), {
-    matchmaker: { mode: mmMode, matches, updatedAt: new Date().toISOString() }
+    matchmaker: { mode: mmMode, maxRounds, matches, updatedAt: new Date().toISOString() }
   });
   toast('Matches generated! ⚡','success');
 };
@@ -1394,13 +1400,12 @@ function buildMatch(id, teamA, teamB) {
   };
 }
 
-function generateRoundRobin(players) {
+function generateRoundRobin(players, maxRounds) {
   // Re-randomize teammates each round so partners rotate
-  // Determine number of rounds = players - 1 (or players if odd), teams = players/2
   const ps = [...players];
   if (ps.length % 2 !== 0) ps.push({ uid:'BYE', displayName:'BYE', photoURL:'' });
   const numPlayers = ps.length;
-  const numRounds = numPlayers - 1;
+  const numRounds = Math.min(maxRounds || 5, 15);
   const rounds = [];
 
   for (let r = 0; r < numRounds; r++) {
@@ -1479,6 +1484,9 @@ function tryAdvanceWinLose(rounds) {
   const lastRound = rounds[rounds.length-1];
   const realMatches = lastRound.matches.filter(m=>m.status!=='bye');
   if (!realMatches.every(m=>m.status==='done')) return rounds;
+  // Respect maxRounds limit stored in matchmaker data
+  const maxRounds = mmEventData?.matchmaker?.maxRounds || 15;
+  if (rounds.length >= maxRounds) return rounds;
 
   const winTeams = [], loseTeams = [];
   lastRound.matches.forEach(m => {
@@ -1556,13 +1564,14 @@ function renderMatchmaker(e) {
   mmMode = mm.mode;
   document.getElementById('mm-mode-rr').classList.toggle('active', mm.mode==='roundrobin');
   document.getElementById('mm-mode-se').classList.toggle('active', mm.mode==='winlose');
+  if (mm.maxRounds) document.getElementById('mm-max-rounds').value = mm.maxRounds;
 
   const standings = computeStandings(mm.matches);
   let html = '';
 
   if (standings.length > 0) {
     html += `<div style="margin-bottom:1.5rem">
-      <div class="match-round-title">🏅 Team Standings</div>
+      <div class="match-round-title">🏅 Individual Standings</div>
       ${standings.map((s,i)=>`
         <div class="mm-standing-row">
           <span>${i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`} <strong>${s.name}</strong></span>
@@ -1621,21 +1630,27 @@ window.undoWinner = async (matchId) => {
 
 function computeStandings(rounds) {
   const stats = {};
-  function ensureTeam(t) {
-    const key = teamLabel(t);
-    if (!stats[key]) stats[key] = { name: key, wins:0, losses:0 };
+  function ensurePlayer(p) {
+    if (p.uid === 'BYE' || p.uid === '') return;
+    if (!stats[p.uid]) stats[p.uid] = { uid: p.uid, name: p.name, wins: 0, losses: 0 };
+  }
+  function creditTeam(team, result) {
+    [team.p1, team.p2].forEach(p => {
+      ensurePlayer(p);
+      if (stats[p.uid]) stats[p.uid][result]++;
+    });
   }
   rounds.forEach(round => {
     round.matches.forEach(m => {
-      if (m.status!=='done' || m.teamA.p1.uid==='BYE' || m.teamB.p1.uid==='BYE') return;
-      ensureTeam(m.teamA); ensureTeam(m.teamB);
-      const winKey  = teamLabel(m.winner==='teamA' ? m.teamA : m.teamB);
-      const loseKey = teamLabel(m.winner==='teamA' ? m.teamB : m.teamA);
-      stats[winKey].wins++;
-      stats[loseKey].losses++;
+      if (m.status !== 'done') return;
+      if (m.teamA.p1.uid === 'BYE' || m.teamB.p1.uid === 'BYE') return;
+      const winTeam  = m.winner === 'teamA' ? m.teamA : m.teamB;
+      const loseTeam = m.winner === 'teamA' ? m.teamB : m.teamA;
+      creditTeam(winTeam,  'wins');
+      creditTeam(loseTeam, 'losses');
     });
   });
-  return Object.values(stats).sort((a,b)=>b.wins-a.wins||a.losses-b.losses);
+  return Object.values(stats).sort((a,b) => b.wins - a.wins || a.losses - b.losses);
 }
 
 // Patch switchManageTab to render matchmaker when switching to it
