@@ -924,14 +924,25 @@ window.requestJoin = async (eventId) => {
     joinedAt: new Date().toISOString()
   };
 
-  await updateDoc(eRef, { [`players.${currentUser.uid}`]: playerEntry });
-  if (status === 'approved') {
-    await updateDoc(doc(db,'users',currentUser.uid), { eventsJoined: increment(1) });
-    toast('You joined the event! See you on the court 🏓','success');
-  } else {
-    toast('Join request sent! Waiting for organizer approval. ⏳');
+  try {
+    await updateDoc(eRef, { [`players.${currentUser.uid}`]: playerEntry });
+    if (status === 'approved') {
+      await updateDoc(doc(db,'users',currentUser.uid), { eventsJoined: increment(1) });
+      toast('You joined the event! See you on the court 🏓','success');
+    } else {
+      toast('Join request sent! Waiting for organizer approval. ⏳');
+    }
+    // Update local allEvents cache immediately so the card re-renders right away
+    const idx = allEvents.findIndex(e => e.id === eventId);
+    if (idx !== -1) {
+      if (!allEvents[idx].players) allEvents[idx].players = {};
+      allEvents[idx].players[currentUser.uid] = playerEntry;
+      renderEvents(allEvents, currentFilter);
+    }
+    loadMyEvents(currentUser.uid);
+  } catch(err) {
+    toast('Could not send request: ' + err.message, 'error');
   }
-  loadMyEvents(currentUser.uid);
 };
 
 // ── MY JOINED EVENTS ──────────────────────────────────────────────────────
