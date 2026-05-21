@@ -378,31 +378,17 @@ footer p{font-size:.78rem}
             <div style="font-size:.8rem;color:var(--muted)">Choose how matches are generated (organizer excluded from pool)</div>
           </div>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-            <button class="tab-btn active" id="mm-mode-rr" onclick="setMMMode('roundrobin')">🎯 1v1 Match</button>
+            <button class="tab-btn active" id="mm-mode-rr" onclick="setMMMode('roundrobin')">🔄 Round Robin</button>
             <button class="tab-btn" id="mm-mode-se" onclick="setMMMode('winlose')">🏆 Win vs Win / Lose vs Lose</button>
           </div>
         </div>
         <div id="mm-mode-desc" style="background:var(--green-pale);border-radius:10px;padding:.85rem 1rem;font-size:.82rem;color:var(--green-dark);margin-bottom:1.25rem">
-          Each player gets a random 1v1 opponent every round. Enable Fix Double Team to avoid repeat matchups.
+          Every approved player faces every other player once. All matches are generated upfront.
         </div>
-        <!-- 1v1 options -->
-        <div id="mm-1v1-options">
-          <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.85rem;padding:.75rem 1rem;background:var(--off-white);border-radius:10px;flex-wrap:wrap">
-            <label class="toggle" style="margin:0"><input type="checkbox" id="mm-fix-double" checked/><span class="toggle-slider"></span></label>
-            <div>
-              <div style="font-size:.875rem;font-weight:600">Fix Double Team</div>
-              <div style="font-size:.75rem;color:var(--muted)">No player faces the same opponent twice until all pairs have been matched once</div>
-            </div>
-          </div>
-          <div id="mm-max-rounds-row" style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
-            <label style="font-size:.82rem;font-weight:600;color:var(--mid);margin:0">Max Rounds</label>
-            <input type="number" id="mm-max-rounds" value="5" min="1" max="30" style="width:70px;padding:6px 10px;font-size:.875rem"/>
-            <span style="font-size:.75rem;color:var(--muted)">1 – 30 rounds</span>
-          </div>
-        </div>
-        <!-- Win/Lose 2v2 note -->
-        <div id="mm-winlose-options" style="display:none;background:var(--yellow-pale);border-radius:10px;padding:.75rem 1rem;font-size:.8rem;color:#7A5C00;margin-bottom:1rem">
-          🔀 Teams are re-randomized every round. Winners face winners, losers face losers (2v2). Rounds continue until a bracket can't form a full 2v2 match.
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+          <label style="font-size:.82rem;font-weight:600;color:var(--mid);margin:0">Max Rounds</label>
+          <input type="number" id="mm-max-rounds" value="5" min="1" max="15" style="width:70px;padding:6px 10px;font-size:.875rem"/>
+          <span style="font-size:.75rem;color:var(--muted)">1 – 15 rounds</span>
         </div>
         <button class="btn btn-primary" onclick="generateMatches()" id="btn-generate-matches">⚡ Generate Matches</button>
         <button class="btn btn-secondary" style="margin-left:.5rem" onclick="clearMatches()" id="btn-clear-matches">🗑 Clear & Reset</button>
@@ -1337,38 +1323,38 @@ window.deleteEvent = async () => {
 //  MATCHMAKER
 // ══════════════════════════════════════════════════════════════
 let mmMode = 'roundrobin';
-let mmEventData = null;
+let mmEventData = null; // latest event snapshot for matchmaker
+
+// keep mmEventData in sync with the manage modal listener
+
 
 window.setMMMode = (mode) => {
   mmMode = mode;
   document.getElementById('mm-mode-rr').classList.toggle('active', mode==='roundrobin');
   document.getElementById('mm-mode-se').classList.toggle('active', mode==='winlose');
-  document.getElementById('mm-1v1-options').style.display    = mode==='roundrobin' ? 'block' : 'none';
-  document.getElementById('mm-winlose-options').style.display = mode==='winlose'   ? 'block' : 'none';
   document.getElementById('mm-mode-desc').textContent = mode === 'roundrobin'
-    ? 'Each player gets a random 1v1 opponent every round. Enable Fix Double Team to avoid repeat matchups.'
-    : 'Winners play winners, losers play losers in 2v2 matches each round. Teams are re-randomized every round. Rounds continue automatically until a bracket can\'t form a full 2v2.';
+    ? 'Every approved player faces every other player once. All matches are generated upfront.'
+    : 'Winners play winners, losers play losers each round. Matches are revealed round by round.';
 };
 
 window.generateMatches = async () => {
   if (!currentManageEventId || !mmEventData) return;
+  // Exclude organizer from matchmaker pool
   const players = Object.values(mmEventData.players||{}).filter(p=>p.status==='approved' && p.role!=='organizer');
-  if (mmMode === 'winlose' && players.length < 4) { toast('Need at least 4 approved players for 2v2.','error'); return; }
-  if (mmMode === 'roundrobin' && players.length < 2) { toast('Need at least 2 approved players.','error'); return; }
-  const maxRounds = Math.min(30, Math.max(1, parseInt(document.getElementById('mm-max-rounds').value)||5));
-  const fixDouble = document.getElementById('mm-fix-double').checked;
+  if (players.length < 4) { toast('Need at least 4 approved players for 2v2.','error'); return; }
+  const maxRounds = Math.min(15, Math.max(1, parseInt(document.getElementById('mm-max-rounds').value)||5));
 
   let matches = [];
   if (mmMode === 'roundrobin') {
-    matches = generateRoundRobin1v1(players, maxRounds, fixDouble);
+    matches = generateRoundRobin(players, maxRounds);
   } else {
-    matches = generateWinLose2v2Round1(players);
+    matches = generateWinLoseRound1(players);
   }
 
   await updateDoc(doc(db,'events',currentManageEventId), {
-    matchmaker: { mode: mmMode, maxRounds, fixDouble, matches, updatedAt: new Date().toISOString() }
+    matchmaker: { mode: mmMode, maxRounds, matches, updatedAt: new Date().toISOString() }
   });
-  toast('Matches generated! \u26a1','success');
+  toast('Matches generated! ⚡','success');
 };
 
 window.clearMatches = async () => {
@@ -1378,133 +1364,91 @@ window.clearMatches = async () => {
 };
 
 // ── helpers ──
-function playerInfo(p) { return { uid: p.uid, name: p.displayName||p.name, photo: p.photoURL||p.photo||'' }; }
-function shuffled(arr)  { return [...arr].sort(()=>Math.random()-.5); }
+function playerInfo(p) {
+  return { uid: p.uid, name: p.displayName, photo: p.photoURL||'' };
+}
+function shuffled(arr) { return [...arr].sort(()=>Math.random()-.5); }
 
-// ────────────────────────────────────────────────
-//  1v1 MATCH (Round Robin)
-// ────────────────────────────────────────────────
-
-// Pair players into 1v1 — each player appears in exactly ONE match per round.
-// Fix Double Team: build all possible unique pairs, cycle through them before repeating.
-function pairPlayers1v1(players, usedPairs) {
-  const ps = shuffled([...players]);
-  const paired = new Set();
-  const matches = [];
-
-  // Try to pair avoiding already-used pairs first
-  for (let i = 0; i < ps.length; i++) {
-    if (paired.has(ps[i].uid)) continue;
-    let found = false;
-    for (let j = i + 1; j < ps.length; j++) {
-      if (paired.has(ps[j].uid)) continue;
-      const key = [ps[i].uid, ps[j].uid].sort().join('|');
-      if (!usedPairs.has(key)) {
-        matches.push({ playerA: ps[i], playerB: ps[j] });
-        paired.add(ps[i].uid);
-        paired.add(ps[j].uid);
-        usedPairs.add(key);
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      // All possible opponents used — find any unpaired player (allow repeat)
-      for (let j = i + 1; j < ps.length; j++) {
-        if (paired.has(ps[j].uid)) continue;
-        const key = [ps[i].uid, ps[j].uid].sort().join('|');
-        matches.push({ playerA: ps[i], playerB: ps[j] });
-        paired.add(ps[i].uid);
-        paired.add(ps[j].uid);
-        usedPairs.add(key);
-        break;
-      }
-    }
+// Split a flat player array into groups of 2 (teams).
+// If leftover players exist, they get a BYE team.
+function makeTeams(players) {
+  const ps = shuffled(players);
+  const teams = [];
+  for (let i = 0; i+1 < ps.length; i+=2) {
+    teams.push({ p1: playerInfo(ps[i]), p2: playerInfo(ps[i+1]) });
   }
-  // Any leftover unpaired player gets a BYE
-  const unpaired = ps.filter(p => !paired.has(p.uid));
-  unpaired.forEach(p => matches.push({ playerA: p, playerB: { uid:'BYE', name:'BYE', photo:'' } }));
-  return matches;
+  // odd player out → BYE partner
+  if (ps.length % 2 !== 0) {
+    const last = ps[ps.length-1];
+    teams.push({ p1: playerInfo(last), p2: { uid:'BYE', name:'BYE', photo:'' } });
+  }
+  return teams;
 }
 
-function buildMatch1v1(id, playerA, playerB) {
-  const isBye = playerA.uid === 'BYE' || playerB.uid === 'BYE';
+function teamLabel(t) {
+  return t.p2.uid === 'BYE' ? t.p1.name : `${t.p1.name} & ${t.p2.name}`;
+}
+
+function buildMatch(id, teamA, teamB) {
+  const isBye = teamA.p2.uid === 'BYE' || teamB.p2.uid === 'BYE';
   return {
-    id, matchType: '1v1',
-    teamA: { p1: playerA, p2: { uid:'', name:'', photo:'' } },
-    teamB: { p1: playerB, p2: { uid:'', name:'', photo:'' } },
-    winner: isBye ? (playerA.uid==='BYE' ? 'teamB' : 'teamA') : null,
+    id,
+    teamA, teamB,
+    // keep p1/p2 aliases so old setWinner / standings code still works on team uid
+    winner: isBye ? (teamA.p2.uid==='BYE' ? null : 'teamA') : null,
     status: isBye ? 'bye' : 'pending'
   };
 }
 
-function generateRoundRobin1v1(players, maxRounds, fixDouble) {
-  const numRounds = Math.min(maxRounds || 5, 30);
+function generateRoundRobin(players, maxRounds) {
+  // Re-randomize teammates each round so partners rotate
+  const ps = [...players];
+  if (ps.length % 2 !== 0) ps.push({ uid:'BYE', displayName:'BYE', photoURL:'' });
+  const numPlayers = ps.length;
+  const numRounds = Math.min(maxRounds || 5, 15);
   const rounds = [];
-  const usedPairs = new Set(); // track across rounds for Fix Double Team
+
   for (let r = 0; r < numRounds; r++) {
-    const pairs = pairPlayers1v1(players.map(playerInfo), fixDouble ? usedPairs : new Set());
-    const round = { roundNum: r+1, label: `Round ${r+1}`, matches: [], matchType: '1v1' };
-    pairs.forEach((pair, idx) => {
-      round.matches.push(buildMatch1v1(`r${r+1}m${idx+1}`, pair.playerA, pair.playerB));
-    });
+    // Fresh random teams each round
+    const teams = makeTeams(players); // uses shuffled() internally
+    const ts = [...teams];
+    if (ts.length % 2 !== 0) ts.push({ p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE',name:'',photo:''} });
+
+    const round = { roundNum: r+1, label: `Round ${r+1}`, matches: [] };
+    for (let i = 0; i+1 < ts.length; i+=2) {
+      const tA = ts[i], tB = ts[i+1];
+      const isBye = tA.p1.uid==='BYE' || tB.p1.uid==='BYE';
+      round.matches.push({
+        id: `r${r+1}m${Math.floor(i/2)+1}`,
+        teamA: tA, teamB: tB,
+        winner: null,
+        status: isBye ? 'bye' : 'pending'
+      });
+    }
     rounds.push(round);
   }
   return rounds;
 }
 
-// ────────────────────────────────────────────────
-//  WIN vs WIN / LOSE vs LOSE  (2v2, re-randomized teams)
-// ────────────────────────────────────────────────
-
-// Pair a flat player list into 2v2 matches.
-// Each player appears in exactly ONE match (no double team).
-// Returns array of { teamA:{p1,p2}, teamB:{p1,p2} }
-function pairPlayers2v2(players) {
-  const ps = shuffled([...players]);
-  const matches = [];
-  // Need groups of 4 per match; leftovers get BYE
-  let i = 0;
-  while (i + 3 < ps.length) {
-    matches.push({
-      teamA: { p1: ps[i],   p2: ps[i+1] },
-      teamB: { p1: ps[i+2], p2: ps[i+3] }
+function generateWinLoseRound1(players) {
+  const teams = makeTeams(players);
+  const round = { roundNum:1, label:'Round 1', matches:[], type:'winlose' };
+  for (let i = 0; i+1 < teams.length; i+=2) {
+    round.matches.push({
+      id: `r1m${Math.floor(i/2)+1}`,
+      teamA: teams[i], teamB: teams[i+1],
+      winner: null, status: 'pending'
     });
-    i += 4;
   }
-  // Leftover players (1, 2, or 3) get a BYE match
-  const leftover = ps.slice(i);
-  if (leftover.length > 0) {
-    const byeTeam = { p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE',name:'',photo:''} };
-    if (leftover.length === 1) {
-      matches.push({ teamA:{ p1:leftover[0], p2:{uid:'BYE',name:'BYE',photo:''} }, teamB: byeTeam });
-    } else if (leftover.length === 2) {
-      matches.push({ teamA:{ p1:leftover[0], p2:leftover[1] }, teamB: byeTeam });
-    } else { // 3
-      matches.push({ teamA:{ p1:leftover[0], p2:leftover[1] }, teamB:{ p1:leftover[2], p2:{uid:'BYE',name:'BYE',photo:''} } });
-    }
+  // odd team out gets a bye
+  if (teams.length % 2 !== 0) {
+    const bye = teams[teams.length-1];
+    round.matches.push({
+      id: `r1bye`,
+      teamA: bye, teamB: { p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE',name:'',photo:''} },
+      winner: 'teamA', status:'bye'
+    });
   }
-  return matches;
-}
-
-function buildMatch2v2(id, teamA, teamB) {
-  const isBye = teamA.p1.uid==='BYE' || teamB.p1.uid==='BYE'
-              || teamA.p2.uid==='BYE' || teamB.p2.uid==='BYE';
-  return {
-    id, matchType: '2v2',
-    teamA, teamB,
-    winner: isBye ? (teamA.p1.uid==='BYE' ? 'teamB' : 'teamA') : null,
-    status: isBye ? 'bye' : 'pending'
-  };
-}
-
-function generateWinLose2v2Round1(players) {
-  const pInfos = players.map(playerInfo);
-  const pairs = pairPlayers2v2(pInfos);
-  const round = { roundNum: 1, label: 'Round 1', matches: [], type: 'winlose', matchType: '2v2' };
-  pairs.forEach((pair, idx) => {
-    round.matches.push(buildMatch2v2(`r1m${idx+1}`, pair.teamA, pair.teamB));
-  });
   return [round];
 }
 
@@ -1518,103 +1462,94 @@ window.setWinner = async (matchId, winner) => {
     matches: round.matches.map(m => m.id !== matchId ? m : { ...m, winner, status:'done' })
   }));
   let finalMatches = matches;
-  if (mm.mode === 'winlose') finalMatches = tryAdvanceWinLose2v2(matches);
+  if (mm.mode === 'winlose') finalMatches = tryAdvanceWinLose(matches);
   await updateDoc(doc(db,'events',currentManageEventId), {
     'matchmaker.matches': finalMatches,
     'matchmaker.updatedAt': new Date().toISOString()
   });
-  toast('Result saved \u2713','success');
+  toast('Result saved ✓','success');
 };
 
-function tryAdvanceWinLose2v2(rounds) {
-  const maxRoundNum = Math.max(...rounds.map(r => r.roundNum));
-  const lastRounds  = rounds.filter(r => r.roundNum === maxRoundNum);
+// Flatten a list of teams back to individual players
+function flattenPlayers(teams) {
+  const players = [];
+  teams.forEach(t => {
+    if (t.p1.uid !== 'BYE') players.push(t.p1);
+    if (t.p2.uid !== 'BYE' && t.p2.uid !== '') players.push(t.p2);
+  });
+  return players;
+}
 
-  // Wait until all real matches in the frontier are done
-  const allDone = lastRounds.every(r =>
-    r.matches.filter(m => m.status !== 'bye').every(m => m.status === 'done')
-  );
-  if (!allDone) return rounds;
+function tryAdvanceWinLose(rounds) {
+  const lastRound = rounds[rounds.length-1];
+  const realMatches = lastRound.matches.filter(m=>m.status!=='bye');
+  if (!realMatches.every(m=>m.status==='done')) return rounds;
+  // Respect maxRounds limit stored in matchmaker data
+  const maxRounds = mmEventData?.matchmaker?.maxRounds || 15;
+  if (rounds.length >= maxRounds) return rounds;
 
-  const nextNum   = maxRoundNum + 1;
-  const newRounds = [...rounds];
-
-  // Collect all individual winners and losers from frontier rounds
-  const winners = [], losers = [];
-  lastRounds.forEach(r => {
-    r.matches.forEach(m => {
-      const wTeam = m.winner === 'teamA' ? m.teamA : m.teamB;
-      const lTeam = m.winner === 'teamA' ? m.teamB : m.teamA;
-      if (m.status === 'bye') {
-        // BYE match: advance the real team to winners only
-        [wTeam.p1, wTeam.p2].forEach(p => { if (p.uid && p.uid !== 'BYE' && p.uid !== '') winners.push(p); });
-        return;
-      }
-      [wTeam.p1, wTeam.p2].forEach(p => { if (p.uid && p.uid !== 'BYE' && p.uid !== '') winners.push(p); });
-      [lTeam.p1, lTeam.p2].forEach(p => { if (p.uid && p.uid !== 'BYE' && p.uid !== '') losers.push(p); });
-    });
+  const winTeams = [], loseTeams = [];
+  lastRound.matches.forEach(m => {
+    if (m.status==='bye') { winTeams.push(m.teamA); return; }
+    winTeams.push(m.winner==='teamA' ? m.teamA : m.teamB);
+    loseTeams.push(m.winner==='teamA' ? m.teamB : m.teamA);
   });
 
-  function makeNextRound2v2(playerList, label) {
-    // Need at least 4 players for one 2v2 match
-    if (playerList.length < 4) return null;
-    const pairs = pairPlayers2v2(playerList);
-    const round = { roundNum: nextNum, label, matches: [], type: 'winlose', matchType: '2v2' };
-    pairs.forEach((pair, idx) => {
-      round.matches.push(buildMatch2v2(
-        `r${nextNum}_${label.replace(/[\s\u2013]/g,'')}_m${idx+1}`,
-        pair.teamA, pair.teamB
-      ));
-    });
+  const nextNum = rounds.length + 1;
+  const newRounds = [...rounds];
+
+  function pairRandomTeams(teams, label) {
+    // Flatten to individual players, re-shuffle, re-pair into fresh random teams
+    const players = shuffled(flattenPlayers(teams));
+    const newTeams = [];
+    for (let i = 0; i+1 < players.length; i+=2) {
+      newTeams.push({ p1: players[i], p2: players[i+1] });
+    }
+    if (players.length % 2 !== 0) {
+      newTeams.push({ p1: players[players.length-1], p2: {uid:'BYE',name:'TBD',photo:''} });
+    }
+
+    if (newTeams.length < 2) return null;
+    const round = { roundNum: nextNum, label, matches:[], type:'winlose' };
+    for (let i = 0; i+1 < newTeams.length; i+=2) {
+      round.matches.push({
+        id: `r${nextNum}_${label.replace(/\s/g,'')}_m${Math.floor(i/2)+1}`,
+        teamA: newTeams[i], teamB: newTeams[i+1],
+        winner: null, status: 'pending'
+      });
+    }
+    if (newTeams.length % 2 !== 0) {
+      const bye = newTeams[newTeams.length-1];
+      round.matches.push({
+        id: `r${nextNum}_bye`,
+        teamA: bye, teamB: {p1:{uid:'BYE',name:'BYE',photo:''},p2:{uid:'BYE',name:'',photo:''}},
+        winner: 'teamA', status: 'bye'
+      });
+    }
     return round;
   }
 
-  const wR = makeNextRound2v2(winners, `Round ${nextNum} \u2013 Winners`);
-  const lR = makeNextRound2v2(losers,  `Round ${nextNum} \u2013 Losers`);
+  const wR = pairRandomTeams(winTeams, `Round ${nextNum} – Winners`);
+  const lR = pairRandomTeams(loseTeams, `Round ${nextNum} – Losers`);
   if (wR) newRounds.push(wR);
   if (lR) newRounds.push(lR);
   return newRounds;
 }
 
-// ────────────────────────────────────────────────
-//  RENDER HELPERS
-// ────────────────────────────────────────────────
-
-// Render a team block — 1v1 shows one name, 2v2 shows two stacked names
 function renderTeamBlock(t, isWinner, isDone) {
   const cls = isWinner ? 'winner-highlight' : (isDone ? 'loser-dim' : '');
-  const p1 = t.p1, p2 = t.p2;
-  const is1v1 = !p2 || p2.uid === '' || p2.uid === 'BYE';
-
-  if (p1.uid === 'BYE') return `<div class="match-player" style="opacity:.4;font-style:italic">BYE</div>`;
-
-  if (is1v1) {
-    return `<div class="match-player" style="align-items:center;gap:6px">
-      ${p1.photo ? `<img src="${p1.photo}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">` : ''}
-      <span class="${cls}" style="font-size:.9rem">${p1.name}</span>
-      ${isWinner ? '<span style="font-size:.8rem">\U0001f3c6</span>' : ''}
-    </div>`;
-  }
-
-  // 2v2
-  function playerRow(p) {
-    if (!p || p.uid === '' || p.uid === 'BYE') return '';
-    return `<div style="display:flex;align-items:center;gap:5px">
-      ${p.photo ? `<img src="${p.photo}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">` : ''}
-      <span class="${cls}" style="font-size:.85rem">${p.name}</span>
-    </div>`;
-  }
-  return `<div class="match-player" style="flex-direction:column;align-items:flex-start;gap:3px">
-    ${playerRow(p1)}${playerRow(p2)}
-    ${isWinner ? '<span style="font-size:.75rem">\U0001f3c6 Winners</span>' : ''}
+  const isBye = t.p1.uid==='BYE';
+  if (isBye) return `<div class="match-player" style="opacity:.4;font-style:italic">BYE</div>`;
+  return `<div class="match-player" style="flex-direction:column;align-items:flex-start;gap:2px">
+    <div style="display:flex;align-items:center;gap:5px">
+      ${t.p1.photo?`<img src="${t.p1.photo}" style="width:22px;height:22px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:''}
+      <span class="${cls}">${t.p1.name}</span>${isWinner?` <span style="font-size:.75rem">🏆</span>`:''}
+    </div>
+    <div style="display:flex;align-items:center;gap:5px">
+      ${t.p2.photo&&t.p2.uid!=='BYE'?`<img src="${t.p2.photo}" style="width:22px;height:22px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:''}
+      <span class="${cls}">${t.p2.uid==='BYE'?'<em style=\"opacity:.4\">TBD</em>':t.p2.name}</span>${isWinner?` <span style="font-size:.75rem">🏆</span>`:''}
+    </div>
   </div>`;
-}
-
-function teamLabel2v2(t) {
-  if (t.p1.uid === 'BYE') return 'BYE';
-  const p2 = t.p2;
-  if (!p2 || p2.uid === '' || p2.uid === 'BYE') return t.p1.name;
-  return `${t.p1.name} & ${p2.name}`;
 }
 
 function renderMatchmaker(e) {
@@ -1629,21 +1564,18 @@ function renderMatchmaker(e) {
   mmMode = mm.mode;
   document.getElementById('mm-mode-rr').classList.toggle('active', mm.mode==='roundrobin');
   document.getElementById('mm-mode-se').classList.toggle('active', mm.mode==='winlose');
-  document.getElementById('mm-1v1-options').style.display     = mm.mode==='roundrobin' ? 'block' : 'none';
-  document.getElementById('mm-winlose-options').style.display  = mm.mode==='winlose'   ? 'block' : 'none';
   if (mm.maxRounds) document.getElementById('mm-max-rounds').value = mm.maxRounds;
-  if (mm.fixDouble !== undefined) document.getElementById('mm-fix-double').checked = mm.fixDouble;
 
   const standings = computeStandings(mm.matches);
   let html = '';
 
   if (standings.length > 0) {
     html += `<div style="margin-bottom:1.5rem">
-      <div class="match-round-title">\U0001f3c5 Individual Standings</div>
+      <div class="match-round-title">🏅 Individual Standings</div>
       ${standings.map((s,i)=>`
         <div class="mm-standing-row">
-          <span>${i===0?'\U0001f947':i===1?'\U0001f948':i===2?'\U0001f949':`${i+1}.`} <strong>${s.name}</strong></span>
-          <span style="font-size:.78rem;color:var(--mid)">${s.wins}W \u2013 ${s.losses}L</span>
+          <span>${i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`} <strong>${s.name}</strong></span>
+          <span style="font-size:.78rem;color:var(--mid)">${s.wins}W – ${s.losses}L</span>
         </div>`).join('')}
     </div>`;
   }
@@ -1655,8 +1587,8 @@ function renderMatchmaker(e) {
       const bye  = m.status==='bye';
       const wA = done && m.winner==='teamA';
       const wB = done && m.winner==='teamB';
-      const labelA = teamLabel2v2(m.teamA);
-      const labelB = teamLabel2v2(m.teamB);
+      const labelA = teamLabel(m.teamA);
+      const labelB = teamLabel(m.teamB);
       html += `<div class="match-card ${done?'match-done':''} ${bye?'match-bye':''}">
         <div class="match-players" style="align-items:flex-start">
           ${renderTeamBlock(m.teamA, wA, done)}
@@ -1666,15 +1598,15 @@ function renderMatchmaker(e) {
         ${!done && !bye
           ? `<div class="match-actions">
               <span style="font-size:.75rem;color:var(--muted);margin-right:.25rem">Mark winner:</span>
-              <button class="btn btn-yellow btn-xs" onclick="setWinner('${m.id}','teamA')">\U0001f3c6 ${labelA}</button>
-              <button class="btn btn-yellow btn-xs" onclick="setWinner('${m.id}','teamB')">\U0001f3c6 ${labelB}</button>
+              <button class="btn btn-yellow btn-xs" onclick="setWinner('${m.id}','teamA')">🏆 ${labelA}</button>
+              <button class="btn btn-yellow btn-xs" onclick="setWinner('${m.id}','teamB')">🏆 ${labelB}</button>
              </div>`
           : done
           ? `<div class="match-actions">
-               <span class="badge badge-green" style="font-size:.7rem">\u2713 Done \u00b7 Winner: ${wA?labelA:labelB}</span>
+               <span class="badge badge-green" style="font-size:.7rem">✓ Done · Winner: ${wA?labelA:labelB}</span>
                <button class="btn btn-xs" style="border:1.5px solid var(--border);background:transparent;color:var(--muted);margin-left:auto" onclick="undoWinner('${m.id}')">Undo</button>
              </div>`
-          : `<div class="match-actions"><span class="badge badge-gray" style="font-size:.7rem">BYE \u2013 auto advance</span></div>`
+          : `<div class="match-actions"><span class="badge badge-gray" style="font-size:.7rem">BYE – auto advance</span></div>`
         }
       </div>`;
     });
@@ -1698,18 +1630,24 @@ window.undoWinner = async (matchId) => {
 
 function computeStandings(rounds) {
   const stats = {};
-  function credit(p, result) {
-    if (!p || p.uid === 'BYE' || p.uid === '') return;
+  function ensurePlayer(p) {
+    if (p.uid === 'BYE' || p.uid === '') return;
     if (!stats[p.uid]) stats[p.uid] = { uid: p.uid, name: p.name, wins: 0, losses: 0 };
-    stats[p.uid][result]++;
+  }
+  function creditTeam(team, result) {
+    [team.p1, team.p2].forEach(p => {
+      ensurePlayer(p);
+      if (stats[p.uid]) stats[p.uid][result]++;
+    });
   }
   rounds.forEach(round => {
     round.matches.forEach(m => {
       if (m.status !== 'done') return;
-      const wTeam = m.winner === 'teamA' ? m.teamA : m.teamB;
-      const lTeam = m.winner === 'teamA' ? m.teamB : m.teamA;
-      [wTeam.p1, wTeam.p2].forEach(p => credit(p, 'wins'));
-      [lTeam.p1, lTeam.p2].forEach(p => credit(p, 'losses'));
+      if (m.teamA.p1.uid === 'BYE' || m.teamB.p1.uid === 'BYE') return;
+      const winTeam  = m.winner === 'teamA' ? m.teamA : m.teamB;
+      const loseTeam = m.winner === 'teamA' ? m.teamB : m.teamA;
+      creditTeam(winTeam,  'wins');
+      creditTeam(loseTeam, 'losses');
     });
   });
   return Object.values(stats).sort((a,b) => b.wins - a.wins || a.losses - b.losses);
