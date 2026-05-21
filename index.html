@@ -375,7 +375,7 @@ footer p{font-size:.78rem}
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.25rem">
           <div>
             <div style="font-size:.95rem;font-weight:600;margin-bottom:.2rem">Match Format</div>
-            <div style="font-size:.8rem;color:var(--muted)">Choose how matches are generated</div>
+            <div style="font-size:.8rem;color:var(--muted)">Choose how matches are generated (organizer excluded from pool)</div>
           </div>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap">
             <button class="tab-btn active" id="mm-mode-rr" onclick="setMMMode('roundrobin')">🔄 Round Robin</button>
@@ -849,7 +849,7 @@ function getRegistrationStatus(e) {
 
 function renderEventCard(e) {
   const players = e.players || {};
-  const approvedPlayers = Object.values(players).filter(p=>p.status==='approved');
+  const approvedPlayers = Object.values(players).filter(p=>p.status==='approved'&&p.role!=='organizer');
   const approved = approvedPlayers.length;
   const pending = Object.values(players).filter(p=>p.status==='pending').length;
   const spotsLeft = (e.maxPlayers||16) - approved;
@@ -1032,7 +1032,7 @@ async function loadMyOrgEvents(uid) {
       const e=d.data(); const eid=d.id;
       const players = e.players||{};
       const pendingCount = Object.values(players).filter(p=>p.status==='pending').length;
-      const approvedCount = Object.values(players).filter(p=>p.status==='approved').length;
+      const approvedCount = Object.values(players).filter(p=>p.status==='approved'&&p.role!=='organizer').length;
       const paidCount = Object.values(players).filter(p=>p.paid).length;
       totalPending += pendingCount;
       return `<div class="my-event-item">
@@ -1150,7 +1150,7 @@ function renderManageModal(e) {
   const players = e.players || {};
   const pending = Object.values(players).filter(p=>p.status==='pending'&&p.role!=='organizer');
   const approved = Object.values(players).filter(p=>p.status==='approved'&&p.role!=='organizer');
-  const allApproved = Object.values(players).filter(p=>p.status==='approved');
+  const allApproved = Object.values(players).filter(p=>p.status==='approved'&&p.role!=='organizer');
   const paid = allApproved.filter(p=>p.paid);
 
   // Badge
@@ -1334,14 +1334,14 @@ window.setMMMode = (mode) => {
 
 window.generateMatches = async () => {
   if (!currentManageEventId || !mmEventData) return;
-  const players = Object.values(mmEventData.players||{}).filter(p=>p.status==='approved');
-  if (players.length < 2) { toast('Need at least 2 approved players.','error'); return; }
+  // Exclude organizer from matchmaker pool
+  const players = Object.values(mmEventData.players||{}).filter(p=>p.status==='approved' && p.role!=='organizer');
+  if (players.length < 4) { toast('Need at least 4 approved players for 2v2.','error'); return; }
 
   let matches = [];
   if (mmMode === 'roundrobin') {
     matches = generateRoundRobin(players);
   } else {
-    // Win/Lose: generate just round 1; subsequent rounds auto-generated after results
     matches = generateWinLoseRound1(players);
   }
 
@@ -1357,72 +1357,104 @@ window.clearMatches = async () => {
   toast('Matchmaker cleared.');
 };
 
+// ── helpers ──
+function playerInfo(p) {
+  return { uid: p.uid, name: p.displayName, photo: p.photoURL||'' };
+}
+function shuffled(arr) { return [...arr].sort(()=>Math.random()-.5); }
+
+// Split a flat player array into groups of 2 (teams).
+// If leftover players exist, they get a BYE team.
+function makeTeams(players) {
+  const ps = shuffled(players);
+  const teams = [];
+  for (let i = 0; i+1 < ps.length; i+=2) {
+    teams.push({ p1: playerInfo(ps[i]), p2: playerInfo(ps[i+1]) });
+  }
+  // odd player out → BYE partner
+  if (ps.length % 2 !== 0) {
+    const last = ps[ps.length-1];
+    teams.push({ p1: playerInfo(last), p2: { uid:'BYE', name:'BYE', photo:'' } });
+  }
+  return teams;
+}
+
+function teamLabel(t) {
+  return t.p2.uid === 'BYE' ? t.p1.name : `${t.p1.name} & ${t.p2.name}`;
+}
+
+function buildMatch(id, teamA, teamB) {
+  const isBye = teamA.p2.uid === 'BYE' || teamB.p2.uid === 'BYE';
+  return {
+    id,
+    teamA, teamB,
+    // keep p1/p2 aliases so old setWinner / standings code still works on team uid
+    winner: isBye ? (teamA.p2.uid==='BYE' ? null : 'teamA') : null,
+    status: isBye ? 'bye' : 'pending'
+  };
+}
+
 function generateRoundRobin(players) {
-  // Standard round-robin scheduling
-  const ps = [...players];
-  if (ps.length % 2 !== 0) ps.push({ uid:'BYE', displayName:'BYE', photoURL:'' });
-  const n = ps.length;
+  // Build teams first, then round-robin the teams
+  const teams = makeTeams(players);
+  const ts = [...teams];
+  if (ts.length % 2 !== 0) ts.push({ p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE2',name:'',photo:''} });
+  const n = ts.length;
   const rounds = [];
   const half = n / 2;
-  const rotating = ps.slice(1);
+  const rotating = ts.slice(1);
   for (let r = 0; r < n - 1; r++) {
     const round = { roundNum: r+1, label: `Round ${r+1}`, matches: [] };
-    const circle = [ps[0], ...rotating];
+    const circle = [ts[0], ...rotating];
     for (let i = 0; i < half; i++) {
-      const p1 = circle[i], p2 = circle[n-1-i];
+      const tA = circle[i], tB = circle[n-1-i];
+      const isBye = tA.p1.uid==='BYE'||tB.p1.uid==='BYE';
       round.matches.push({
         id: `r${r+1}m${i+1}`,
-        p1: { uid:p1.uid, name:p1.displayName, photo:p1.photoURL||'' },
-        p2: { uid:p2.uid, name:p2.displayName, photo:p2.photoURL||'' },
-        winner: null, status: p1.uid==='BYE'||p2.uid==='BYE' ? 'bye' : 'pending'
+        teamA: tA, teamB: tB,
+        winner: null,
+        status: isBye ? 'bye' : 'pending'
       });
     }
     rounds.push(round);
-    rotating.unshift(rotating.pop()); // rotate
+    rotating.unshift(rotating.pop());
   }
   return rounds;
 }
 
 function generateWinLoseRound1(players) {
-  // Shuffle and pair for round 1
-  const ps = [...players].sort(()=>Math.random()-.5);
+  const teams = makeTeams(players);
   const round = { roundNum:1, label:'Round 1', matches:[], type:'winlose' };
-  for (let i = 0; i < ps.length - 1; i += 2) {
+  for (let i = 0; i+1 < teams.length; i+=2) {
     round.matches.push({
       id: `r1m${Math.floor(i/2)+1}`,
-      p1: { uid:ps[i].uid, name:ps[i].displayName, photo:ps[i].photoURL||'' },
-      p2: { uid:ps[i+1].uid, name:ps[i+1].displayName, photo:ps[i+1].photoURL||'' },
+      teamA: teams[i], teamB: teams[i+1],
       winner: null, status: 'pending'
     });
   }
-  if (ps.length % 2 !== 0) {
-    const bye = ps[ps.length-1];
+  // odd team out gets a bye
+  if (teams.length % 2 !== 0) {
+    const bye = teams[teams.length-1];
     round.matches.push({
-      id: `r1bye`, p1: { uid:bye.uid, name:bye.displayName, photo:bye.photoURL||'' },
-      p2: { uid:'BYE', name:'BYE', photo:'' }, winner: bye.uid, status:'bye'
+      id: `r1bye`,
+      teamA: bye, teamB: { p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE',name:'',photo:''} },
+      winner: 'teamA', status:'bye'
     });
   }
   return [round];
 }
 
-window.setWinner = async (matchId, winnerUid) => {
+// winner is 'teamA' or 'teamB'
+window.setWinner = async (matchId, winner) => {
   if (!currentManageEventId || !mmEventData) return;
   const mm = mmEventData.matchmaker;
   if (!mm) return;
   const matches = mm.matches.map(round => ({
     ...round,
-    matches: round.matches.map(m => {
-      if (m.id !== matchId) return m;
-      return { ...m, winner: winnerUid, status:'done' };
-    })
+    matches: round.matches.map(m => m.id !== matchId ? m : { ...m, winner, status:'done' })
   }));
-
-  // For win/lose mode: check if current round is complete, then auto-generate next
   let finalMatches = matches;
-  if (mm.mode === 'winlose') {
-    finalMatches = tryAdvanceWinLose(matches, mmEventData.players||{});
-  }
-
+  if (mm.mode === 'winlose') finalMatches = tryAdvanceWinLose(matches);
   await updateDoc(doc(db,'events',currentManageEventId), {
     'matchmaker.matches': finalMatches,
     'matchmaker.updatedAt': new Date().toISOString()
@@ -1430,51 +1462,55 @@ window.setWinner = async (matchId, winnerUid) => {
   toast('Result saved ✓','success');
 };
 
-function tryAdvanceWinLose(rounds, playersMap) {
+function tryAdvanceWinLose(rounds) {
   const lastRound = rounds[rounds.length-1];
   const realMatches = lastRound.matches.filter(m=>m.status!=='bye');
-  const allDone = realMatches.every(m=>m.status==='done');
-  if (!allDone) return rounds;
+  if (!realMatches.every(m=>m.status==='done')) return rounds;
 
-  // Separate winners and losers
-  const winners = [], losers = [];
+  const winTeams = [], loseTeams = [];
   lastRound.matches.forEach(m => {
-    if (m.status === 'bye') {
-      winners.push(m.p1.uid === 'BYE' ? m.p2 : m.p1);
-      return;
-    }
-    const loserUid = m.p1.uid === m.winner ? m.p2.uid : m.p1.uid;
-    const loserInfo = m.p1.uid === loserUid ? m.p1 : m.p2;
-    const winnerInfo = m.p1.uid === m.winner ? m.p1 : m.p2;
-    winners.push(winnerInfo);
-    losers.push(loserInfo);
+    if (m.status==='bye') { winTeams.push(m.teamA); return; }
+    winTeams.push(m.winner==='teamA' ? m.teamA : m.teamB);
+    loseTeams.push(m.winner==='teamA' ? m.teamB : m.teamA);
   });
 
-  const nextRoundNum = rounds.length + 1;
+  const nextNum = rounds.length + 1;
   const newRounds = [...rounds];
 
-  function pairGroup(group, label) {
-    if (group.length < 2) return null;
-    const round = { roundNum: nextRoundNum, label, matches:[], type:'winlose' };
-    for (let i = 0; i < group.length-1; i+=2) {
-      round.matches.push({
-        id: `r${nextRoundNum}_${label.replace(/\s/g,'')}_m${Math.floor(i/2)+1}`,
-        p1: group[i], p2: group[i+1], winner:null, status:'pending'
-      });
+  function pairTeams(teams, label) {
+    if (teams.length < 2) return null;
+    const round = { roundNum: nextNum, label, matches:[], type:'winlose' };
+    for (let i = 0; i+1 < teams.length; i+=2) {
+      round.matches.push({ id:`r${nextNum}_${label.replace(/\s/g,'')}_m${Math.floor(i/2)+1}`, teamA:teams[i], teamB:teams[i+1], winner:null, status:'pending' });
     }
-    if (group.length%2!==0) {
-      const bye=group[group.length-1];
-      round.matches.push({ id:`r${nextRoundNum}_bye_${bye.uid}`, p1:bye, p2:{uid:'BYE',name:'BYE',photo:''}, winner:bye.uid, status:'bye' });
+    if (teams.length%2!==0) {
+      const bye=teams[teams.length-1];
+      round.matches.push({ id:`r${nextNum}_bye`, teamA:bye, teamB:{p1:{uid:'BYE',name:'BYE',photo:''},p2:{uid:'BYE',name:'',photo:''}}, winner:'teamA', status:'bye' });
     }
     return round;
   }
 
-  const wRound = pairGroup(winners, `Round ${nextRoundNum} – Winners`);
-  const lRound = pairGroup(losers, `Round ${nextRoundNum} – Losers`);
-  if (wRound) newRounds.push(wRound);
-  if (lRound) newRounds.push(lRound);
-
+  const wR = pairTeams(winTeams, `Round ${nextNum} – Winners`);
+  const lR = pairTeams(loseTeams, `Round ${nextNum} – Losers`);
+  if (wR) newRounds.push(wR);
+  if (lR) newRounds.push(lR);
   return newRounds;
+}
+
+function renderTeamBlock(t, isWinner, isDone) {
+  const cls = isWinner ? 'winner-highlight' : (isDone ? 'loser-dim' : '');
+  const isBye = t.p1.uid==='BYE';
+  if (isBye) return `<div class="match-player" style="opacity:.4;font-style:italic">BYE</div>`;
+  return `<div class="match-player" style="flex-direction:column;align-items:flex-start;gap:2px">
+    <div style="display:flex;align-items:center;gap:5px">
+      ${t.p1.photo?`<img src="${t.p1.photo}" style="width:22px;height:22px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:''}
+      <span class="${cls}">${t.p1.name}</span>${isWinner?` <span style="font-size:.75rem">🏆</span>`:''}
+    </div>
+    <div style="display:flex;align-items:center;gap:5px">
+      ${t.p2.photo&&t.p2.uid!=='BYE'?`<img src="${t.p2.photo}" style="width:22px;height:22px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:''}
+      <span class="${cls}">${t.p2.uid==='BYE'?'<em style=\"opacity:.4\">TBD</em>':t.p2.name}</span>${isWinner?` <span style="font-size:.75rem">🏆</span>`:''}
+    </div>
+  </div>`;
 }
 
 function renderMatchmaker(e) {
@@ -1482,25 +1518,20 @@ function renderMatchmaker(e) {
   const container = document.getElementById('mm-rounds');
   if (!mm || !mm.matches || mm.matches.length === 0) {
     container.innerHTML = '';
-    // sync mode buttons
     if (mm) { mmMode = mm.mode; setMMMode(mm.mode); }
     return;
   }
 
-  // sync mode
   mmMode = mm.mode;
   document.getElementById('mm-mode-rr').classList.toggle('active', mm.mode==='roundrobin');
   document.getElementById('mm-mode-se').classList.toggle('active', mm.mode==='winlose');
 
-  // Standings
   const standings = computeStandings(mm.matches);
-
   let html = '';
 
-  // Standings table
   if (standings.length > 0) {
     html += `<div style="margin-bottom:1.5rem">
-      <div class="match-round-title">🏅 Standings</div>
+      <div class="match-round-title">🏅 Team Standings</div>
       ${standings.map((s,i)=>`
         <div class="mm-standing-row">
           <span>${i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}.`} <strong>${s.name}</strong></span>
@@ -1509,36 +1540,34 @@ function renderMatchmaker(e) {
     </div>`;
   }
 
-  // Rounds
   mm.matches.forEach(round => {
-    html += `<div class="match-round">
-      <div class="match-round-title">${round.label}</div>`;
+    html += `<div class="match-round"><div class="match-round-title">${round.label}</div>`;
     round.matches.forEach(m => {
       const done = m.status==='done';
-      const bye = m.status==='bye';
-      const w1 = done && m.winner===m.p1.uid;
-      const w2 = done && m.winner===m.p2.uid;
+      const bye  = m.status==='bye';
+      const wA = done && m.winner==='teamA';
+      const wB = done && m.winner==='teamB';
+      const labelA = teamLabel(m.teamA);
+      const labelB = teamLabel(m.teamB);
       html += `<div class="match-card ${done?'match-done':''} ${bye?'match-bye':''}">
-        <div class="match-players">
-          <div class="match-player ${w1?'':''}">
-            ${m.p1.photo?`<img src="${m.p1.photo}" style="width:26px;height:26px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:''}
-            <span class="${w1?'winner-highlight':done&&!w1?'loser-dim':''}">${m.p1.name}</span>
-            ${w1?`<span style="font-size:.8rem">🏆</span>`:''}
-          </div>
-          <div class="match-vs">VS</div>
-          <div class="match-player ${w2?'':''}">
-            ${m.p2.photo&&m.p2.uid!=='BYE'?`<img src="${m.p2.photo}" style="width:26px;height:26px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">`:''}
-            <span class="${w2?'winner-highlight':done&&!w2?'loser-dim':''}">${m.p2.name}</span>
-            ${w2?`<span style="font-size:.8rem">🏆</span>`:''}
-          </div>
+        <div class="match-players" style="align-items:flex-start">
+          ${renderTeamBlock(m.teamA, wA, done)}
+          <div class="match-vs" style="margin-top:6px">VS</div>
+          ${renderTeamBlock(m.teamB, wB, done)}
         </div>
-        ${!done && !bye ? `<div class="match-actions">
-          <span style="font-size:.75rem;color:var(--muted);margin-right:.25rem">Mark winner:</span>
-          <button class="btn btn-yellow btn-xs" onclick="setWinner('${m.id}','${m.p1.uid}')">🏆 ${m.p1.name}</button>
-          <button class="btn btn-yellow btn-xs" onclick="setWinner('${m.id}','${m.p2.uid}')">🏆 ${m.p2.name}</button>
-        </div>` : done ? `<div class="match-actions"><span class="badge badge-green" style="font-size:.7rem">✓ Done · Winner: ${w1?m.p1.name:m.p2.name}</span>
-          <button class="btn btn-xs" style="border:1.5px solid var(--border);background:transparent;color:var(--muted);margin-left:auto" onclick="undoWinner('${m.id}')">Undo</button>
-        </div>` : `<div class="match-actions"><span class="badge badge-gray" style="font-size:.7rem">BYE – auto advance</span></div>`}
+        ${!done && !bye
+          ? `<div class="match-actions">
+              <span style="font-size:.75rem;color:var(--muted);margin-right:.25rem">Mark winner:</span>
+              <button class="btn btn-yellow btn-xs" onclick="setWinner('${m.id}','teamA')">🏆 ${labelA}</button>
+              <button class="btn btn-yellow btn-xs" onclick="setWinner('${m.id}','teamB')">🏆 ${labelB}</button>
+             </div>`
+          : done
+          ? `<div class="match-actions">
+               <span class="badge badge-green" style="font-size:.7rem">✓ Done · Winner: ${wA?labelA:labelB}</span>
+               <button class="btn btn-xs" style="border:1.5px solid var(--border);background:transparent;color:var(--muted);margin-left:auto" onclick="undoWinner('${m.id}')">Undo</button>
+             </div>`
+          : `<div class="match-actions"><span class="badge badge-gray" style="font-size:.7rem">BYE – auto advance</span></div>`
+        }
       </div>`;
     });
     html += `</div>`;
@@ -1561,15 +1590,18 @@ window.undoWinner = async (matchId) => {
 
 function computeStandings(rounds) {
   const stats = {};
+  function ensureTeam(t) {
+    const key = teamLabel(t);
+    if (!stats[key]) stats[key] = { name: key, wins:0, losses:0 };
+  }
   rounds.forEach(round => {
     round.matches.forEach(m => {
-      if (m.status!=='done' || m.p2.uid==='BYE') return;
-      [m.p1, m.p2].forEach(p => {
-        if (!stats[p.uid]) stats[p.uid] = { uid:p.uid, name:p.name, wins:0, losses:0 };
-      });
-      stats[m.winner].wins++;
-      const loser = m.winner===m.p1.uid ? m.p2.uid : m.p1.uid;
-      if (stats[loser]) stats[loser].losses++;
+      if (m.status!=='done' || m.teamA.p1.uid==='BYE' || m.teamB.p1.uid==='BYE') return;
+      ensureTeam(m.teamA); ensureTeam(m.teamB);
+      const winKey  = teamLabel(m.winner==='teamA' ? m.teamA : m.teamB);
+      const loseKey = teamLabel(m.winner==='teamA' ? m.teamB : m.teamA);
+      stats[winKey].wins++;
+      stats[loseKey].losses++;
     });
   });
   return Object.values(stats).sort((a,b)=>b.wins-a.wins||a.losses-b.losses);
