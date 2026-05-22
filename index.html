@@ -376,15 +376,14 @@ footer p{font-size:.78rem}
   <div class="modal" style="max-width:540px">
     <button class="modal-close" onclick="closeModal('create-event-modal')">✕</button>
     <h2>Create Event</h2>
-    <p class="sub">Post a game, tournament, or clinic for the community.</p>
-    <div class="form-group"><label>Event Name</label><input type="text" id="ev-name" placeholder="e.g. Saturday Drop-in @ BGC"/></div>
+    <p class="sub">Post a game or tournament for the community.</p>
+    <div class="form-group"><label>Event Name</label><input type="text" id="ev-name" placeholder="e.g. Saturday Open Play @ BGC"/></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
       <div class="form-group"><label>Type</label>
         <select id="ev-type">
-          <option value="drop-in">Drop-in</option>
+          <option value="drop-in">Open Play</option>
           <option value="tournament">Tournament</option>
           <option value="league">League</option>
-          <option value="clinic">Clinic</option>
         </select>
       </div>
       <div class="form-group"><label>Skill Level</label>
@@ -730,10 +729,9 @@ footer p{font-size:.78rem}
     <p class="section-sub">Real events posted by WeDink players. Join a game or post your own.</p>
     <div class="events-tabs">
       <button class="tab-btn active" onclick="filterEvents(this,'all')">All Events</button>
-      <button class="tab-btn" onclick="filterEvents(this,'drop-in')">Drop-in</button>
+      <button class="tab-btn" onclick="filterEvents(this,'drop-in')">Open Play</button>
       <button class="tab-btn" onclick="filterEvents(this,'tournament')">Tournament</button>
       <button class="tab-btn" onclick="filterEvents(this,'league')">League</button>
-      <button class="tab-btn" onclick="filterEvents(this,'clinic')">Clinic</button>
     </div>
     <div id="events-container"><div class="events-loading">Loading events...</div></div>
     <div style="text-align:center;margin-top:2rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap">
@@ -847,7 +845,7 @@ function toast(msg, type='') {
 }
 function initials(name) { return (name||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(); }
 function getStripe(t){ return t==='tournament'?'s-yellow':t==='league'?'s-dark':'s-green'; }
-function getBadge(t){ return t==='tournament'?'badge-yellow':t==='league'?'badge-green':t==='clinic'?'badge-red':'badge-blue'; }
+function getBadge(t){ return t==='tournament'?'badge-yellow':t==='league'?'badge-green':'badge-blue'; }
 function fmtDate(ts){
   if(!ts) return '—';
   const d = ts.toDate?ts.toDate():new Date(ts);
