@@ -2725,8 +2725,22 @@ window.autoTeamUp = async () => {
       );
     }
 
+    // FINAL FALLBACK:
+    // Read players directly from the Approved tab UI
+    if(!approvedPlayers || approvedPlayers.length === 0){
+      const approvedRows = document.querySelectorAll('#approved-list .player-row');
+
+      approvedPlayers = Array.from(approvedRows).map(row => {
+        const nameEl = row.querySelector('.player-row-name');
+
+        return {
+          name: nameEl ? nameEl.textContent.trim() : 'Player'
+        };
+      }).filter(p => p.name && p.name !== 'Player');
+    }
+
     if(approvedPlayers.length < 2){
-      toast('No approved players found in Approved list','error');
+      toast('Approved tab is empty or players could not be detected','error');
       return;
     }
 
