@@ -1727,7 +1727,7 @@ function pairPlayersGreedy(pool, partnerCount) {
 // displacing the other to BYE. Falls back to giving byePlayer a BYE slot.
 function smartInsert(byePlayer, teams, partnerCount) {
   if (teams.length === 0) {
-    return [{ p1: playerInfo(byePlayer), p2: { uid:'BYE', name:'BYE', photo:'' } }];
+    return [{ p1: playerInfo(byePlayer), p2: { uid:'BYE', name:'Waiting', photo:'' } }];
   }
   // Find the team whose partners have played together the most (stale pairing)
   let staleIdx = 0, staleSc = -1;
@@ -1738,7 +1738,7 @@ function smartInsert(byePlayer, teams, partnerCount) {
   });
   const stale = teams[staleIdx];
   if (!stale.p2 || stale.p2.uid === 'BYE' || stale.p2.uid === '') {
-    teams.push({ p1: playerInfo(byePlayer), p2: { uid:'BYE', name:'BYE', photo:'' } });
+    teams.push({ p1: playerInfo(byePlayer), p2: { uid:'BYE', name:'Waiting', photo:'' } });
     return teams;
   }
   // byePlayer joins whichever existing member they've played with less
@@ -1747,10 +1747,10 @@ function smartInsert(byePlayer, teams, partnerCount) {
   const result = [...teams];
   if (sc1 <= sc2) {
     result[staleIdx] = { p1: playerInfo(byePlayer), p2: stale.p1 };
-    result.push({ p1: stale.p2, p2: { uid:'BYE', name:'BYE', photo:'' } });
+    result.push({ p1: stale.p2, p2: { uid:'BYE', name:'Waiting', photo:'' } });
   } else {
     result[staleIdx] = { p1: playerInfo(byePlayer), p2: stale.p2 };
-    result.push({ p1: stale.p1, p2: { uid:'BYE', name:'BYE', photo:'' } });
+    result.push({ p1: stale.p1, p2: { uid:'BYE', name:'Waiting', photo:'' } });
   }
   return result;
 }
@@ -1794,7 +1794,7 @@ function pairTeamsFairly(teams, oppCount) {
       if (sc < bestSc) { bestSc = sc; bestJ = j; }
     }
     if (bestJ >= 0) { used.add(bestJ); pairs.push([ts[i], ts[bestJ]]); }
-    else pairs.push([ts[i], { p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE',name:'',photo:''} }]);
+    else pairs.push([ts[i], { p1:{uid:'BYE',name:'Waiting',photo:''}, p2:{uid:'BYE',name:'',photo:''} }]);
   }
   return pairs;
 }
@@ -1820,7 +1820,7 @@ function buildDoubleRound(pool, gameNum, bracketLabel, randomize, hist, mIdx) {
     matches.push({
       id: 'g'+gameNum+tag+'bye'+(mIdx++),
       teamA: t,
-      teamB: { p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE',name:'',photo:''} },
+      teamB: { p1:{uid:'BYE',name:'Waiting',photo:''}, p2:{uid:'BYE',name:'',photo:''} },
       winner: 'teamA', status: 'bye',
       bracket: bracketLabel || ''
     });
@@ -1861,7 +1861,7 @@ function generate1v1Round(allPlayers, gameNum, hist) {
     round.matches.push({
       id: 'g'+gameNum+'bye',
       teamA: makeSoloTeam(byePlayer),
-      teamB: { p1:{uid:'BYE',name:'BYE',photo:''}, p2:{uid:'BYE',name:'',photo:''} },
+      teamB: { p1:{uid:'BYE',name:'Waiting',photo:''}, p2:{uid:'BYE',name:'',photo:''} },
       winner: 'teamA', status: 'bye'
     });
   }
@@ -1965,7 +1965,7 @@ window.setWinner = async (matchId, winner) => {
 function renderTeamBlock(t, isWinner, isDone) {
   const cls = isWinner ? 'winner-highlight' : (isDone ? 'loser-dim' : '');
   const isBye = t.p1.uid === 'BYE';
-  if (isBye) return `<div class="match-player" style="opacity:.4;font-style:italic">BYE</div>`;
+  if (isBye) return `<div class="match-player" style="opacity:.4;font-style:italic">Waiting</div>`;
   const trophy = isWinner ? ` <span style="font-size:.75rem">&#x1F3C6;</span>` : '';
   const imgStyle26 = 'width:26px;height:26px;border-radius:50%;object-fit:cover';
   const imgStyle22 = 'width:22px;height:22px;border-radius:50%;object-fit:cover';
@@ -1976,7 +1976,7 @@ function renderTeamBlock(t, isWinner, isDone) {
   }
   const p1ImgSm = t.p1.photo ? `<img src="${t.p1.photo}" style="${imgStyle22}" onerror="this.style.display='none'">` : '';
   const p2Img   = (t.p2.photo && t.p2.uid !== 'BYE') ? `<img src="${t.p2.photo}" style="${imgStyle22}" onerror="this.style.display='none'">` : '';
-  const p2Label  = t.p2.uid === 'BYE' ? `<em style="opacity:.4">BYE</em>` : t.p2.name;
+  const p2Label  = t.p2.uid === 'BYE' ? `<em style="opacity:.4">Waiting</em>` : t.p2.name;
   return `<div class="match-player" style="flex-direction:column;align-items:flex-start;gap:2px">
     <div style="display:flex;align-items:center;gap:5px">${p1ImgSm}<span class="${cls}">${t.p1.name}</span>${trophy}</div>
     <div style="display:flex;align-items:center;gap:5px">${p2Img}<span class="${cls}">${p2Label}</span>${trophy}</div>
@@ -2075,7 +2075,7 @@ function renderMatchmaker(e) {
             <button class="btn btn-xs" style="border:1.5px solid var(--border);background:transparent;color:var(--muted);margin-left:auto" onclick="undoWinner('${m.id}')">Undo</button>
           </div>`;
         } else {
-          actions = `<div class="match-actions"><span class="badge badge-gray" style="font-size:.7rem">BYE &ndash; auto advance</span></div>`;
+          actions = `<div class="match-actions"><span class="badge badge-gray" style="font-size:.7rem">Waiting &ndash; auto advance</span></div>`;
         }
         html += `<div class="${cardCls}">
           <div class="match-players" style="align-items:flex-start">
