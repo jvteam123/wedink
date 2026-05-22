@@ -1166,7 +1166,20 @@ async function fetchCourtsNear(lat, lon, label) {
 out center 30;`;
 
   try {
-    const res  = await fetch('https://overpass-api.de/api/interpreter', { method:'POST', body:'data='+encodeURIComponent(query) });
+    // overpass-api.de blocks CORS from deployed origins — use the public mirror that sets CORS headers
+    const OVERPASS_MIRRORS = [
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://overpass.openstreetmap.ru/api/interpreter',
+      'https://overpass-api.de/api/interpreter',
+    ];
+    let res, lastErr;
+    for (const mirror of OVERPASS_MIRRORS) {
+      try {
+        res = await fetch(mirror, { method:'POST', body:'data='+encodeURIComponent(query) });
+        if (res.ok) break;
+      } catch(e) { lastErr = e; }
+    }
+    if (!res?.ok) throw lastErr || new Error('All Overpass mirrors failed');
     const data = await res.json();
     let elements = data.elements || [];
 
