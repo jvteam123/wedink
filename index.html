@@ -556,6 +556,25 @@ footer p{font-size:.78rem}
         <option value="4.0+">4.0+ (Pro)</option>
       </select>
     </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;justify-content:space-between">
+        <span>DUPR Rating ID <span style="font-weight:400;color:var(--muted)">(optional)</span></span>
+        <a href="https://mydupr.com" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:var(--green);font-weight:600;text-decoration:none" title="Look up your DUPR ID">🔗 Find on DUPR ↗</a>
+      </label>
+      <div style="position:relative">
+        <input type="text" id="profile-dupr-input" placeholder="e.g. 12345678" style="padding-left:38px" maxlength="20"/>
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none">🏅</span>
+      </div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Enter your numeric DUPR player ID to display your official rating.</div>
+    </div>
+    <div id="dupr-connected-display" class="hidden" style="background:linear-gradient(135deg,#1B4332,#2D6A4F);border-radius:12px;padding:.85rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem">
+      <div style="font-size:1.5rem">🏅</div>
+      <div style="flex:1">
+        <div style="font-size:.7rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.6)">DUPR Connected</div>
+        <div id="dupr-rating-display" style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--yellow);line-height:1.1">—</div>
+      </div>
+      <a id="dupr-profile-link" href="https://mydupr.com" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:rgba(255,255,255,.7);text-decoration:none;border:1px solid rgba(255,255,255,.2);border-radius:100px;padding:4px 10px;white-space:nowrap">View Profile ↗</a>
+    </div>
     <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-save-profile">Save Changes</button>
     <button class="btn btn-danger" style="width:100%;justify-content:center;margin-top:.6rem" id="btn-signout">Sign Out</button>
   </div>
@@ -993,15 +1012,41 @@ window.openProfileModal = async () => {
   document.getElementById('profile-city-input').value = data.city||'';
   document.getElementById('profile-skill-input').value = data.skillLevel||'3.0-3.5';
   document.getElementById('profile-badge-display').innerHTML = `<span class="badge badge-green">${data.skillLevel||'DUPR 3.0-3.5'}</span>`;
+  // DUPR
+  const duprId = data.duprId||'';
+  document.getElementById('profile-dupr-input').value = duprId;
+  const duprDisp = document.getElementById('dupr-connected-display');
+  if (duprId) {
+    document.getElementById('dupr-rating-display').textContent = data.duprRating ? `${data.duprRating} DUPR` : `ID: ${duprId}`;
+    document.getElementById('dupr-profile-link').href = `https://mydupr.com/profile/${duprId}`;
+    duprDisp.classList.remove('hidden');
+    duprDisp.style.display = 'flex';
+  } else {
+    duprDisp.classList.add('hidden');
+    duprDisp.style.display = 'none';
+  }
   openModal('profile-modal');
 };
 document.getElementById('btn-save-profile').addEventListener('click', async () => {
   if(!currentUser) return;
   const city=document.getElementById('profile-city-input').value.trim();
   const skill=document.getElementById('profile-skill-input').value;
-  await updateDoc(doc(db,'users',currentUser.uid),{city,skillLevel:skill});
+  const duprId=document.getElementById('profile-dupr-input').value.trim().replace(/\D/g,'').slice(0,20);
+  const updateData = {city, skillLevel:skill, duprId};
+  await updateDoc(doc(db,'users',currentUser.uid), updateData);
   document.getElementById('dash-skill').textContent=skill;
   document.getElementById('dash-city').textContent=city||'Not set';
+  // Update DUPR display
+  const duprDisp = document.getElementById('dupr-connected-display');
+  if (duprId) {
+    document.getElementById('dupr-rating-display').textContent = `ID: ${duprId}`;
+    document.getElementById('dupr-profile-link').href = `https://mydupr.com/profile/${duprId}`;
+    duprDisp.classList.remove('hidden');
+    duprDisp.style.display = 'flex';
+  } else {
+    duprDisp.classList.add('hidden');
+    duprDisp.style.display = 'none';
+  }
   closeModal('profile-modal'); toast('Profile updated! ✓','success');
 });
 
@@ -2403,6 +2448,10 @@ window.openPublicProfile = async (uid, fallbackName) => {
     document.getElementById('pub-stat-joined').textContent = d.eventsJoined || 0;
     document.getElementById('pub-stat-skill').textContent = d.skillLevel || '—';
     document.getElementById('pub-stat-city').textContent = d.city || '—';
+    // DUPR badge
+    if (d.duprId) {
+      document.getElementById('pub-badges').innerHTML += ` <a href="https://mydupr.com/profile/${d.duprId}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:3px;background:linear-gradient(135deg,#1B4332,#2D6A4F);color:var(--yellow);font-size:.68rem;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:3px 9px;border-radius:100px;text-decoration:none">🏅 DUPR${d.duprRating?' · '+d.duprRating:''} ↗</a>`;
+    }
 
     // Recent events — use cached allEvents first, only Firestore if cache empty
     let eventsPool = allEvents.length ? allEvents : [];
