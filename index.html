@@ -1757,7 +1757,7 @@ function smartInsert(byePlayer, teams, partnerCount) {
 
 // Build 2v2 teams from a pool with fair partner rotation + smart BYE
 function buildFairTeams(pool, randomize, hist) {
-  const { partnerCount, restCount } = hist;
+  const { partnerCount = {}, restCount = {} } = hist || {};
   let active = [...pool];
   let byePlayer = null;
 
@@ -1804,7 +1804,7 @@ function buildDoubleRound(pool, gameNum, bracketLabel, randomize, hist, mIdx) {
   const teams = buildFairTeams(pool, randomize, hist);
   const real  = teams.filter(t => !(t.p2 && t.p2.uid === 'BYE'));
   const byes  = teams.filter(t =>   t.p2 && t.p2.uid === 'BYE');
-  const pairs = pairTeamsFairly(real, hist.oppCount||{});
+  const pairs = pairTeamsFairly(real, hist.oppCount || {});
   const matches = [];
   const tag = bracketLabel ? bracketLabel[0] : '';
   pairs.forEach(([tA, tB]) => {
@@ -1832,14 +1832,14 @@ function buildDoubleRound(pool, gameNum, bracketLabel, randomize, hist, mIdx) {
 //  1V1 ROUND GENERATOR
 // ══════════════════════════════════════════════════════════════
 function generate1v1Round(allPlayers, gameNum, hist) {
-  const restCount = hist.restCount || {};
+  const restCount = (hist && hist.restCount) || {};
   let active = [...allPlayers];
   let byePlayer = null;
   if (active.length % 2 !== 0) {
     byePlayer = pickByePlayer(active, restCount);
     active = active.filter(p => p.uid !== byePlayer.uid);
   }
-  const pairCount = hist.oppCount || {};
+  const pairCount = (hist && hist.oppCount) || {};
   let best = null, bestSc = Infinity;
   for (let attempt = 0; attempt < 30; attempt++) {
     const trial = shuffled(active);
