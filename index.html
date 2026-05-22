@@ -614,10 +614,10 @@ footer p{font-size:.78rem}
         <a href="https://mydupr.com" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:var(--green);font-weight:600;text-decoration:none" title="Look up your DUPR ID">🔗 Find on DUPR ↗</a>
       </label>
       <div style="position:relative">
-        <input type="text" id="profile-dupr-input" placeholder="e.g. 12345678" style="padding-left:38px" maxlength="20"/>
+        <input type="text" id="profile-dupr-input" placeholder="e.g. D590ML or numeric DUPR ID" style="padding-left:38px" maxlength="20"/>
         <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none">🏅</span>
       </div>
-      <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Enter your numeric DUPR player ID to display your official rating.</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Enter your DUPR profile code or ID exactly as shown on your DUPR profile.</div>
     </div>
     <div id="dupr-connected-display" class="hidden" style="background:linear-gradient(135deg,#1B4332,#2D6A4F);border-radius:12px;padding:.85rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem">
       <div style="font-size:1.5rem">🏅</div>
@@ -626,7 +626,15 @@ footer p{font-size:.78rem}
         <div id="dupr-rating-display" style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--yellow);line-height:1.1">—</div>
       </div>
       <a id="dupr-profile-link" href="https://mydupr.com" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:rgba(255,255,255,.7);text-decoration:none;border:1px solid rgba(255,255,255,.2);border-radius:100px;padding:4px 10px;white-space:nowrap">View Profile ↗</a>
+    
+</div>
+
+    <div class="form-group">
+      <label>DUPR Rating</label>
+      <input type="text" id="profile-dupr-rating-input" placeholder="e.g. 3.145"/>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Set your actual DUPR rating manually.</div>
     </div>
+
     <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-save-profile">Save Changes</button>
     <button class="btn btn-danger" style="width:100%;justify-content:center;margin-top:.6rem" id="btn-signout">Sign Out</button>
   </div>
@@ -921,7 +929,7 @@ window.renderDuprDashboard = userData => {
   }
 
   const duprId = userData?.duprId || '';
-  const rating = userData?.duprRating || userData?.skillLevel || '3.0';
+  const rating = userData?.duprRating || 'Not Set';
 
   if (!duprId) {
     duprDisp.classList.add('hidden');
@@ -931,7 +939,7 @@ window.renderDuprDashboard = userData => {
 
   const normalizedRating = String(rating).split('-')[0];
 
-  ratingEl.textContent = `${normalizedRating} DUPR`;
+  ratingEl.textContent = normalizedRating === 'Not Set' ? 'Rating Not Set' : `${normalizedRating} DUPR`;
   idEl.textContent = duprId;
   tierEl.textContent = getDuprTier(normalizedRating);
   confidenceEl.textContent = parseFloat(normalizedRating) >= 4 ? 'Elite' : 'High';
@@ -1128,6 +1136,8 @@ window.openProfileModal = async () => {
   // DUPR
   const duprId = data.duprId||'';
   document.getElementById('profile-dupr-input').value = duprId;
+  const duprRatingInput=document.getElementById('profile-dupr-rating-input');
+  if(duprRatingInput){duprRatingInput.value=data.duprRating||'';}
   renderDuprDashboard(data);
   openModal('profile-modal');
 };
@@ -1143,6 +1153,7 @@ document.getElementById('btn-save-profile').addEventListener('click', async () =
   // Update DUPR display
   renderDuprDashboard({
     duprId,
+      duprRating,
     duprRating: skill,
     skillLevel: skill
   });
