@@ -1589,8 +1589,9 @@ const MM_DESCS = {
     '1v1 per game. Pairings rotate each game to minimise repeats. ' +
     'BYE rotates fairly — whoever rested least sits out.',
   'double':
-    '2v2 each game. Game 1 is an open draw. From Game 2: winners face winners, ' +
-    'losers face losers based on real results. Partners rotate each game for variety.',
+    '2v2 each game. Game 1 is an open draw. Partners stay together each game. ' +
+    'From Game 2: winners face winners, losers face losers based on real results. ' +
+    'If there is an odd player out, they get a Waiting slot — no pairs are broken up.',
   'doublerandom':
     '2v2 Win/Loss bracket — same as Double Match but teammates are re-randomised ' +
     'every game. Smart BYE insert ensures nobody sits out unnecessarily.'
@@ -1685,7 +1686,17 @@ function buildHistory(rounds) {
       }
     });
   });
-  return { partnerCount, oppCount, restCount, winCount, lossCount };
+  // Extract partner pairs from the most recent round (uid -> partner uid)
+  const lastRoundPartners = {};
+  if (rounds.length > 0) {
+    const last = rounds[rounds.length - 1];
+    last.matches.forEach(m => {
+      const tAp = realPlayers(m.teamA), tBp = realPlayers(m.teamB);
+      if (tAp.length === 2) { lastRoundPartners[tAp[0].uid] = tAp[1].uid; lastRoundPartners[tAp[1].uid] = tAp[0].uid; }
+      if (tBp.length === 2) { lastRoundPartners[tBp[0].uid] = tBp[1].uid; lastRoundPartners[tBp[1].uid] = tBp[0].uid; }
+    });
+  }
+  return { partnerCount, oppCount, restCount, winCount, lossCount, lastRoundPartners };
 }
 
 // Check if a round is fully resolved (all non-BYE matches done)
@@ -1757,7 +1768,7 @@ function smartInsert(byePlayer, teams, partnerCount) {
 
 // Build 2v2 teams from a pool with fair partner rotation + smart BYE
 function buildFairTeams(pool, randomize, hist) {
-  const { partnerCount = {}, restCount = {} } = hist || {};
+  const { partnerCount = {}, restCount = {}, lastRoundPartners = {} } = hist || {};
   let active = [...pool];
   let byePlayer = null;
 
@@ -1766,11 +1777,60 @@ function buildFairTeams(pool, randomize, hist) {
     active = active.filter(p => p.uid !== byePlayer.uid);
   }
 
-  let teams = randomize
-    ? (() => { const ps = shuffled(active); const ts = []; for (let i=0;i+1<ps.length;i+=2) ts.push({p1:playerInfo(ps[i]),p2:playerInfo(ps[i+1])}); return ts; })()
-    : pairPlayersGreedy(active, partnerCount);
+  let teams;
+  if (randomize) {
+    // doublerandom: fully re-randomise every game
+    const ps = shuffled(active);
+    teams = [];
+    for (let i = 0; i+1 < ps.length; i+=2)
+      teams.push({ p1: playerInfo(ps[i]), p2: playerInfo(ps[i+1]) });
+  } else {
+    // double: keep last-round partners together; only re-pair players who have no partner
+    teams = keepLastRoundPairs(active, lastRoundPartners);
+  }
 
-  if (byePlayer) teams = smartInsert(byePlayer, teams, partnerCount);
+  if (byePlayer) {
+    // For 'double' mode: simply give the lone player a Waiting slot — never break up a pair
+    if (!randomize) {
+      teams.push({ p1: playerInfo(byePlayer), p2: { uid:'BYE', name:'Waiting', photo:'' } });
+    } else {
+      teams = smartInsert(byePlayer, teams, partnerCount);
+    }
+  }
+  return teams;
+}
+
+// Reconstruct last-round pairs from the pool; any players without a known partner
+// are paired together (greedy). Never breaks up an existing pair.
+function keepLastRoundPairs(pool, lastRoundPartners) {
+  const byUid = {};
+  pool.forEach(p => { byUid[p.uid] = p; });
+  const used = new Set();
+  const teams = [];
+
+  // First pass: re-form last-round pairs where both players are still in the pool
+  pool.forEach(p => {
+    if (used.has(p.uid)) return;
+    const partnerUid = lastRoundPartners[p.uid];
+    if (partnerUid && byUid[partnerUid] && !used.has(partnerUid)) {
+      used.add(p.uid);
+      used.add(partnerUid);
+      teams.push({ p1: playerInfo(p), p2: playerInfo(byUid[partnerUid]) });
+    }
+  });
+
+  // Second pass: pair any remaining unpaired players together (greedy)
+  const unpaired = pool.filter(p => !used.has(p.uid));
+  const ps = shuffled(unpaired);
+  for (let i = 0; i+1 < ps.length; i+=2) {
+    teams.push({ p1: playerInfo(ps[i]), p2: playerInfo(ps[i+1]) });
+  }
+  // If still one left (shouldn't happen here as byePlayer was already removed, but safety net)
+  if (ps.length % 2 !== 0) {
+    const lone = ps[ps.length - 1];
+    teams.push({ p1: playerInfo(lone), p2: { uid:'BYE', name:'Waiting', photo:'' } });
+  }
+
   return teams;
 }
 
