@@ -566,6 +566,7 @@ footer p{font-size:.78rem}
 
       <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="generateTournamentBracket()">🏆 Generate Bracket</button>
+        <button class="btn btn-yellow btn-sm" onclick="autoTeamUp()">⚡ Auto Team Up</button>
         <button class="btn btn-secondary btn-sm" onclick="saveTournamentBracket()">💾 Save</button>
       </div>
 
@@ -2685,6 +2686,99 @@ function updateMobileMenuAuth(loggedIn) {
   guestEl.classList.toggle('hidden', loggedIn);
   userEl.classList.toggle('hidden', !loggedIn);
 }
+
+
+window.autoTeamUp = async () => {
+  if(!currentManageEventId){
+    toast('Open an event first','error');
+    return;
+  }
+
+  try{
+    const eventSnap = await getDoc(doc(db,'events',currentManageEventId));
+
+    if(!eventSnap.exists()){
+      toast('Event not found','error');
+      return;
+    }
+
+    const eventData = eventSnap.data();
+
+    const approvedPlayers = (eventData.players || []).filter(
+      p => p.status === 'approved'
+    );
+
+    if(approvedPlayers.length < 2){
+      toast('Not enough approved players','error');
+      return;
+    }
+
+    // Shuffle players
+    const shuffled = [...approvedPlayers].sort(() => Math.random() - 0.5);
+
+    // Build teams automatically (2 players per team)
+    const teams = [];
+
+    for(let i=0;i<shuffled.length;i+=2){
+      const p1 = shuffled[i];
+      const p2 = shuffled[i+1];
+
+      const teamName = p2
+        ? `${p1.name.split(' ')[0]} & ${p2.name.split(' ')[0]}`
+        : `${p1.name.split(' ')[0]} Solo`;
+
+      teams.push({
+        name: teamName,
+        players: p2
+          ? `${p1.name}, ${p2.name}`
+          : `${p1.name}`
+      });
+    }
+
+    // Update selector automatically
+    document.getElementById('tournament-size').value = teams.length;
+
+    // Render team cards
+    const wrap = document.getElementById('tournament-team-builder');
+
+    let html = '<div class="tournament-grid">';
+
+    teams.forEach((team,index)=>{
+      html += `
+        <div class="tournament-team-card">
+          <h4>Team ${index+1}</h4>
+
+          <div class="form-group">
+            <label>Team Name</label>
+            <input type="text"
+              id="team-name-${index+1}"
+              value="${team.name}"/>
+          </div>
+
+          <div class="form-group">
+            <label>Players</label>
+            <textarea
+              id="team-players-${index+1}"
+              rows="2">${team.players}</textarea>
+          </div>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+
+    wrap.innerHTML = html;
+
+    renderTournamentBracket(teams.length);
+
+    toast('Teams generated automatically!','success');
+
+  }catch(err){
+    console.error(err);
+    toast('Failed to auto generate teams','error');
+  }
+};
+
 
 // ══════════════════════════════════════════════════════════════
 // TOURNAMENT MODE
