@@ -3326,40 +3326,56 @@ function buildBracket(firstRound){
 
   const rounds = [];
 
+  const roundNames = [
+    'Round 1',
+    'Quarterfinals',
+    'Semifinals',
+    'Finals',
+    'Championship'
+  ];
+
   rounds.push({
-    title:'Quarterfinals',
+    title:firstRound.length <= 1 ? 'Finals' : (roundNames[Math.min(firstRound.length, roundNames.length - 1)] || 'Round 1'),
     matches:firstRound
   });
 
-  let currentSize = Math.ceil(firstRound.length / 2);
-  const labels = ['Semifinals','Finals','Championship'];
+  let currentMatches = firstRound.length;
 
-  labels.forEach(label=>{
+  while(currentMatches > 1){
 
-    if(currentSize > 0){
+    const nextMatchCount = Math.ceil(currentMatches / 2);
 
-      const matches = [];
+    const matches = [];
 
-      for(let i=0;i<currentSize;i++){
+    for(let i = 0; i < nextMatchCount; i++){
 
-        matches.push({
-          id:`${label}-${i}`,
-          team1:{pairName:'TBD'},
-          team2:{pairName:'TBD'},
-          score1:'',
-          score2:'',
-          winner:null
-        });
-      }
-
-      rounds.push({
-        title:label,
-        matches
+      matches.push({
+        id:`round-${rounds.length}-match-${i}`,
+        team1:{pairName:'TBD', players:[]},
+        team2:{pairName:'TBD', players:[]},
+        score1:'',
+        score2:'',
+        winner:null
       });
 
-      currentSize = Math.floor(currentSize / 2);
     }
-  });
+
+    const nextTitle =
+      nextMatchCount === 1
+        ? 'Finals'
+        : nextMatchCount === 2
+          ? 'Semifinals'
+          : nextMatchCount === 4
+            ? 'Quarterfinals'
+            : `Round ${rounds.length + 1}`;
+
+    rounds.push({
+      title: nextTitle,
+      matches
+    });
+
+    currentMatches = nextMatchCount;
+  }
 
   return rounds;
 }
@@ -3470,19 +3486,25 @@ window.markWinner = (round,match) => {
 
   const m = currentTournament.rounds[round].matches[match];
 
-  if(m.score1 === '' || m.score2 === ''){
+  const score1 = Number(m.score1);
+  const score2 = Number(m.score2);
+
+  if(isNaN(score1) || isNaN(score2)){
     toast('Enter both scores first','error');
     return;
   }
 
-  if(m.score1 === m.score2){
+  if(score1 === score2){
     toast('Tie scores are not allowed','error');
     return;
   }
 
-  const winner = m.score1 > m.score2 ? m.team1 : m.team2;
+  const winner = score1 > score2 ? m.team1 : m.team2;
 
-  m.winner = winner;
+  m.winner = {
+    pairName: winner.pairName,
+    players: [...(winner.players || [])]
+  };
 
   const nextRound = currentTournament.rounds[round + 1];
 
@@ -3490,20 +3512,32 @@ window.markWinner = (round,match) => {
 
     const nextMatchIndex = Math.floor(match / 2);
 
+    if(!nextRound.matches[nextMatchIndex]){
+      nextRound.matches[nextMatchIndex] = {
+        id:`auto-${round}-${match}`,
+        team1:{pairName:'TBD', players:[]},
+        team2:{pairName:'TBD', players:[]},
+        score1:'',
+        score2:'',
+        winner:null
+      };
+    }
+
     const slot = match % 2 === 0 ? 'team1' : 'team2';
 
     nextRound.matches[nextMatchIndex][slot] = {
       pairName: winner.pairName,
-      players: [...winner.players]
+      players: [...(winner.players || [])]
     };
 
-    // Auto highlight next stage
+    nextRound.matches[nextMatchIndex].score1 = '';
+    nextRound.matches[nextMatchIndex].score2 = '';
     nextRound.matches[nextMatchIndex].winner = null;
   }
 
   renderBracket();
 
-  toast(`${winner.pairName} advanced to next stage!`,'success');
+  toast(`${winner.pairName} advanced to next bracket!`,'success');
 };
 
 window.resetScores = () => {
