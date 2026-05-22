@@ -480,6 +480,33 @@ footer p{font-size:.78rem}
 }
 
 
+
+.tournament-log{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:16px;
+  padding:1rem;
+  margin-top:1.5rem;
+  max-height:320px;
+  overflow:auto;
+}
+.log-item{
+  padding:.7rem .85rem;
+  border-bottom:1px solid #eee;
+  font-size:.85rem;
+}
+.log-item:last-child{
+  border-bottom:none;
+}
+.log-win{
+  color:#1f7a4d;
+  font-weight:700;
+}
+.log-loss{
+  color:#c0392b;
+  font-weight:700;
+}
+
 /* ===== Tournament System Improvements ===== */
 .team-manager-grid{
   display:grid;
@@ -535,6 +562,12 @@ footer p{font-size:.78rem}
 .match-card.active-winner{
   border:2px solid #2da86b;
   background:#eefcf4;
+}
+
+.loser-team{
+  background:#fdeaea !important;
+  border-radius:12px;
+  opacity:.75;
 }
 .match-row{
   display:flex;
@@ -785,6 +818,13 @@ footer p{font-size:.78rem}
   </div>
 
   <div id="tournament-bracket" style="margin-top:2rem"></div>
+
+  <div class="tournament-log">
+    <h3 style="margin-bottom:1rem;color:#1f7a4d">📜 Tournament Activity</h3>
+    <div id="tournament-activity-log">
+      <div style="color:#777;font-size:.85rem">No activity yet.</div>
+    </div>
+  </div>
 
 </div>
 <!-- SETTINGS TAB -->
@@ -3400,7 +3440,7 @@ window.renderBracket = () => {
       html += `
         <div class="match-card ${winnerClass}" id="match-${roundIndex}-${matchIndex}">
 
-          <div class="match-row">
+          <div class="match-row ${match.winner && match.winner.pairName === match.team1.pairName ? 'active-winner' : (match.loser && match.loser.pairName === match.team1.pairName ? 'loser-team' : '')}">
             <div>
               <strong>${match.team1.pairName}</strong><br>
               <small>${(match.team1.players || []).join(' / ')}</small>
@@ -3412,7 +3452,7 @@ window.renderBracket = () => {
               onchange="updateScore(${roundIndex},${matchIndex},1,this.value)">
           </div>
 
-          <div class="match-row">
+          <div class="match-row ${match.winner && match.winner.pairName === match.team2.pairName ? 'active-winner' : (match.loser && match.loser.pairName === match.team2.pairName ? 'loser-team' : '')}">
             <div>
               <strong>${match.team2.pairName}</strong><br>
               <small>${(match.team2.players || []).join(' / ')}</small>
@@ -3482,6 +3522,42 @@ window.updateScore = (round,match,team,val) => {
   renderBracket();
 };
 
+
+window.tournamentActivity = [];
+
+function addTournamentActivity(text, type='win'){
+
+  const now = new Date();
+
+  tournamentActivity.unshift({
+    text,
+    type,
+    time: now.toLocaleString()
+  });
+
+  renderTournamentActivity();
+}
+
+function renderTournamentActivity(){
+
+  const wrap = document.getElementById('tournament-activity-log');
+
+  if(!wrap) return;
+
+  if(!tournamentActivity.length){
+    wrap.innerHTML = '<div style="color:#777;font-size:.85rem">No activity yet.</div>';
+    return;
+  }
+
+  wrap.innerHTML = tournamentActivity.map(item => `
+    <div class="log-item">
+      <div class="${item.type === 'loss' ? 'log-loss' : 'log-win'}">${item.text}</div>
+      <div style="font-size:.72rem;color:#777;margin-top:3px">${item.time}</div>
+    </div>
+  `).join('');
+}
+
+
 window.markWinner = (round,match) => {
 
   const m = currentTournament.rounds[round].matches[match];
@@ -3500,10 +3576,16 @@ window.markWinner = (round,match) => {
   }
 
   const winner = score1 > score2 ? m.team1 : m.team2;
+  const loser = score1 > score2 ? m.team2 : m.team1;
 
   m.winner = {
     pairName: winner.pairName,
     players: [...(winner.players || [])]
+  };
+
+  m.loser = {
+    pairName: loser.pairName,
+    players: [...(loser.players || [])]
   };
 
   const nextRound = currentTournament.rounds[round + 1];
@@ -3535,9 +3617,14 @@ window.markWinner = (round,match) => {
     nextRound.matches[nextMatchIndex].winner = null;
   }
 
+  addTournamentActivity(
+    `${winner.pairName} defeated ${loser.pairName} (${score1}-${score2})`,
+    'win'
+  );
+
   renderBracket();
 
-  toast(`${winner.pairName} advanced to next bracket!`,'success');
+  toast(`${winner.pairName} advanced to next stage!`,'success');
 };
 
 window.resetScores = () => {
