@@ -1251,6 +1251,24 @@ function shareCourt(idx) {
   }
 }
 
+// Expose court functions to global scope (required because this is a module script)
+window.searchCourts   = searchCourts;
+window.courtsByGPS    = courtsByGPS;
+window.showCourtOnMap = showCourtOnMap;
+window.shareCourt     = shareCourt;
+window.initCourts     = initCourts;
+
+// Auto-load Cebu City courts on first visit to the section
+const _courtsObserver = new IntersectionObserver((entries) => {
+  if (entries[0].isIntersecting && !_courtsInited) {
+    _courtsInited = true;
+    document.getElementById('court-search-input').value = 'Cebu City';
+    searchCourts();
+  }
+}, { threshold: 0.15 });
+const _courtsSection = document.getElementById('courts-section');
+if (_courtsSection) _courtsObserver.observe(_courtsSection);
+
 // ── GOOGLE AUTH ───────────────────────────────────────────────────────────
 async function googleAuth() {
   try { await signInWithPopup(auth, gProvider); }
