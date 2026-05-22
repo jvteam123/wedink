@@ -2704,12 +2704,29 @@ window.autoTeamUp = async () => {
 
     const eventData = eventSnap.data();
 
-    const approvedPlayers = (eventData.players || []).filter(
-      p => p.status === 'approved'
-    );
+    // Support both old and new player storage structures
+    let approvedPlayers = [];
+
+    if(Array.isArray(eventData.players)){
+      approvedPlayers = eventData.players.filter(
+        p => p && p.status === 'approved'
+      );
+    }
+
+    // fallback to approvedPlayers field if used in your DB
+    if((!approvedPlayers || approvedPlayers.length === 0) && Array.isArray(eventData.approvedPlayers)){
+      approvedPlayers = eventData.approvedPlayers;
+    }
+
+    // fallback from registrations object
+    if((!approvedPlayers || approvedPlayers.length === 0) && Array.isArray(eventData.registrations)){
+      approvedPlayers = eventData.registrations.filter(
+        p => p && p.status === 'approved'
+      );
+    }
 
     if(approvedPlayers.length < 2){
-      toast('Not enough approved players','error');
+      toast('No approved players found in Approved list','error');
       return;
     }
 
@@ -2723,15 +2740,18 @@ window.autoTeamUp = async () => {
       const p1 = shuffled[i];
       const p2 = shuffled[i+1];
 
+      const p1Name = p1.name || p1.displayName || p1.playerName || 'Player 1';
+      const p2Name = p2 ? (p2.name || p2.displayName || p2.playerName || 'Player 2') : null;
+
       const teamName = p2
-        ? `${p1.name.split(' ')[0]} & ${p2.name.split(' ')[0]}`
-        : `${p1.name.split(' ')[0]} Solo`;
+        ? `${p1Name.split(' ')[0]} & ${p2Name.split(' ')[0]}`
+        : `${p1Name.split(' ')[0]} Solo`;
 
       teams.push({
         name: teamName,
         players: p2
-          ? `${p1.name}, ${p2.name}`
-          : `${p1.name}`
+          ? `${p1Name}, ${p2Name}`
+          : `${p1Name}`
       });
     }
 
