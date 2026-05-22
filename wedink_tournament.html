@@ -553,8 +553,13 @@ footer p{font-size:.78rem}
       <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
         <input type="text" id="tournament-name" placeholder="Tournament Name" style="flex:2;min-width:220px"/>
         <select id="tournament-size" style="flex:1;min-width:140px">
+          <option value="2">2 Teams</option>
           <option value="4">4 Teams</option>
+          <option value="6">6 Teams</option>
           <option value="8" selected>8 Teams</option>
+          <option value="10">10 Teams</option>
+          <option value="12">12 Teams</option>
+          <option value="14">14 Teams</option>
           <option value="16">16 Teams</option>
         </select>
       </div>
@@ -2726,6 +2731,7 @@ function renderTournamentBracket(size){
 
   while(current.length > 1){
     let round = [];
+
     for(let i=0;i<current.length;i+=2){
       round.push({
         teamA: current[i],
@@ -2735,8 +2741,15 @@ function renderTournamentBracket(size){
         winner:''
       });
     }
+
     rounds.push(round);
-    current = new Array(Math.ceil(current.length/2)).fill({name:'TBD'});
+
+    const nextRoundSize = Math.ceil(current.length / 2);
+    current = [];
+
+    for(let j=0;j<nextRoundSize;j++){
+      current.push({name:'TBD'});
+    }
   }
 
   let html = '<div style="display:flex;gap:1.5rem;align-items:flex-start">';
