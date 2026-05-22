@@ -767,7 +767,7 @@ footer p{font-size:.78rem}
       </div>
 
       <div id="team1-list"></div>
-      <small>Maximum 12 players</small>
+      
     </div>
 
     <div class="team-panel">
@@ -779,7 +779,7 @@ footer p{font-size:.78rem}
       </div>
 
       <div id="team2-list"></div>
-      <small>Maximum 12 players</small>
+      
     </div>
 
   </div>
@@ -2477,6 +2477,26 @@ function renderMatchmaker(e) {
   });
 
   container.innerHTML = html;
+
+  // Auto detect champion
+  const lastRound = currentTournament.rounds[currentTournament.rounds.length - 1];
+
+  if(lastRound){
+
+    lastRound.matches.forEach(finalMatch=>{
+
+      if(finalMatch.winner){
+
+        const championCard = document.getElementById('championName');
+
+        if(championCard){
+          championCard.textContent = finalMatch.winner.pairName;
+        }
+      }
+
+    });
+  }
+
 }
 
 
@@ -3232,11 +3252,6 @@ window.addPlayer = (team) => {
     return;
   }
 
-  if(teamData[team].length >= 12){
-    toast('Maximum 12 players per team','error');
-    return;
-  }
-
   teamData[team].push(name);
   input.value = '';
 
@@ -3408,6 +3423,26 @@ window.renderBracket = () => {
   html += '</div>';
 
   container.innerHTML = html;
+
+  // Auto detect champion
+  const lastRound = currentTournament.rounds[currentTournament.rounds.length - 1];
+
+  if(lastRound){
+
+    lastRound.matches.forEach(finalMatch=>{
+
+      if(finalMatch.winner){
+
+        const championCard = document.getElementById('championName');
+
+        if(championCard){
+          championCard.textContent = finalMatch.winner.pairName;
+        }
+      }
+
+    });
+  }
+
 };
 
 window.updateScore = (round,match,team,val) => {
@@ -3457,12 +3492,18 @@ window.markWinner = (round,match) => {
 
     const slot = match % 2 === 0 ? 'team1' : 'team2';
 
-    nextRound.matches[nextMatchIndex][slot] = winner;
+    nextRound.matches[nextMatchIndex][slot] = {
+      pairName: winner.pairName,
+      players: [...winner.players]
+    };
+
+    // Auto highlight next stage
+    nextRound.matches[nextMatchIndex].winner = null;
   }
 
   renderBracket();
 
-  toast(`${winner.pairName} advanced!`,'success');
+  toast(`${winner.pairName} advanced to next stage!`,'success');
 };
 
 window.resetScores = () => {
