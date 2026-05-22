@@ -262,6 +262,58 @@ footer p{font-size:.78rem}
 .mm-standing-row{display:flex;align-items:center;justify-content:space-between;padding:.6rem .75rem;border-radius:8px;margin-bottom:.3rem;background:var(--off-white);font-size:.85rem}
 .mm-standing-row:nth-child(1){background:var(--yellow-pale)}
 .mm-standing-row:nth-child(2){background:#F0F0F0}
+
+.dupr-dashboard{
+  margin-top:1rem;
+  border:1px solid rgba(255,255,255,.12);
+  background:linear-gradient(135deg,#163326,#275943);
+  border-radius:16px;
+  padding:1rem;
+}
+.dupr-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:.75rem;
+  margin-top:.9rem;
+}
+.dupr-stat{
+  background:rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:.85rem;
+}
+.dupr-stat .label{
+  font-size:.68rem;
+  text-transform:uppercase;
+  letter-spacing:.8px;
+  color:rgba(255,255,255,.6);
+}
+.dupr-stat .value{
+  margin-top:.35rem;
+  font-family:'DM Serif Display',serif;
+  font-size:1.3rem;
+  color:#fff;
+}
+.dupr-status{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  flex-wrap:wrap;
+}
+.dupr-live{
+  font-size:.72rem;
+  color:#C8FACC;
+  font-weight:700;
+  letter-spacing:.7px;
+  text-transform:uppercase;
+}
+@media(max-width:768px){
+  .dupr-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){
+  .dupr-grid{grid-template-columns:1fr}
+}
+
 /* ─── MOBILE NAV ─── */
 .hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:6px;z-index:300}
 .hamburger span{display:block;width:22px;height:2px;background:var(--dark);border-radius:2px;transition:all .3s}
@@ -840,6 +892,49 @@ let currentFilter = 'all';
 let currentManageEventId = null;
 let manageUnsubscribe = null;
 
+
+window.getDuprTier = rating => {
+  const r = parseFloat(rating || 0);
+  if (r >= 5) return 'Elite';
+  if (r >= 4) return 'Pro';
+  if (r >= 3.5) return 'Advanced';
+  if (r >= 3) return 'Intermediate';
+  if (r >= 2.5) return 'Novice';
+  return 'Beginner';
+};
+
+window.renderDuprDashboard = userData => {
+  const duprDisp = document.getElementById('dupr-connected-display');
+  const duprId = userData.duprId || '';
+  const rating = userData.duprRating || userData.skillLevel || '3.0';
+  if (!duprId) {
+    duprDisp.classList.add('hidden');
+    duprDisp.style.display = 'none';
+    return;
+  }
+
+  const normalizedRating = String(rating).split('-')[0];
+  document.getElementById('dupr-rating-display').textContent = `${normalizedRating} DUPR`;
+  document.getElementById('dupr-id-card').textContent = duprId;
+  document.getElementById('dupr-tier-card').textContent = getDuprTier(normalizedRating);
+  document.getElementById('dupr-confidence-card').textContent = parseFloat(normalizedRating) >= 4 ? 'Elite' : 'High';
+  document.getElementById('dupr-profile-status').textContent = 'Linked';
+  document.getElementById('dupr-profile-link').href = `https://mydupr.com/profile/${duprId}`;
+
+  duprDisp.classList.remove('hidden');
+  duprDisp.style.display = 'block';
+};
+
+window.refreshDuprDashboard = async () => {
+  if (!currentUser) return;
+  const userSnap = await getDoc(doc(db,'users',currentUser.uid));
+  if (userSnap.exists()) {
+    renderDuprDashboard(userSnap.data());
+    toast('DUPR dashboard refreshed ✓','success');
+  }
+};
+
+
 // ── HELPERS ──────────────────────────────────────────────────────────────
 window.openModal = id => document.getElementById(id).classList.remove('hidden');
 window.closeModal = id => {
@@ -1015,16 +1110,7 @@ window.openProfileModal = async () => {
   // DUPR
   const duprId = data.duprId||'';
   document.getElementById('profile-dupr-input').value = duprId;
-  const duprDisp = document.getElementById('dupr-connected-display');
-  if (duprId) {
-    document.getElementById('dupr-rating-display').textContent = data.duprRating ? `${data.duprRating} DUPR` : `ID: ${duprId}`;
-    document.getElementById('dupr-profile-link').href = `https://mydupr.com/profile/${duprId}`;
-    duprDisp.classList.remove('hidden');
-    duprDisp.style.display = 'flex';
-  } else {
-    duprDisp.classList.add('hidden');
-    duprDisp.style.display = 'none';
-  }
+  renderDuprDashboard(data);
   openModal('profile-modal');
 };
 document.getElementById('btn-save-profile').addEventListener('click', async () => {
@@ -1037,16 +1123,11 @@ document.getElementById('btn-save-profile').addEventListener('click', async () =
   document.getElementById('dash-skill').textContent=skill;
   document.getElementById('dash-city').textContent=city||'Not set';
   // Update DUPR display
-  const duprDisp = document.getElementById('dupr-connected-display');
-  if (duprId) {
-    document.getElementById('dupr-rating-display').textContent = `ID: ${duprId}`;
-    document.getElementById('dupr-profile-link').href = `https://mydupr.com/profile/${duprId}`;
-    duprDisp.classList.remove('hidden');
-    duprDisp.style.display = 'flex';
-  } else {
-    duprDisp.classList.add('hidden');
-    duprDisp.style.display = 'none';
-  }
+  renderDuprDashboard({
+    duprId,
+    duprRating: skill,
+    skillLevel: skill
+  });
   closeModal('profile-modal'); toast('Profile updated! ✓','success');
 });
 
