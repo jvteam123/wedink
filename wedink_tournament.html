@@ -479,6 +479,87 @@ footer p{font-size:.78rem}
 
 }
 
+
+/* ===== Tournament System Improvements ===== */
+.team-manager-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:1rem;
+}
+.team-panel{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:18px;
+  padding:1rem;
+  box-shadow:0 6px 18px rgba(0,0,0,.05);
+}
+.player-chip{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:.55rem .75rem;
+  margin:.4rem 0;
+  border-radius:10px;
+  background:#f6f8f7;
+}
+.player-chip button{
+  border:none;
+  border-radius:8px;
+  padding:.25rem .5rem;
+  cursor:pointer;
+}
+.match-grid{
+  display:flex;
+  gap:1.5rem;
+  overflow-x:auto;
+  padding-bottom:1rem;
+}
+.round-column{
+  min-width:300px;
+}
+.round-title{
+  text-align:center;
+  font-weight:800;
+  margin-bottom:1rem;
+  color:#1f7a4d;
+}
+.match-card{
+  background:#fff;
+  border-radius:18px;
+  padding:1rem;
+  margin-bottom:1rem;
+  border:1px solid rgba(0,0,0,.08);
+  transition:all .25s ease;
+  box-shadow:0 6px 18px rgba(0,0,0,.05);
+}
+.match-card.active-winner{
+  border:2px solid #2da86b;
+  background:#eefcf4;
+}
+.match-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  margin-bottom:.6rem;
+}
+.match-row input{
+  width:60px;
+  padding:.45rem;
+  border-radius:10px;
+  border:1px solid #ddd;
+}
+.control-row{
+  display:flex;
+  gap:.5rem;
+  flex-wrap:wrap;
+  margin-top:1rem;
+}
+@media(max-width:768px){
+  .round-column{min-width:260px;}
+  .match-row span{font-size:.85rem;}
+}
+
 </style>
 </head>
 <body>
@@ -664,34 +745,49 @@ footer p{font-size:.78rem}
 
 
 
-    <!-- TOURNAMENT TAB -->
-    <div class="manage-tab-pane" id="tab-tournament">
-      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
-        <input type="text" id="tournament-name" placeholder="Tournament Name" style="flex:2;min-width:220px"/>
-        <select id="tournament-size" style="flex:1;min-width:140px">
-          <option value="2">2 Teams</option>
-          <option value="4">4 Teams</option>
-          <option value="6">6 Teams</option>
-          <option value="8" selected>8 Teams</option>
-          <option value="10">10 Teams</option>
-          <option value="12">12 Teams</option>
-          <option value="14">14 Teams</option>
-          <option value="16">16 Teams</option>
-        </select>
+    
+<!-- TOURNAMENT TAB -->
+<div class="manage-tab-pane" id="tab-tournament">
+
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
+    <button class="btn btn-primary btn-sm" onclick="generateMatches()">🎲 Generate Matches</button>
+    <button class="btn btn-secondary btn-sm" onclick="resetTournament()">♻ Reset Bracket</button>
+    <button class="btn btn-secondary btn-sm" onclick="resetScores()">🧹 Reset Scores</button>
+    <button class="btn btn-secondary btn-sm" onclick="rerandomizeMatches()">🔀 Re-randomize</button>
+  </div>
+
+  <div class="team-manager-grid">
+
+    <div class="team-panel">
+      <h3>🏓 Team 1</h3>
+
+      <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+        <input id="team1-player-input" type="text" placeholder="Add player"/>
+        <button class="btn btn-primary btn-sm" onclick="addPlayer(1)">Add</button>
       </div>
 
-      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" onclick="generateTournamentBracket()">🏆 Generate Bracket</button>
-        <button class="btn btn-yellow btn-sm" onclick="autoTeamUp()">⚡ Auto Team Up</button>
-        <button class="btn btn-secondary btn-sm" onclick="saveTournamentBracket()">💾 Save</button>
-      </div>
-
-      <div id="tournament-team-builder" style="margin-bottom:1.5rem"></div>
-
-      <div id="tournament-bracket" style="overflow:auto"></div>
+      <div id="team1-list"></div>
+      <small>Maximum 12 players</small>
     </div>
 
-    <!-- SETTINGS TAB -->
+    <div class="team-panel">
+      <h3>🏓 Team 2</h3>
+
+      <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+        <input id="team2-player-input" type="text" placeholder="Add player"/>
+        <button class="btn btn-primary btn-sm" onclick="addPlayer(2)">Add</button>
+      </div>
+
+      <div id="team2-list"></div>
+      <small>Maximum 12 players</small>
+    </div>
+
+  </div>
+
+  <div id="tournament-bracket" style="margin-top:2rem"></div>
+
+</div>
+<!-- SETTINGS TAB -->
     <div class="manage-tab-pane" id="tab-settings">
       <div class="settings-row">
         <div><label>Require Approval</label><p>New join requests need your approval first</p></div>
@@ -3086,6 +3182,315 @@ window.saveTournamentBracket = async () => {
   });
 
   toast('Tournament bracket saved successfully!','success');
+};
+
+
+/* =========================================================
+   TOURNAMENT SYSTEM REPAIR
+========================================================= */
+window.teamData = {
+  1: [],
+  2: []
+};
+
+window.currentTournament = {
+  rounds: []
+};
+
+function renderTeams(){
+  [1,2].forEach(team=>{
+    const wrap = document.getElementById(`team${team}-list`);
+    if(!wrap) return;
+
+    wrap.innerHTML = '';
+
+    teamData[team].forEach((player,index)=>{
+      wrap.innerHTML += `
+        <div class="player-chip">
+          <span>${player}</span>
+          <button onclick="removePlayer(${team},${index})">✕</button>
+        </div>
+      `;
+    });
+  });
+}
+
+window.addPlayer = (team) => {
+
+  const input = document.getElementById(`team${team}-player-input`);
+  const name = input.value.trim();
+
+  if(!name){
+    toast('Player name required','error');
+    return;
+  }
+
+  const allPlayers = [...teamData[1], ...teamData[2]];
+
+  if(allPlayers.includes(name)){
+    toast('Duplicate player not allowed','error');
+    return;
+  }
+
+  if(teamData[team].length >= 12){
+    toast('Maximum 12 players per team','error');
+    return;
+  }
+
+  teamData[team].push(name);
+  input.value = '';
+
+  renderTeams();
+};
+
+window.removePlayer = (team,index) => {
+  teamData[team].splice(index,1);
+  renderTeams();
+};
+
+function shuffle(arr){
+  return [...arr].sort(()=>Math.random()-0.5);
+}
+
+function pairPlayers(players, teamLabel){
+
+  const shuffled = shuffle(players);
+
+  const pairs = [];
+
+  for(let i=0;i<shuffled.length;i+=2){
+
+    const a = shuffled[i];
+    const b = shuffled[i+1];
+
+    const letter = String.fromCharCode(65 + pairs.length);
+
+    pairs.push({
+      pairName:`${teamLabel}-${letter}`,
+      players: b ? [a,b] : [a,'BYE']
+    });
+  }
+
+  return pairs;
+}
+
+window.generateMatches = () => {
+
+  if(teamData[1].length === 0 || teamData[2].length === 0){
+    toast('Both teams need players','error');
+    return;
+  }
+
+  const team1Pairs = pairPlayers(teamData[1], 'Team 1');
+  const team2Pairs = pairPlayers(teamData[2], 'Team 2');
+
+  const total = Math.max(team1Pairs.length, team2Pairs.length);
+
+  const opening = [];
+
+  for(let i=0;i<total;i++){
+
+    opening.push({
+      id:`r0m${i}`,
+      team1: team1Pairs[i] || {pairName:'BYE',players:['BYE']},
+      team2: team2Pairs[i] || {pairName:'BYE',players:['BYE']},
+      score1:'',
+      score2:'',
+      winner:null
+    });
+  }
+
+  currentTournament.rounds = buildBracket(opening);
+
+  renderBracket();
+
+  toast('Tournament generated!','success');
+};
+
+function buildBracket(firstRound){
+
+  const rounds = [];
+
+  rounds.push({
+    title:'Quarterfinals',
+    matches:firstRound
+  });
+
+  let currentSize = Math.ceil(firstRound.length / 2);
+  const labels = ['Semifinals','Finals','Championship'];
+
+  labels.forEach(label=>{
+
+    if(currentSize > 0){
+
+      const matches = [];
+
+      for(let i=0;i<currentSize;i++){
+
+        matches.push({
+          id:`${label}-${i}`,
+          team1:{pairName:'TBD'},
+          team2:{pairName:'TBD'},
+          score1:'',
+          score2:'',
+          winner:null
+        });
+      }
+
+      rounds.push({
+        title:label,
+        matches
+      });
+
+      currentSize = Math.floor(currentSize / 2);
+    }
+  });
+
+  return rounds;
+}
+
+window.renderBracket = () => {
+
+  const container = document.getElementById('tournament-bracket');
+
+  let html = '<div class="match-grid">';
+
+  currentTournament.rounds.forEach((round,roundIndex)=>{
+
+    html += `
+      <div class="round-column">
+        <div class="round-title">${round.title}</div>
+    `;
+
+    round.matches.forEach((match,matchIndex)=>{
+
+      const winnerClass = match.winner ? 'active-winner' : '';
+
+      html += `
+        <div class="match-card ${winnerClass}" id="match-${roundIndex}-${matchIndex}">
+
+          <div class="match-row">
+            <div>
+              <strong>${match.team1.pairName}</strong><br>
+              <small>${(match.team1.players || []).join(' / ')}</small>
+            </div>
+
+            <input type="number"
+              min="0"
+              value="${match.score1}"
+              onchange="updateScore(${roundIndex},${matchIndex},1,this.value)">
+          </div>
+
+          <div class="match-row">
+            <div>
+              <strong>${match.team2.pairName}</strong><br>
+              <small>${(match.team2.players || []).join(' / ')}</small>
+            </div>
+
+            <input type="number"
+              min="0"
+              value="${match.score2}"
+              onchange="updateScore(${roundIndex},${matchIndex},2,this.value)">
+          </div>
+
+          <button class="advance-btn"
+            onclick="markWinner(${roundIndex},${matchIndex})">
+            Mark Winner
+          </button>
+
+        </div>
+      `;
+    });
+
+    html += '</div>';
+  });
+
+  html += '</div>';
+
+  container.innerHTML = html;
+};
+
+window.updateScore = (round,match,team,val) => {
+
+  const m = currentTournament.rounds[round].matches[match];
+
+  if(team === 1){
+    m.score1 = Number(val);
+  }else{
+    m.score2 = Number(val);
+  }
+
+  if(m.score1 > m.score2){
+    m.winner = m.team1;
+  }else if(m.score2 > m.score1){
+    m.winner = m.team2;
+  }else{
+    m.winner = null;
+  }
+
+  renderBracket();
+};
+
+window.markWinner = (round,match) => {
+
+  const m = currentTournament.rounds[round].matches[match];
+
+  if(m.score1 === '' || m.score2 === ''){
+    toast('Enter both scores first','error');
+    return;
+  }
+
+  if(m.score1 === m.score2){
+    toast('Tie scores are not allowed','error');
+    return;
+  }
+
+  const winner = m.score1 > m.score2 ? m.team1 : m.team2;
+
+  m.winner = winner;
+
+  const nextRound = currentTournament.rounds[round + 1];
+
+  if(nextRound){
+
+    const nextMatchIndex = Math.floor(match / 2);
+
+    const slot = match % 2 === 0 ? 'team1' : 'team2';
+
+    nextRound.matches[nextMatchIndex][slot] = winner;
+  }
+
+  renderBracket();
+
+  toast(`${winner.pairName} advanced!`,'success');
+};
+
+window.resetScores = () => {
+
+  currentTournament.rounds.forEach(round=>{
+    round.matches.forEach(match=>{
+      match.score1 = '';
+      match.score2 = '';
+      match.winner = null;
+    });
+  });
+
+  renderBracket();
+
+  toast('Scores reset','success');
+};
+
+window.resetTournament = () => {
+
+  currentTournament.rounds = [];
+
+  document.getElementById('tournament-bracket').innerHTML = '';
+
+  toast('Tournament reset','success');
+};
+
+window.rerandomizeMatches = () => {
+  generateMatches();
 };
 
 </script>
