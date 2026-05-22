@@ -2688,6 +2688,7 @@ function updateMobileMenuAuth(loggedIn) {
 }
 
 
+
 window.autoTeamUp = async () => {
   if(!currentManageEventId){
     toast('Open an event first','error');
@@ -2704,7 +2705,6 @@ window.autoTeamUp = async () => {
 
     const eventData = eventSnap.data();
 
-    // Support both old and new player storage structures
     let approvedPlayers = [];
 
     if(Array.isArray(eventData.players)){
@@ -2713,20 +2713,16 @@ window.autoTeamUp = async () => {
       );
     }
 
-    // fallback to approvedPlayers field if used in your DB
     if((!approvedPlayers || approvedPlayers.length === 0) && Array.isArray(eventData.approvedPlayers)){
       approvedPlayers = eventData.approvedPlayers;
     }
 
-    // fallback from registrations object
     if((!approvedPlayers || approvedPlayers.length === 0) && Array.isArray(eventData.registrations)){
       approvedPlayers = eventData.registrations.filter(
         p => p && p.status === 'approved'
       );
     }
 
-    // FINAL FALLBACK:
-    // Read players directly from the Approved tab UI
     if(!approvedPlayers || approvedPlayers.length === 0){
       const approvedRows = document.querySelectorAll('#approved-list .player-row');
 
@@ -2747,32 +2743,50 @@ window.autoTeamUp = async () => {
     // Shuffle players
     const shuffled = [...approvedPlayers].sort(() => Math.random() - 0.5);
 
-    // Build teams automatically (2 players per team)
-    const teams = [];
+    // Create TWO BIG TEAMS
+    const midpoint = Math.ceil(shuffled.length / 2);
 
-    for(let i=0;i<shuffled.length;i+=2){
-      const p1 = shuffled[i];
-      const p2 = shuffled[i+1];
+    const teamAPlayers = shuffled.slice(0, midpoint);
+    const teamBPlayers = shuffled.slice(midpoint);
 
-      const p1Name = p1.name || p1.displayName || p1.playerName || 'Player 1';
-      const p2Name = p2 ? (p2.name || p2.displayName || p2.playerName || 'Player 2') : null;
+    const teams = [
+      {
+        name:'Team A',
+        players: teamAPlayers.map(p => p.name || p.displayName || p.playerName || 'Player').join(', ')
+      },
+      {
+        name:'Team B',
+        players: teamBPlayers.map(p => p.name || p.displayName || p.playerName || 'Player').join(', ')
+      }
+    ];
 
-      const teamName = p2
-        ? `${p1Name.split(' ')[0]} & ${p2Name.split(' ')[0]}`
-        : `${p1Name.split(' ')[0]} Solo`;
+    // Optional Team C,D,E support if selector > 2
+    const selectedTeams = parseInt(document.getElementById('tournament-size').value || '2');
 
-      teams.push({
-        name: teamName,
-        players: p2
-          ? `${p1Name}, ${p2Name}`
-          : `${p1Name}`
-      });
+    if(selectedTeams > 2){
+      teams.length = 0;
+
+      const teamLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+      const perTeam = Math.ceil(shuffled.length / selectedTeams);
+
+      for(let t=0;t<selectedTeams;t++){
+        const start = t * perTeam;
+        const end = start + perTeam;
+
+        const group = shuffled.slice(start,end);
+
+        if(group.length){
+          teams.push({
+            name:`Team ${teamLetters[t]}`,
+            players: group.map(p => p.name || p.displayName || p.playerName || 'Player').join(', ')
+          });
+        }
+      }
     }
 
-    // Update selector automatically
     document.getElementById('tournament-size').value = teams.length;
 
-    // Render team cards
     const wrap = document.getElementById('tournament-team-builder');
 
     let html = '<div class="tournament-grid">';
@@ -2780,7 +2794,7 @@ window.autoTeamUp = async () => {
     teams.forEach((team,index)=>{
       html += `
         <div class="tournament-team-card">
-          <h4>Team ${index+1}</h4>
+          <h4>${team.name}</h4>
 
           <div class="form-group">
             <label>Team Name</label>
@@ -2793,7 +2807,7 @@ window.autoTeamUp = async () => {
             <label>Players</label>
             <textarea
               id="team-players-${index+1}"
-              rows="2">${team.players}</textarea>
+              rows="4">${team.players}</textarea>
           </div>
         </div>
       `;
@@ -2805,13 +2819,14 @@ window.autoTeamUp = async () => {
 
     renderTournamentBracket(teams.length);
 
-    toast('Teams generated automatically!','success');
+    toast('Teams auto-generated successfully!','success');
 
   }catch(err){
     console.error(err);
     toast('Failed to auto generate teams','error');
   }
 };
+
 
 
 // ══════════════════════════════════════════════════════════════
