@@ -903,10 +903,26 @@ window.getDuprTier = rating => {
   return 'Beginner';
 };
 
+
 window.renderDuprDashboard = userData => {
   const duprDisp = document.getElementById('dupr-connected-display');
-  const duprId = userData.duprId || '';
-  const rating = userData.duprRating || userData.skillLevel || '3.0';
+  if (!duprDisp) return;
+
+  const ratingEl = document.getElementById('dupr-rating-display');
+  const idEl = document.getElementById('dupr-id-card');
+  const tierEl = document.getElementById('dupr-tier-card');
+  const confidenceEl = document.getElementById('dupr-confidence-card');
+  const statusEl = document.getElementById('dupr-profile-status');
+  const linkEl = document.getElementById('dupr-profile-link');
+
+  if (!ratingEl || !idEl || !tierEl || !confidenceEl || !statusEl || !linkEl) {
+    console.warn('DUPR dashboard elements missing');
+    return;
+  }
+
+  const duprId = userData?.duprId || '';
+  const rating = userData?.duprRating || userData?.skillLevel || '3.0';
+
   if (!duprId) {
     duprDisp.classList.add('hidden');
     duprDisp.style.display = 'none';
@@ -914,16 +930,18 @@ window.renderDuprDashboard = userData => {
   }
 
   const normalizedRating = String(rating).split('-')[0];
-  document.getElementById('dupr-rating-display').textContent = `${normalizedRating} DUPR`;
-  document.getElementById('dupr-id-card').textContent = duprId;
-  document.getElementById('dupr-tier-card').textContent = getDuprTier(normalizedRating);
-  document.getElementById('dupr-confidence-card').textContent = parseFloat(normalizedRating) >= 4 ? 'Elite' : 'High';
-  document.getElementById('dupr-profile-status').textContent = 'Linked';
-  document.getElementById('dupr-profile-link').href = `https://mydupr.com/profile/${duprId}`;
+
+  ratingEl.textContent = `${normalizedRating} DUPR`;
+  idEl.textContent = duprId;
+  tierEl.textContent = getDuprTier(normalizedRating);
+  confidenceEl.textContent = parseFloat(normalizedRating) >= 4 ? 'Elite' : 'High';
+  statusEl.textContent = 'Linked';
+  linkEl.href = `https://mydupr.com/profile/${duprId}`;
 
   duprDisp.classList.remove('hidden');
   duprDisp.style.display = 'block';
 };
+
 
 window.refreshDuprDashboard = async () => {
   if (!currentUser) return;
