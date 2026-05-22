@@ -134,6 +134,7 @@ nav{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;
 .dash-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:1.25rem}
 .dash-card h4{font-size:.72rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem}
 .dash-card .big-num{font-family:'DM Serif Display',serif;font-size:2rem;color:var(--green-dark)}
+#dash-dupr-card.dupr-live{border-color:#52B788;background:linear-gradient(135deg,#F0FFF4,#fff)}
 .dash-card .sub-text{font-size:.78rem;color:var(--muted);margin-top:2px}
 .dash-section-title{font-size:1rem;font-weight:600;margin-bottom:1rem;margin-top:1.5rem}
 .my-events-list{display:flex;flex-direction:column;gap:.75rem}
@@ -262,58 +263,6 @@ footer p{font-size:.78rem}
 .mm-standing-row{display:flex;align-items:center;justify-content:space-between;padding:.6rem .75rem;border-radius:8px;margin-bottom:.3rem;background:var(--off-white);font-size:.85rem}
 .mm-standing-row:nth-child(1){background:var(--yellow-pale)}
 .mm-standing-row:nth-child(2){background:#F0F0F0}
-
-.dupr-dashboard{
-  margin-top:1rem;
-  border:1px solid rgba(255,255,255,.12);
-  background:linear-gradient(135deg,#163326,#275943);
-  border-radius:16px;
-  padding:1rem;
-}
-.dupr-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:.75rem;
-  margin-top:.9rem;
-}
-.dupr-stat{
-  background:rgba(255,255,255,.08);
-  border-radius:12px;
-  padding:.85rem;
-}
-.dupr-stat .label{
-  font-size:.68rem;
-  text-transform:uppercase;
-  letter-spacing:.8px;
-  color:rgba(255,255,255,.6);
-}
-.dupr-stat .value{
-  margin-top:.35rem;
-  font-family:'DM Serif Display',serif;
-  font-size:1.3rem;
-  color:#fff;
-}
-.dupr-status{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:.75rem;
-  flex-wrap:wrap;
-}
-.dupr-live{
-  font-size:.72rem;
-  color:#C8FACC;
-  font-weight:700;
-  letter-spacing:.7px;
-  text-transform:uppercase;
-}
-@media(max-width:768px){
-  .dupr-grid{grid-template-columns:1fr 1fr}
-}
-@media(max-width:480px){
-  .dupr-grid{grid-template-columns:1fr}
-}
-
 /* ─── MOBILE NAV ─── */
 .hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:6px;z-index:300}
 .hamburger span{display:block;width:22px;height:2px;background:var(--dark);border-radius:2px;transition:all .3s}
@@ -614,10 +563,10 @@ footer p{font-size:.78rem}
         <a href="https://mydupr.com" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:var(--green);font-weight:600;text-decoration:none" title="Look up your DUPR ID">🔗 Find on DUPR ↗</a>
       </label>
       <div style="position:relative">
-        <input type="text" id="profile-dupr-input" placeholder="e.g. D590ML or numeric DUPR ID" style="padding-left:38px" maxlength="20"/>
+        <input type="text" id="profile-dupr-input" placeholder="e.g. 12345678" style="padding-left:38px" maxlength="20"/>
         <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:.95rem;pointer-events:none">🏅</span>
       </div>
-      <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Enter your DUPR profile code or ID exactly as shown on your DUPR profile.</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Enter your numeric DUPR player ID to display your official rating.</div>
     </div>
     <div id="dupr-connected-display" class="hidden" style="background:linear-gradient(135deg,#1B4332,#2D6A4F);border-radius:12px;padding:.85rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem">
       <div style="font-size:1.5rem">🏅</div>
@@ -626,15 +575,7 @@ footer p{font-size:.78rem}
         <div id="dupr-rating-display" style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--yellow);line-height:1.1">—</div>
       </div>
       <a id="dupr-profile-link" href="https://mydupr.com" target="_blank" rel="noopener noreferrer" style="font-size:.75rem;color:rgba(255,255,255,.7);text-decoration:none;border:1px solid rgba(255,255,255,.2);border-radius:100px;padding:4px 10px;white-space:nowrap">View Profile ↗</a>
-    
-</div>
-
-    <div class="form-group">
-      <label>DUPR Rating</label>
-      <input type="text" id="profile-dupr-rating-input" placeholder="e.g. 3.145"/>
-      <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Set your actual DUPR rating manually.</div>
     </div>
-
     <button class="btn btn-primary" style="width:100%;justify-content:center" id="btn-save-profile">Save Changes</button>
     <button class="btn btn-danger" style="width:100%;justify-content:center;margin-top:.6rem" id="btn-signout">Sign Out</button>
   </div>
@@ -761,7 +702,7 @@ footer p{font-size:.78rem}
     </div>
     <div class="dashboard-grid">
       <div class="dash-card"><h4>Events Joined</h4><div class="big-num" id="dash-joined">0</div><div class="sub-text">total registered</div></div>
-      <div class="dash-card"><h4>Skill Level</h4><div class="big-num" style="font-size:1.1rem;margin-top:.2rem" id="dash-skill">—</div><div class="sub-text">DUPR range</div></div>
+      <div class="dash-card" id="dash-dupr-card"><h4 style="display:flex;align-items:center;justify-content:space-between"><span>DUPR Rating</span><span id="dash-dupr-status-dot"></span></h4><div class="big-num" style="font-size:1.6rem;margin-top:.2rem" id="dash-skill">—</div><div class="sub-text" id="dash-dupr-sub">skill range</div><div id="dash-dupr-connect" style="margin-top:.6rem;display:none"><button class="btn btn-secondary btn-xs" onclick="openProfileModal()" style="font-size:.7rem;padding:4px 10px">🏅 Connect DUPR</button></div></div>
       <div class="dash-card"><h4>Your City</h4><div class="big-num" style="font-size:1.1rem;margin-top:.2rem" id="dash-city">—</div><div class="sub-text">home location</div></div>
     </div>
 
@@ -900,67 +841,6 @@ let currentFilter = 'all';
 let currentManageEventId = null;
 let manageUnsubscribe = null;
 
-
-window.getDuprTier = rating => {
-  const r = parseFloat(rating || 0);
-  if (r >= 5) return 'Elite';
-  if (r >= 4) return 'Pro';
-  if (r >= 3.5) return 'Advanced';
-  if (r >= 3) return 'Intermediate';
-  if (r >= 2.5) return 'Novice';
-  return 'Beginner';
-};
-
-
-window.renderDuprDashboard = userData => {
-  const duprDisp = document.getElementById('dupr-connected-display');
-  if (!duprDisp) return;
-
-  const ratingEl = document.getElementById('dupr-rating-display');
-  const idEl = document.getElementById('dupr-id-card');
-  const tierEl = document.getElementById('dupr-tier-card');
-  const confidenceEl = document.getElementById('dupr-confidence-card');
-  const statusEl = document.getElementById('dupr-profile-status');
-  const linkEl = document.getElementById('dupr-profile-link');
-
-  if (!ratingEl || !idEl || !tierEl || !confidenceEl || !statusEl || !linkEl) {
-    console.warn('DUPR dashboard elements missing');
-    return;
-  }
-
-  const duprId = userData?.duprId || '';
-  const rating = userData?.duprRating || 'Not Set';
-
-  if (!duprId) {
-    duprDisp.classList.add('hidden');
-    duprDisp.style.display = 'none';
-    return;
-  }
-
-  const normalizedRating = String(rating).split('-')[0];
-
-  ratingEl.textContent = normalizedRating === 'Not Set' ? 'Rating Not Set' : `${normalizedRating} DUPR`;
-  idEl.textContent = duprId;
-  tierEl.textContent = getDuprTier(normalizedRating);
-  confidenceEl.textContent = parseFloat(normalizedRating) >= 4 ? 'Elite' : 'High';
-  statusEl.textContent = 'Linked';
-  linkEl.href = `https://mydupr.com/profile/${duprId}`;
-
-  duprDisp.classList.remove('hidden');
-  duprDisp.style.display = 'block';
-};
-
-
-window.refreshDuprDashboard = async () => {
-  if (!currentUser) return;
-  const userSnap = await getDoc(doc(db,'users',currentUser.uid));
-  if (userSnap.exists()) {
-    renderDuprDashboard(userSnap.data());
-    toast('DUPR dashboard refreshed ✓','success');
-  }
-};
-
-
 // ── HELPERS ──────────────────────────────────────────────────────────────
 window.openModal = id => document.getElementById(id).classList.remove('hidden');
 window.closeModal = id => {
@@ -1069,8 +949,67 @@ function setDashboard(user, data) {
   const name = user.displayName||data.displayName||'Player';
   document.getElementById('dash-first-name').textContent = name.split(' ')[0];
   document.getElementById('dash-joined').textContent = data.eventsJoined||0;
-  document.getElementById('dash-skill').textContent = data.skillLevel||'—';
   document.getElementById('dash-city').textContent = data.city||'Not set';
+  // DUPR card
+  const skillEl   = document.getElementById('dash-skill');
+  const subEl     = document.getElementById('dash-dupr-sub');
+  const dotEl     = document.getElementById('dash-dupr-status-dot');
+  const connectEl = document.getElementById('dash-dupr-connect');
+  if (data.duprId) {
+    // Show cached rating immediately, then refresh in background
+    if (data.duprRating) {
+      skillEl.textContent = data.duprRating;
+      subEl.textContent   = 'DUPR rating · live';
+      dotEl.innerHTML     = '<span style="background:#52B788;width:8px;height:8px;border-radius:50%;display:inline-block" title="DUPR connected"></span>';
+    } else {
+      skillEl.textContent = data.skillLevel||'—';
+      subEl.textContent   = 'fetching DUPR…';
+      dotEl.innerHTML     = '<span style="background:var(--yellow-dark);width:8px;height:8px;border-radius:50%;display:inline-block" title="DUPR syncing"></span>';
+    }
+    connectEl.style.display = 'none';
+    fetchDuprRating(data.duprId, user.uid);
+  } else {
+    skillEl.textContent     = data.skillLevel||'—';
+    subEl.textContent       = 'skill range';
+    dotEl.innerHTML         = '';
+    connectEl.style.display = 'block';
+  }
+}
+
+// ── DUPR RATING FETCHER ───────────────────────────────────────────────────
+// Uses DUPR's public player endpoint. No auth required for public profiles.
+let _duprFetchTs = 0;
+async function fetchDuprRating(duprId, uid) {
+  // Throttle: only re-fetch once every 10 minutes
+  if (Date.now() - _duprFetchTs < 10 * 60 * 1000) return;
+  _duprFetchTs = Date.now();
+  try {
+    // DUPR public profile API — returns player JSON including singlesRating / doublesRating
+    const url = `https://api.mydupr.com/player/v1.0/${duprId}/profile`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('DUPR API error: ' + res.status);
+    const json = await res.json();
+    // DUPR returns singlesRating and doublesRating; show the highest available
+    const sr = json?.result?.player?.singlesRating;
+    const dr = json?.result?.player?.doublesRating;
+    const rating = sr ?? dr ?? null;
+    if (rating === null) return;
+    const ratingStr = Number(rating).toFixed(2);
+    // Update UI
+    const skillEl = document.getElementById('dash-skill');
+    const subEl   = document.getElementById('dash-dupr-sub');
+    const dotEl   = document.getElementById('dash-dupr-status-dot');
+    if (skillEl) { skillEl.textContent = ratingStr; document.getElementById('dash-dupr-card')?.classList.add('dupr-live'); }
+    if (subEl)   { subEl.textContent   = sr && dr ? `S: ${Number(sr).toFixed(2)} · D: ${Number(dr).toFixed(2)}` : 'DUPR rating · live'; }
+    if (dotEl)   { dotEl.innerHTML = '<span style="background:#52B788;width:8px;height:8px;border-radius:50%;display:inline-block" title="DUPR connected"></span>'; }
+    // Persist to Firestore so next load shows instantly
+    await updateDoc(doc(db,'users',uid), { duprRating: ratingStr }).catch(()=>{});
+  } catch(err) {
+    // Silently fall back — DUPR API may block CORS; show manual rating
+    const subEl = document.getElementById('dash-dupr-sub');
+    if (subEl) subEl.textContent = 'DUPR ID saved · open mydupr.com to verify';
+    console.warn('DUPR fetch failed:', err.message);
+  }
 }
 
 // ── GOOGLE AUTH ───────────────────────────────────────────────────────────
@@ -1136,28 +1075,65 @@ window.openProfileModal = async () => {
   // DUPR
   const duprId = data.duprId||'';
   document.getElementById('profile-dupr-input').value = duprId;
-  const duprRatingInput=document.getElementById('profile-dupr-rating-input');
-  if(duprRatingInput){duprRatingInput.value=data.duprRating||'';}
-  renderDuprDashboard(data);
+  const duprDisp = document.getElementById('dupr-connected-display');
+  if (duprId) {
+    document.getElementById('dupr-rating-display').textContent = data.duprRating ? `${data.duprRating} DUPR` : `ID: ${duprId}`;
+    document.getElementById('dupr-profile-link').href = `https://mydupr.com/profile/${duprId}`;
+    duprDisp.classList.remove('hidden');
+    duprDisp.style.display = 'flex';
+  } else {
+    duprDisp.classList.add('hidden');
+    duprDisp.style.display = 'none';
+  }
   openModal('profile-modal');
 };
 document.getElementById('btn-save-profile').addEventListener('click', async () => {
   if(!currentUser) return;
-  const city=document.getElementById('profile-city-input').value.trim();
-  const skill=document.getElementById('profile-skill-input').value;
-  const duprId=document.getElementById('profile-dupr-input').value.trim().replace(/\D/g,'').slice(0,20);
+  const city    = document.getElementById('profile-city-input').value.trim();
+  const skill   = document.getElementById('profile-skill-input').value;
+  const duprId  = document.getElementById('profile-dupr-input').value.trim().replace(/\D/g,'').slice(0,20);
   const updateData = {city, skillLevel:skill, duprId};
+  // Clear cached rating if DUPR ID changed
+  const snapBefore = await getDoc(doc(db,'users',currentUser.uid));
+  const prevDuprId = (snapBefore.data()||{}).duprId||'';
+  if (duprId !== prevDuprId) updateData.duprRating = '';
   await updateDoc(doc(db,'users',currentUser.uid), updateData);
-  document.getElementById('dash-skill').textContent=skill;
-  document.getElementById('dash-city').textContent=city||'Not set';
-  // Update DUPR display
-  renderDuprDashboard({
-    duprId,
-      duprRating,
-    duprRating: skill,
-    skillLevel: skill
-  });
-  closeModal('profile-modal'); toast('Profile updated! ✓','success');
+  document.getElementById('dash-city').textContent = city||'Not set';
+  // ── Refresh dashboard DUPR card ──
+  const skillEl    = document.getElementById('dash-skill');
+  const subEl      = document.getElementById('dash-dupr-sub');
+  const dotEl      = document.getElementById('dash-dupr-status-dot');
+  const connectEl  = document.getElementById('dash-dupr-connect');
+  const duprDisp   = document.getElementById('dupr-connected-display');
+  if (duprId) {
+    skillEl.textContent    = skill;
+    subEl.textContent      = 'fetching DUPR rating…';
+    dotEl.innerHTML        = '<span style="background:var(--yellow-dark);width:8px;height:8px;border-radius:50%;display:inline-block" title="DUPR syncing"></span>';
+    connectEl.style.display = 'none';
+    // Profile modal DUPR banner
+    document.getElementById('dupr-rating-display').textContent = 'Fetching rating…';
+    document.getElementById('dupr-profile-link').href = `https://mydupr.com/profile/${duprId}`;
+    duprDisp.classList.remove('hidden');
+    duprDisp.style.display = 'flex';
+    // Force a fresh fetch (reset throttle)
+    _duprFetchTs = 0;
+    await fetchDuprRating(duprId, currentUser.uid);
+    // After fetch, sync the rating text to the profile modal banner too
+    const cached = await getDoc(doc(db,'users',currentUser.uid));
+    const newRating = (cached.data()||{}).duprRating||'';
+    if (newRating) {
+      document.getElementById('dupr-rating-display').textContent = `${newRating} DUPR`;
+    }
+  } else {
+    skillEl.textContent     = skill;
+    subEl.textContent       = 'skill range';
+    dotEl.innerHTML         = '';
+    connectEl.style.display = 'block';
+    duprDisp.classList.add('hidden');
+    duprDisp.style.display  = 'none';
+  }
+  closeModal('profile-modal');
+  toast('Profile updated! ✓','success');
 });
 
 // ── LOAD EVENTS — one-shot getDocs + in-memory cache ─────────────────────
