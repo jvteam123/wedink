@@ -3361,18 +3361,18 @@ const _origSetNavUser = setNavUser;
 loadStats();
 
 // ── MOBILE MENU ──
-function toggleMobileMenu() {
+window.toggleMobileMenu = function() {
   const menu = document.getElementById('mobile-menu');
   const btn = document.getElementById('hamburger-btn');
   const open = menu.classList.toggle('open');
   btn.classList.toggle('open', open);
   document.body.style.overflow = open ? 'hidden' : '';
-}
-function closeMobileMenu() {
+};
+window.closeMobileMenu = function() {
   document.getElementById('mobile-menu').classList.remove('open');
   document.getElementById('hamburger-btn').classList.remove('open');
   document.body.style.overflow = '';
-}
+};
 // Close mobile menu on Escape key
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
