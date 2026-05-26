@@ -98,7 +98,8 @@ label{font-size:.78rem;font-weight:600;color:var(--mid);display:block;margin-bot
 .divider{display:flex;align-items:center;gap:1rem;margin:1.25rem 0;color:var(--muted);font-size:.78rem;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em}
 .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
 /* ─── NAV ─── */
-nav{background:rgba(255,255,255,.96);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;padding:0 2rem;backdrop-filter:blur(8px);box-shadow:0 1px 0 var(--border),var(--shadow-xs)}
+nav{background:rgba(255,255,255,.96);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200;padding:0 2rem;box-shadow:0 1px 0 var(--border),var(--shadow-xs)}
+nav::before{content:'';position:absolute;inset:0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:-1;pointer-events:none}
 .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:60px}
 .logo{font-family:'Playfair Display',serif;font-size:1.45rem;color:var(--navy);letter-spacing:-.03em;display:flex;align-items:center;gap:6px;text-decoration:none;font-weight:700}
 .logo span{color:var(--green)}
