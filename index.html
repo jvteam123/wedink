@@ -446,7 +446,7 @@ footer p{font-size:.76rem;font-family:'IBM Plex Mono',monospace;letter-spacing:.
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
       <div class="form-group"><label>Type</label>
         <select id="ev-type">
-          <option value="drop-in">Open Play</option>
+          <option value="Open Play">Open Play</option>
           <option value="tournament">Tournament</option>
           <option value="league">League</option>
         </select>
@@ -817,7 +817,7 @@ footer p{font-size:.76rem;font-family:'IBM Plex Mono',monospace;letter-spacing:.
     <p class="section-sub">Real events posted by WeDink players. Join a game or post your own.</p>
     <div class="events-tabs">
       <button class="tab-btn active" onclick="filterEvents(this,'all')">All Events</button>
-      <button class="tab-btn" onclick="filterEvents(this,'drop-in')">Open Play</button>
+      <button class="tab-btn" onclick="filterEvents(this,'Open Play')">Open Play</button>
       <button class="tab-btn" onclick="filterEvents(this,'tournament')">Tournament</button>
       <button class="tab-btn" onclick="filterEvents(this,'league')">League</button>
     </div>
@@ -1582,7 +1582,7 @@ function renderEventCard(e) {
       <div class="event-stripe ${getStripe(e.type)}"></div>
       <div class="event-body">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.3rem">
-          <span class="badge ${getBadge(e.type)}">${e.type||'drop-in'}</span>
+          <span class="badge ${getBadge(e.type)}">${e.type||'Open Play'}</span>
           ${isPast ? `<span class="badge badge-gray">Past</span>` : e.status&&e.status!=='open'?`<span class="badge badge-gray">${e.status}</span>`:''}
         </div>
         <h3 style="margin-bottom:.6rem">${e.name}</h3>
@@ -2899,7 +2899,7 @@ window.openPublicProfile = async (uid, fallbackName) => {
           const e = ev; // already a plain object from allEvents cache
           const role = e.hostUid === uid ? '🎙 Organizer' : '🎾 Player';
           return `<div class="recent-event-row">
-            <div><span class="badge ${getBadge(e.type)}" style="margin-right:6px">${e.type||'drop-in'}</span>${sanitize(e.name)}</div>
+            <div><span class="badge ${getBadge(e.type)}" style="margin-right:6px">${e.type||'Open Play'}</span>${sanitize(e.name)}</div>
             <div style="display:flex;align-items:center;gap:.4rem;flex-shrink:0">
               <span style="font-size:.72rem;color:var(--muted)">${role}</span>
               <span style="font-size:.72rem;color:var(--muted)">${fmtDate(e.date)}</span>
