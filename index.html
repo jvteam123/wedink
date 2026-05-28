@@ -507,7 +507,7 @@ footer p{font-size:.76rem;font-family:'IBM Plex Mono',monospace;letter-spacing:.
         <h2 id="manage-event-title">Manage Event</h2>
         <p class="sub" id="manage-event-sub"></p>
       </div>
-      <button class="btn btn-secondary btn-sm" style="flex-shrink:0;margin-top:.25rem" onclick="refreshManageEvent()">↻ Refresh</button>
+
     </div>
     <div class="manage-tabs">
       <button class="manage-tab active" onclick="switchManageTab(this,'pending')">⏳ Pending <span id="pending-count-badge" class="badge badge-orange" style="margin-left:4px"></span></button>
@@ -670,6 +670,19 @@ footer p{font-size:.76rem;font-family:'IBM Plex Mono',monospace;letter-spacing:.
 </div>
 
 <!-- ══════════════════════════════════════════════════
+     EVENT PLAYERS LIST MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="event-players-modal">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="closeModal('event-players-modal')">✕</button>
+    <h2 id="epm-title">Players</h2>
+    <p class="sub" id="epm-sub"></p>
+    <div id="epm-list" style="display:flex;flex-direction:column;gap:.55rem;max-height:420px;overflow-y:auto;padding-right:2px"></div>
+    <div id="epm-empty" class="hidden" style="text-align:center;padding:2rem;color:var(--muted);font-size:.875rem">No players have joined yet.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
      GUEST / +PLAYER REQUEST MODAL
 ══════════════════════════════════════════════════ -->
 <div class="modal-overlay hidden" id="guest-join-modal">
@@ -824,7 +837,6 @@ footer p{font-size:.76rem;font-family:'IBM Plex Mono',monospace;letter-spacing:.
     <div id="events-container"><div class="events-loading">Loading events...</div></div>
     <div style="text-align:center;margin-top:2rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap">
       <button class="btn btn-secondary" onclick="openPostEvent()">+ Post an Event</button>
-      <button class="btn" style="border:1.5px solid var(--border);background:transparent;color:var(--mid)" onclick="loadEvents(true)">↻ Refresh Events</button>
     </div>
   </div>
 </section>
@@ -1342,9 +1354,38 @@ const _courtsSection = document.getElementById('courts-section');
 if (_courtsSection) _courtsObserver.observe(_courtsSection);
 
 // ── GOOGLE AUTH ───────────────────────────────────────────────────────────
+let _googleAuthInProgress = false;
 async function googleAuth() {
-  try { await signInWithPopup(auth, gProvider); }
-  catch(e) { toast('Google sign-in failed: '+e.message,'error'); }
+  if (_googleAuthInProgress) return; // prevent double-clicks / re-entry
+  _googleAuthInProgress = true;
+
+  const btns = [
+    document.getElementById('btn-google-signin'),
+    document.getElementById('btn-google-signup'),
+  ];
+  const origLabels = btns.map(b => b ? b.innerHTML : '');
+  btns.forEach(b => { if (b) { b.innerHTML = '<span class="spinner"></span> Opening Google…'; b.disabled = true; } });
+
+  // Safety timeout: unblock buttons if popup never resolves (e.g. browser blocks it)
+  const timeoutId = setTimeout(() => {
+    _googleAuthInProgress = false;
+    btns.forEach((b, i) => { if (b) { b.innerHTML = origLabels[i]; b.disabled = false; } });
+    toast('Google sign-in timed out. Please try again.', 'error');
+  }, 30000);
+
+  try {
+    await signInWithPopup(auth, gProvider);
+    clearTimeout(timeoutId);
+  } catch(e) {
+    clearTimeout(timeoutId);
+    // User closed the popup — not a real error, stay silent
+    if (!['auth/popup-closed-by-user','auth/cancelled-popup-request','auth/user-cancelled'].includes(e.code)) {
+      toast('Google sign-in failed: ' + e.message, 'error');
+    }
+  } finally {
+    _googleAuthInProgress = false;
+    btns.forEach((b, i) => { if (b) { b.innerHTML = origLabels[i]; b.disabled = false; } });
+  }
 }
 document.getElementById('btn-google-signin').addEventListener('click', googleAuth);
 document.getElementById('btn-google-signup').addEventListener('click', googleAuth);
@@ -1537,16 +1578,17 @@ function renderEventCard(e) {
 
   // Joined players avatars (show up to 5) — clickable to view profile
   const joinedHtml = approved > 0 ? `
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:.75rem">
-      <div style="display:flex;margin-right:4px">
-        ${approvedPlayers.slice(0,5).map(p=>`<div title="${p.displayName}" style="margin-right:-8px;border:2px solid #fff;border-radius:50%;cursor:pointer" onclick="event.stopPropagation();openPublicProfile('${p.uid}','${escapeAttr(p.displayName)}')">${avatarHtml(p.displayName,p.photoURL||'',26)}</div>`).join('')}
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:.75rem;flex-wrap:wrap">
+      <div style="display:flex;margin-right:4px;cursor:pointer" onclick="event.stopPropagation();openEventPlayers('${e.id}','${escapeAttr(e.name)}')">
+        ${approvedPlayers.slice(0,5).map(p=>`<div title="${p.displayName}" style="margin-right:-8px;border:2px solid #fff;border-radius:50%">${avatarHtml(p.displayName,p.photoURL||'',26)}</div>`).join('')}
       </div>
       <span style="font-size:.78rem;color:var(--mid);margin-left:10px">
         <strong style="color:var(--green-dark)">${approved}</strong> joined
         ${approved>5?`<span style="color:var(--muted)"> (+${approved-5} more)</span>`:''}
         ${pending>0&&isOrganizer?`· <span style="color:var(--yellow)">${pending} pending</span>`:''}
+        <span style="margin-left:4px"><a href="#" style="color:var(--green);font-weight:600;font-size:.75rem;text-decoration:none" onclick="event.preventDefault();event.stopPropagation();openEventPlayers('${e.id}','${escapeAttr(e.name)}')">See all →</a></span>
       </span>
-    </div>` : `<div style="font-size:.78rem;color:var(--muted);margin-bottom:.75rem">No players yet — be the first!</div>`;
+    </div>` : `<div style="display:flex;align-items:center;gap:6px;margin-bottom:.75rem;font-size:.78rem;color:var(--muted)">No players yet — be the first!</div>`;
 
   // +Player (bring guests) button — shown to non-organizer approved/none logged-in users
   const canBringGuests = currentUser && !isOrganizer && !isClosed && (myStatus === 'approved' || myStatus === 'none');
@@ -2833,6 +2875,69 @@ window.selectMapLocation = (name, lat, lng) => {
 
 // ══════════════════════════════════════════════════════════════
 //  PUBLIC PLAYER PROFILE
+// ══════════════════════════════════════════════════════════════
+// ── EVENT PLAYERS LIST ────────────────────────────────────────────────────
+window.openEventPlayers = async (eventId, eventName) => {
+  const modal = document.getElementById('event-players-modal');
+  const listEl = document.getElementById('epm-list');
+  const emptyEl = document.getElementById('epm-empty');
+  document.getElementById('epm-title').textContent = '👥 Players';
+  document.getElementById('epm-sub').textContent = eventName || 'Event';
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:.875rem;padding:1rem;text-align:center">Loading…</div>';
+  emptyEl.classList.add('hidden');
+  openModal('event-players-modal');
+
+  try {
+    // Try cached events first, fall back to Firestore
+    let eventData = allEvents.find(e => e.id === eventId);
+    if (!eventData) {
+      const snap = await getDoc(doc(db, 'events', eventId));
+      if (!snap.exists()) { listEl.innerHTML = '<div style="color:var(--muted);font-size:.875rem;padding:1rem;text-align:center">Event not found.</div>'; return; }
+      eventData = { id: snap.id, ...snap.data() };
+    }
+
+    const players = eventData.players || {};
+    const approved = Object.values(players).filter(p => p.status === 'approved');
+
+    if (!approved.length) {
+      listEl.innerHTML = '';
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
+    // Sort: organizer first, then alphabetically
+    approved.sort((a, b) => {
+      if (a.role === 'organizer') return -1;
+      if (b.role === 'organizer') return 1;
+      return (a.displayName || '').localeCompare(b.displayName || '');
+    });
+
+    const canViewProfile = (uid) => uid && !uid.startsWith('manual_') && uid !== 'BYE';
+
+    listEl.innerHTML = approved.map(p => {
+      const isOrg = p.role === 'organizer';
+      const clickable = canViewProfile(p.uid);
+      const nameHtml = clickable
+        ? `<span style="font-weight:600;font-size:.9rem;cursor:pointer;color:var(--dark)" onclick="closeModal('event-players-modal');setTimeout(()=>openPublicProfile('${p.uid}','${(p.displayName||'').replace(/'/g,"\'")}'),120)">${sanitize(p.displayName||'Player')}</span>`
+        : `<span style="font-weight:600;font-size:.9rem;color:var(--dark)">${sanitize(p.displayName||'Player')}</span>`;
+      return `<div style="display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-xs)">
+        ${avatarHtml(p.displayName||'P', p.photoURL||'', 38)}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+            ${nameHtml}
+            ${isOrg ? '<span class="badge badge-green" style="font-size:.6rem">Organizer</span>' : ''}
+            ${p.guestOf ? '<span class="badge badge-blue" style="font-size:.6rem">Guest</span>' : ''}
+          </div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:2px">${p.skillLevel||''}${p.city ? (p.skillLevel ? ' · ' : '') + p.city : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(err) {
+    listEl.innerHTML = '<div style="color:var(--muted);font-size:.875rem;padding:1rem;text-align:center">Could not load players.</div>';
+    console.error(err);
+  }
+};
+
 // ══════════════════════════════════════════════════════════════
 // ── USER PROFILE CACHE (avoids re-reading same profile repeatedly) ────────
 const _profileCache = {};
