@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#11151A">
+<title>Kitchen Ladder — Pickleball 2v2 Matchmaker</title>
+<style>
+/* ============================================================
+   KITCHEN LADDER — design tokens
+   Subject: pickleball open-play, single-court rotation.
+   Palette = night court: charcoal-navy court surface, optic-yellow
+   ball accent, court-blue secondary, win/loss signal colors.
+   Type = system sans for UI copy, tabular monospace for every
+   score/stat/rating digit (scoreboard ticker feel), bold uppercase
+   wide-tracking system sans standing in for a condensed display face.
+   Signature = the Current Match "scoreboard" card with a dashed
+   center kitchen-line divider between Team A and Team B.
+   ============================================================ */
+:root{
+  --bg:#11151A;
+  --surface:#181E25;
+  --surface-2:#1F2730;
+  --surface-3:#27313C;
+  --line:#2A333E;
+  --line-soft:#1F2730;
+  --ball:#D7F23D;       /* optic yellow — primary accent */
+  --ball-dim:#9CAE2C;
+  --court:#4FA8FF;      /* court blue — secondary accent */
+  --court-dim:#2E6CB0;
+  --win:#3ED598;
+  --win-dim:#1F6B4C;
+  --loss:#FF6B6B;
+  --loss-dim:#8C3636;
+  --text:#F1F4F0;
+  --text-dim:#9AA5B1;
+  --text-faint:#5C6873;
+  --radius-lg:18px;
+  --radius-md:12px;
+  --radius-sm:8px;
+  --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+  --shadow-1:0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 24px -12px rgba(0,0,0,0.6);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+}
+button{font-family:inherit;}
+.eyebrow{
+  font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase;
+  color:var(--text-faint);
+}
+.mono{font-family:var(--font-mono); font-variant-numeric:tabular-nums;}
+.scroll-hide::-webkit-scrollbar{display:none;}
+.scroll-hide{scrollbar-width:none;}
+
+/* ---------- App shell ---------- */
+#app{
+  max-width:560px; margin:0 auto; min-height:100vh; position:relative;
+  display:flex; flex-direction:column; padding-bottom:96px;
+}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  position:sticky; top:0; z-index:30;
+  background:linear-gradient(180deg, rgba(17,21,26,0.98) 70%, rgba(17,21,26,0.85));
+  backdrop-filter:blur(8px);
+  padding:14px 16px 8px;
+  border-bottom:1px solid var(--line-soft);
+}
+.brand-row{display:flex; align-items:center; gap:10px;}
+.brand-mark{
+  width:34px; height:34px; border-radius:10px; flex:none;
+  background:var(--surface-2); display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--shadow-1);
+}
+.brand-name{
+  font-weight:800; letter-spacing:0.02em; font-size:17px; line-height:1.1;
+}
+.brand-name b{color:var(--ball);}
+.brand-sub{font-size:11px; color:var(--text-faint); margin-top:1px;}
+.dash-strip{
+  display:flex; gap:14px; margin-top:10px; font-size:12px; color:var(--text-dim);
+  overflow-x:auto; padding-bottom:2px;
+}
+.dash-strip .d-item{display:flex; align-items:baseline; gap:5px; flex:none; white-space:nowrap;}
+.dash-strip .d-item .v{font-family:var(--font-mono); color:var(--text); font-weight:700; font-size:13px;}
+
+/* ---------- Tab nav ---------- */
+.tabs{
+  display:flex; gap:6px; overflow-x:auto; padding:10px 16px; scroll-snap-type:x proximate;
+  background:var(--bg);
+  position:sticky; top:72px; z-index:29;
+  border-bottom:1px solid var(--line-soft);
+}
+.tab-btn{
+  flex:none; display:flex; align-items:center; gap:6px;
+  background:transparent; border:1px solid transparent; color:var(--text-dim);
+  padding:8px 12px; border-radius:999px; font-size:13px; font-weight:600;
+  cursor:pointer; transition:background .15s,color .15s,border-color .15s;
+  scroll-snap-align:start;
+}
+.tab-btn svg{width:15px;height:15px;flex:none;}
+.tab-btn.active{background:var(--surface-2); color:var(--ball); border-color:var(--line);}
+.tab-btn:active{transform:scale(0.97);}
+
+/* ---------- Content ---------- */
+.view{padding:14px 16px 12px; animation:fadeIn .22s ease;}
+@keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+.section-title{
+  font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em;
+  color:var(--text-dim); margin:18px 2px 8px;
+}
+.section-title:first-child{margin-top:2px;}
+
+/* ---------- Cards ---------- */
+.card{
+  background:var(--surface); border:1px solid var(--line-soft); border-radius:var(--radius-lg);
+  padding:16px; box-shadow:var(--shadow-1);
+}
+.card + .card{margin-top:10px;}
+.card-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.empty-state{
+  text-align:center; padding:36px 16px; color:var(--text-faint);
+}
+.empty-state .big{font-size:30px; margin-bottom:6px;}
+.empty-state p{margin:4px 0 0; font-size:13px; line-height:1.5;}
+.empty-state .et{font-weight:700; color:var(--text-dim); font-size:14px;}
+
+/* ---------- Buttons ---------- */
+.btn{
+  appearance:none; border:none; border-radius:var(--radius-md); padding:12px 16px;
+  font-weight:700; font-size:14px; cursor:pointer; display:inline-flex; align-items:center;
+  justify-content:center; gap:6px; transition:transform .08s ease, filter .15s ease, opacity .15s;
+  user-select:none;
+}
+.btn:active{transform:scale(0.96);}
+.btn-primary{background:var(--ball); color:#10150a;}
+.btn-primary:hover{filter:brightness(1.06);}
+.btn-secondary{background:var(--surface-2); color:var(--text); border:1px solid var(--line);}
+.btn-court{background:var(--court); color:#08131f;}
+.btn-ghost{background:transparent; color:var(--text-dim); border:1px solid var(--line);}
+.btn-danger{background:transparent; color:var(--loss); border:1px solid var(--loss-dim);}
+.btn-sm{padding:8px 12px; font-size:12.5px; border-radius:var(--radius-sm);}
+.btn-block{width:100%;}
+.btn:disabled{opacity:.4; cursor:not-allowed; transform:none;}
+.icon-btn{
+  width:36px;height:36px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);
+  color:var(--text-dim); display:flex;align-items:center;justify-content:center; cursor:pointer; flex:none;
+}
+.icon-btn:active{transform:scale(0.93);}
+.icon-btn svg{width:16px;height:16px;}
+
+/* ---------- Forms ---------- */
+.field{margin-bottom:10px;}
+.field label{display:block; font-size:11.5px; color:var(--text-faint); margin-bottom:5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;}
+input[type=text],input[type=number],textarea,select{
+  width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text);
+  padding:11px 12px; border-radius:var(--radius-sm); font-size:14px; font-family:inherit;
+  outline:none; transition:border-color .15s;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--court);}
+textarea{resize:vertical; min-height:90px; font-family:var(--font-mono); font-size:13px;}
+.input-row{display:flex; gap:8px;}
+.input-row > *{flex:1;}
+.toggle-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft);}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-row .t-label{font-size:13.5px; font-weight:600;}
+.toggle-row .t-hint{font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+.switch{position:relative; width:42px; height:24px; flex:none; cursor:pointer;}
+.switch input{position:absolute; opacity:0; inset:0; margin:0; cursor:pointer;}
+.switch .track{position:absolute; inset:0; background:var(--surface-3); border:1px solid var(--line); border-radius:999px; transition:background .15s;}
+.switch .thumb{position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:var(--text-dim); transition:transform .15s, background .15s;}
+.switch input:checked + .track{background:var(--win-dim); border-color:var(--win);}
+.switch input:checked + .track + .thumb{transform:translateX(18px); background:var(--win);}
+
+/* ---------- Player list ---------- */
+.player-row{
+  display:flex; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px solid var(--line-soft);
+}
+.player-row:last-child{border-bottom:none;}
+.avatar{
+  width:36px;height:36px;border-radius:10px; background:var(--surface-3); color:var(--ball);
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex:none;
+}
+.player-row .pinfo{flex:1; min-width:0;}
+.player-row .pname{font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.player-row .pmeta{font-size:11.5px; color:var(--text-faint); font-family:var(--font-mono); margin-top:2px;}
+.pill{
+  display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:11px;
+  font-weight:700; font-family:var(--font-mono);
+}
+.pill-paused{background:var(--surface-3); color:var(--text-faint);}
+.pill-active{background:rgba(215,242,61,0.12); color:var(--ball);}
+.row-actions{display:flex; gap:6px; flex:none;}
+
+/* ---------- Scoreboard (signature element) ---------- */
+.scoreboard{
+  background:radial-gradient(circle at 30% -10%, rgba(79,168,255,0.10), transparent 55%), var(--surface);
+  border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-1);
+}
+.sb-head{
+  display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
+  border-bottom:1px solid var(--line-soft);
+}
+.sb-round{font-family:var(--font-mono); font-weight:800; font-size:13px; letter-spacing:.04em; color:var(--text-dim);}
+.sb-round b{color:var(--ball); font-size:15px;}
+.live-dot{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--win); text-transform:uppercase; letter-spacing:.08em;}
+.live-dot .d{width:7px;height:7px;border-radius:50%;background:var(--win); box-shadow:0 0 0 0 rgba(62,213,152,.6); animation:pulse 1.6s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(62,213,152,.45);}70%{box-shadow:0 0 0 8px rgba(62,213,152,0);}100%{box-shadow:0 0 0 0 rgba(62,213,152,0);}}
+.sb-body{display:flex; position:relative;}
+.sb-team{flex:1; padding:16px 14px; display:flex; flex-direction:column; gap:10px; min-width:0;}
+.sb-team.team-a{align-items:flex-end; text-align:right;}
+.sb-team.team-b{align-items:flex-start; text-align:left;}
+.sb-divider{
+  width:0; border-left:2px dashed var(--line); position:relative; flex:none;
+}
+.sb-divider::after{
+  content:"KITCHEN"; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) rotate(90deg);
+  font-size:9px; letter-spacing:.18em; color:var(--text-faint); background:var(--surface); padding:3px 0; white-space:nowrap;
+}
+.sb-tag{font-size:10.5px; font-weight:800; letter-spacing:.12em; color:var(--court); text-transform:uppercase;}
+.sb-team.team-a .sb-tag{color:var(--ball);}
+.sb-names{font-weight:800; font-size:16px; line-height:1.3;}
+.sb-rating{font-family:var(--font-mono); font-size:12px; color:var(--text-faint);}
+.sb-winbtn{width:100%; margin-top:2px;}
+.sb-foot{padding:12px 16px; border-top:1px solid var(--line-soft); display:flex; gap:8px;}
+.sb-foot .btn{flex:1;}
+
+/* ---------- Sticky control bar ---------- */
+.controlbar{
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  display:flex; justify-content:center;
+}
+.controlbar-inner{
+  width:100%; max-width:560px; background:var(--surface); border-top:1px solid var(--line);
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+  box-shadow:0 -8px 24px -8px rgba(0,0,0,.5);
+}
+.cb-top{display:flex; gap:8px;}
+.cb-top .btn{flex:1; padding:13px 10px; font-size:13px;}
+.cb-top .btn .nm{display:block; font-family:var(--font-mono); font-weight:600; font-size:10.5px; opacity:.85; margin-top:1px;}
+.cb-bottom{display:flex; gap:8px; margin-top:8px;}
+.cb-bottom .btn{flex:1;}
+
+/* ---------- Queue ---------- */
+.queue-row{display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid var(--line-soft);}
+.queue-row:last-child{border-bottom:none;}
+.qrank{
+  width:24px;height:24px;border-radius:50%; background:var(--surface-3); color:var(--text-dim);
+  display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; font-family:var(--font-mono); flex:none;
+}
+.queue-row .qmeta{font-size:11px; color:var(--text-faint); font-family:var(--font-mono);}
+
+/* ---------- Tables ---------- */
+.table-wrap{overflow-x:auto;}
+table{width:100%; border-collapse:collapse; font-size:12.5px;}
+th{
+  text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-faint);
+  padding:0 8px 8px; font-weight:700; white-space:nowrap;
+}
+td{padding:9px 8px; border-top:1px solid var(--line-soft); white-space:nowrap; font-family:var(--font-mono); font-size:12.5px;}
+td.namecell{font-family:var(--font-ui); font-weight:700; font-size:13px; white-space:normal;}
+tr.rank-1 .rankbadge{color:var(--ball);}
+.rankbadge{font-weight:800;}
+.txt-win{color:var(--win); font-weight:700;}
+.txt-loss{color:var(--loss); font-weight:700;}
+.streak-chip{padding:2px 7px; border-radius:999px; font-size:11px; font-weight:800;}
+.streak-w{background:rgba(62,213,152,.12); color:var(--win);}
+.streak-l{background:rgba(255,107,107,.12); color:var(--loss);}
+.streak-0{background:var(--surface-3); color:var(--text-faint);}
+.sort-bar{display:flex; gap:6px; overflow-x:auto; margin-bottom:10px;}
+.sort-chip{
+  flex:none; font-size:12px; padding:6px 11px; border-radius:999px; background:var(--surface-2);
+  border:1px solid var(--line); color:var(--text-dim); cursor:pointer; font-weight:600;
+}
+.sort-chip.active{background:rgba(215,242,61,.12); color:var(--ball); border-color:var(--ball-dim);}
+
+/* ---------- History ---------- */
+.hist-item{padding:12px 4px; border-bottom:1px solid var(--line-soft);}
+.hist-item:last-child{border-bottom:none;}
+.hist-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+.hist-round{font-family:var(--font-mono); font-size:11px; color:var(--text-faint);}
+.hist-teams{display:flex; align-items:center; gap:8px; font-size:13.5px;}
+.hist-team{flex:1; min-width:0;}
+.hist-team.winner{color:var(--win); font-weight:800;}
+.hist-team.loser{color:var(--text-dim);}
+.hist-vs{color:var(--text-faint); font-size:11px; font-family:var(--font-mono); flex:none;}
+
+/* ---------- Toast ---------- */
+#toast-root{position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:90; display:flex; flex-direction:column; gap:8px; align-items:center; width:100%; max-width:560px; padding:0 16px; pointer-events:none;}
+.toast{
+  background:var(--surface-3); border:1px solid var(--line); color:var(--text); padding:10px 16px;
+  border-radius:999px; font-size:13px; font-weight:600; box-shadow:0 8px 20px -6px rgba(0,0,0,.5);
+  animation:toastIn .25s ease, toastOut .25s ease 2.2s forwards; max-width:100%;
+}
+@keyframes toastIn{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:none;}}
+@keyframes toastOut{to{opacity:0; transform:translateY(-8px);}}
+
+/* ---------- Modal ---------- */
+.modal-bg{position:fixed; inset:0; background:rgba(8,10,13,.7); z-index:80; display:flex; align-items:flex-end; justify-content:center; animation:fadeIn .15s ease;}
+.modal-sheet{
+  width:100%; max-width:560px; background:var(--surface); border-radius:20px 20px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+  max-height:85vh; overflow-y:auto; animation:sheetUp .2s ease;
+  border-top:1px solid var(--line);
+}
+@keyframes sheetUp{from{transform:translateY(24px);} to{transform:none;}}
+.modal-title{font-size:16px; font-weight:800; margin:0 0 4px;}
+.modal-sub{font-size:12.5px; color:var(--text-faint); margin:0 0 14px;}
+.modal-actions{display:flex; gap:8px; margin-top:14px;}
+.modal-actions .btn{flex:1;}
+
+/* ---------- Misc ---------- */
+.helper-text{font-size:12px; color:var(--text-faint); line-height:1.5; margin:4px 2px 0;}
+.divider-thin{height:1px; background:var(--line-soft); margin:14px 0;}
+.flex-between{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+.stat-box{background:var(--surface-2); border:1px solid var(--line-soft); border-radius:var(--radius-sm); padding:10px; text-align:center;}
+.stat-box .sv{font-family:var(--font-mono); font-weight:800; font-size:17px; color:var(--ball);}
+.stat-box .sl{font-size:10px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.05em; margin-top:2px;}
+.badge-count{
+  background:var(--ball); color:#10150a; font-size:10px; font-weight:800; border-radius:999px;
+  min-width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; padding:0 4px;
+}
+@media (min-width:560px){
+  .topbar,.tabs,.controlbar-inner{border-radius:0;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar">
+    <div class="brand-row">
+      <div class="brand-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#D7F23D" stroke-width="2"/><circle cx="9" cy="9" r="1" fill="#D7F23D"/><circle cx="14" cy="8.5" r="1" fill="#D7F23D"/><circle cx="15.5" cy="13" r="1" fill="#D7F23D"/><circle cx="10.5" cy="15" r="1" fill="#D7F23D"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">Kitchen <b>Ladder</b></div>
+        <div class="brand-sub">Open-play matchmaking for one court</div>
+      </div>
+    </div>
+    <div class="dash-strip scroll-hide" id="dashStrip"></div>
+  </div>
+
+  <nav class="tabs scroll-hide" id="tabNav"></nav>
+
+  <main class="view" id="view"></main>
+
+</div>
+
+<div id="toast-root"></div>
+<div id="modal-root"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   STORAGE KEYS
+   ============================================================ */
+const KEYS = {
+  players:'kl_players', matches:'kl_matches', current:'kl_current',
+  settings:'kl_settings', round:'kl_round', undo:'kl_undo', tab:'kl_tab'
+};
+
+const DEFAULT_SETTINGS = {
+  maxRepeatTeammates: 2,
+  maxRepeatOpponents: 3,
+  winnerVsWinner: true,
+  equalPlayPriority: true
+};
+
+/* ============================================================
+   STATE — loaded once at boot, persisted after every mutation
+   ============================================================ */
+let state = {
+  players: [],
+  matches: [],
+  current: null,   // { round, teamA:[id,id], teamB:[id,id] }
+  settings: { ...DEFAULT_SETTINGS },
+  round: 0,
+  undo: null,       // snapshot for "Undo Last Match"
+  tab: 'match'
+};
+
+function loadState(){
+  try{
+    const p = localStorage.getItem(KEYS.players);
+    const m = localStorage.getItem(KEYS.matches);
+    const c = localStorage.getItem(KEYS.current);
+    const s = localStorage.getItem(KEYS.settings);
+    const r = localStorage.getItem(KEYS.round);
+    const u = localStorage.getItem(KEYS.undo);
+    const t = localStorage.getItem(KEYS.tab);
+    if(p) state.players = JSON.parse(p);
+    if(m) state.matches = JSON.parse(m);
+    if(c) state.current = JSON.parse(c);
+    if(s) state.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(s) };
+    if(r) state.round = parseInt(r,10)||0;
+    if(u) state.undo = JSON.parse(u);
+    if(t) state.tab = t;
+  }catch(e){
+    console.error('Failed to load saved data, starting fresh.', e);
+  }
+}
+
+function saveAll(){
+  try{
+    localStorage.setItem(KEYS.players, JSON.stringify(state.players));
+    localStorage.setItem(KEYS.matches, JSON.stringify(state.matches));
+    localStorage.setItem(KEYS.current, JSON.stringify(state.current));
+    localStorage.setItem(KEYS.settings, JSON.stringify(state.settings));
+    localStorage.setItem(KEYS.round, String(state.round));
+    localStorage.setItem(KEYS.undo, JSON.stringify(state.undo));
+    localStorage.setItem(KEYS.tab, state.tab);
+  }catch(e){
+    toast('Storage error — data may not have saved.');
+    console.error(e);
+  }
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+function uid(prefix){ return prefix+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
+function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+function esc(str){
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function initials(name){
+  const parts = name.trim().split(/\s+/);
+  if(parts.length===1) return parts[0].slice(0,2).toUpperCase();
+  return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+}
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+}
+function getPlayer(id){ return state.players.find(p=>p.id===id); }
+function playerName(id){ const p = getPlayer(id); return p ? p.name : '—'; }
+function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+function toast(msg){
+  const root = document.getElementById('toast-root');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  root.appendChild(el);
+  setTimeout(()=>{ el.remove(); }, 2500);
+}
+
+function closeModal(){
+  const root = document.getElementById('modal-root');
+  root.innerHTML = '';
+}
+function openModal(html){
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `<div class="modal-bg" data-action="modal-close">
+    <div class="modal-sheet">${html}</div>
+  </div>`;
+}
+
+/* ============================================================
+   PLAYER MODEL HELPERS
+   ============================================================ */
+function newPlayer(name){
+  return {
+    id: uid('p'),
+    name: name.trim(),
+    active: true,
+    gamesPlayed: 0,
+    wins: 0,
+    losses: 0,
+    rating: 1000,
+    currentStreak: 0,     // signed: + win streak, - loss streak
+    longestStreak: 0,
+    sitOuts: 0,
+    consecutiveSitOuts: 0,
+    results: [],          // chronological 'W'/'L'
+    teammates: {},         // id -> count
+    opponents: {},          // id -> count
+    createdAt: new Date().toISOString()
+  };
+}
+
+function winPct(p){
+  if(p.gamesPlayed===0) return 0;
+  return Math.round((p.wins/p.gamesPlayed)*1000)/10;
+}
+
+function pairCount(map, id){ return map[id]||0; }
+function bumpPair(map, id){ map[id] = (map[id]||0)+1; }
+
+/* ============================================================
+   PLAYER MANAGEMENT ACTIONS
+   ============================================================ */
+function addPlayer(name){
+  name = (name||'').trim();
+  if(!name){ toast('Enter a name first.'); return; }
+  if(state.players.some(p=>p.name.toLowerCase()===name.toLowerCase())){
+    toast('A player with that name already exists.'); return;
+  }
+  state.players.push(newPlayer(name));
+  saveAll(); renderAll();
+  toast(`Added ${name}.`);
+}
+
+function bulkImport(text){
+  const names = text.split(/[\n,]/).map(s=>s.trim()).filter(Boolean);
+  if(!names.length){ toast('Paste at least one name.'); return; }
+  let added = 0, skipped = 0;
+  names.forEach(name=>{
+    if(state.players.some(p=>p.name.toLowerCase()===name.toLowerCase())){ skipped++; return; }
+    state.players.push(newPlayer(name));
+    added++;
+  });
+  saveAll(); renderAll(); closeModal();
+  toast(`Imported ${added} player${added!==1?'s':''}${skipped?`, skipped ${skipped} duplicate${skipped!==1?'s':''}`:''}.`);
+}
+
+function editPlayerName(id, name){
+  name = (name||'').trim();
+  if(!name){ toast('Name cannot be empty.'); return; }
+  const p = getPlayer(id);
+  if(!p) return;
+  p.name = name;
+  saveAll(); renderAll(); closeModal();
+  toast('Player updated.');
+}
+
+function togglePlayerActive(id){
+  const p = getPlayer(id);
+  if(!p) return;
+  if(p.active && state.current && (state.current.teamA.includes(id) || state.current.teamB.includes(id))){
+    toast(`${p.name} is in the current match — finish or skip it first.`);
+    return;
+  }
+  p.active = !p.active;
+  if(!p.active) p.consecutiveSitOuts = 0;
+  saveAll(); renderAll();
+}
+
+function removePlayer(id){
+  if(state.current && (state.current.teamA.includes(id) || state.current.teamB.includes(id))){
+    toast('Cannot remove a player who is in the current match.'); return;
+  }
+  const p = getPlayer(id);
+  state.players = state.players.filter(pl=>pl.id!==id);
+  state.players.forEach(pl=>{ delete pl.teammates[id]; delete pl.opponents[id]; });
+  saveAll(); renderAll(); closeModal();
+  if(p) toast(`Removed ${p.name}.`);
+}
+
+function resetPlayersAndStats(){
+  state.players.forEach(p=>{
+    p.gamesPlayed=0; p.wins=0; p.losses=0; p.rating=1000; p.currentStreak=0; p.longestStreak=0;
+    p.sitOuts=0; p.consecutiveSitOuts=0; p.results=[]; p.teammates={}; p.opponents={};
+  });
+  state.matches = [];
+  state.current = null;
+  state.round = 0;
+  state.undo = null;
+  saveAll(); renderAll(); closeModal();
+  toast('Player stats and history have been reset.');
+}
+
+function resetEverything(){
+  state = { players:[], matches:[], current:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match' };
+  saveAll(); renderAll(); closeModal();
+  toast('All data has been cleared.');
+}
+
+/* ============================================================
+   MATCHMAKING ALGORITHM
+   ------------------------------------------------------------
+   Single-court rotation: exactly one match is "live" at a time.
+   Each round we pick 4 of the active players to play; everyone
+   else sits in the waiting queue and their wait-priority rises,
+   so nobody sits out for long. Within the chosen four we test
+   every 2v2 split and score it for skill balance and for how
+   often those exact pairs have already been teammates/opponents,
+   then keep the lowest-penalty split. This is a heuristic, not
+   an exhaustive optimizer — with larger groups it falls back to
+   "good enough" rather than freezing the UI.
+   ============================================================ */
+
+function activePlayers(){ return state.players.filter(p=>p.active); }
+
+// Priority score for who plays next: fewer games first, then
+// longest current wait, then total historical sit-outs, then a
+// small random jitter so ties don't always resolve the same way
+// (this is what stops the matchmaker from looping on one group).
+function selectionPool(){
+  const pool = activePlayers().slice();
+  pool.forEach(p=>{ p._jitter = Math.random(); });
+  pool.sort((a,b)=>{
+    if(a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
+    if(a.consecutiveSitOuts !== b.consecutiveSitOuts) return b.consecutiveSitOuts - a.consecutiveSitOuts;
+    if(a.sitOuts !== b.sitOuts) return b.sitOuts - a.sitOuts;
+    return a._jitter - b._jitter;
+  });
+  return pool;
+}
+
+function combinations(arr, k){
+  const out = [];
+  function go(start, chosen){
+    if(chosen.length===k){ out.push(chosen.slice()); return; }
+    for(let i=start;i<arr.length;i++){ chosen.push(arr[i]); go(i+1, chosen); chosen.pop(); }
+  }
+  go(0, []);
+  return out;
+}
+
+function scoreSplit(four, settings){
+  const [a,b,c,d] = four;
+  const splits = [
+    [[a,b],[c,d]],
+    [[a,c],[b,d]],
+    [[a,d],[b,c]]
+  ];
+  let best = null;
+  splits.forEach(([t1,t2])=>{
+    const teammatePenalty = pairCount(t1[0].teammates, t1[1].id) + pairCount(t2[0].teammates, t2[1].id);
+    const opponentPenalty =
+      pairCount(t1[0].opponents, t2[0].id) + pairCount(t1[0].opponents, t2[1].id) +
+      pairCount(t1[1].opponents, t2[0].id) + pairCount(t1[1].opponents, t2[1].id);
+    const overTeam = Math.max(0, teammatePenalty - settings.maxRepeatTeammates);
+    const overOpp = Math.max(0, opponentPenalty - settings.maxRepeatOpponents);
+    const r1 = (t1[0].rating+t1[1].rating)/2, r2 = (t2[0].rating+t2[1].rating)/2;
+    const teamBalance = Math.abs(r1-r2);
+    let score = teammatePenalty*8 + overTeam*45 + opponentPenalty*4 + overOpp*25 + teamBalance*0.6;
+    if(!settings.winnerVsWinner) score *= 0.85; // de-emphasize skill grouping if disabled
+    splitScoreTrack(score);
+    if(!best || score < best.score) best = { score, teamA:t1, teamB:t2 };
+  });
+  return best;
+}
+let _trackedMax = 1;
+function splitScoreTrack(s){ if(s>_trackedMax) _trackedMax = s; }
+
+function generateMatch(){
+  if(state.current){ toast('Finish or skip the current match first.'); return; }
+  const active = activePlayers();
+  if(active.length < 4){
+    toast(`Need at least 4 active players (have ${active.length}).`); return;
+  }
+  const pool = selectionPool();
+  const poolSize = Math.min(pool.length, 8);
+  const candidates = pool.slice(0, poolSize);
+
+  // Rating spread across the chosen four matters too: prefer a
+  // foursome of similar overall skill ("players with similar
+  // records should be grouped together").
+  const combos = combinations(candidates, 4);
+  let best = null;
+  combos.forEach(four=>{
+    const ratings = four.map(p=>p.rating);
+    const spread = Math.max(...ratings) - Math.min(...ratings);
+    const split = scoreSplit(four, state.settings);
+    const total = split.score + spread*0.5 + Math.random()*3; // tiny jitter avoids deterministic repeats
+    if(!best || total < best.total) best = { total, four, split };
+  });
+
+  const chosenIds = best.four.map(p=>p.id);
+  state.round += 1;
+  state.current = {
+    round: state.round,
+    teamA: best.split.teamA.map(p=>p.id),
+    teamB: best.split.teamB.map(p=>p.id)
+  };
+
+  // Update sit-out bookkeeping for everyone NOT chosen this round.
+  active.forEach(p=>{
+    if(chosenIds.includes(p.id)){
+      p.consecutiveSitOuts = 0;
+    } else {
+      p.sitOuts += 1;
+      p.consecutiveSitOuts += 1;
+    }
+  });
+
+  state.undo = null; // a fresh match invalidates any pending undo
+  saveAll(); renderAll();
+  toast(`Round ${state.round} match is ready.`);
+}
+
+function skipMatch(){
+  if(!state.current){ toast('No active match to skip.'); return; }
+  // Returning players to the pool: treat them as having sat out
+  // this round so they don't lose their place in line, then pick
+  // a new match. consecutiveSitOuts was reset to 0 when they were
+  // chosen, so bump it back up by one to keep priority fair.
+  const ids = [...state.current.teamA, ...state.current.teamB];
+  ids.forEach(id=>{ const p=getPlayer(id); if(p){ p.consecutiveSitOuts += 1; } });
+  state.current = null;
+  state.round -= 1; // the skipped round didn't actually happen
+  saveAll();
+  toast('Match skipped — generating a new one.');
+  generateMatch();
+}
+
+function recordResult(winner){
+  if(!state.current){ return; }
+  // Snapshot everything needed to fully undo this single action.
+  state.undo = {
+    players: deepClone(state.players),
+    current: deepClone(state.current),
+    round: state.round,
+    matchesLength: state.matches.length
+  };
+
+  const { teamA, teamB, round } = state.current;
+  const winners = winner==='A' ? teamA : teamB;
+  const losers = winner==='A' ? teamB : teamA;
+  const winPlayers = winners.map(getPlayer);
+  const losePlayers = losers.map(getPlayer);
+
+  const avgW = winPlayers.reduce((s,p)=>s+p.rating,0)/2;
+  const avgL = losePlayers.reduce((s,p)=>s+p.rating,0)/2;
+  const expW = 1/(1+Math.pow(10,(avgL-avgW)/400));
+  const K = 28;
+  const deltaW = Math.round(K*(1-expW));
+  const deltaL = Math.round(K*(0-(1-expW)));
+
+  function applyResult(p, isWin, delta){
+    p.gamesPlayed += 1;
+    if(isWin){ p.wins += 1; } else { p.losses += 1; }
+    p.rating = Math.max(100, p.rating + delta);
+    p.results.push(isWin?'W':'L');
+    if(isWin){
+      p.currentStreak = p.currentStreak>0 ? p.currentStreak+1 : 1;
+      if(p.currentStreak > p.longestStreak) p.longestStreak = p.currentStreak;
+    } else {
+      p.currentStreak = p.currentStreak<0 ? p.currentStreak-1 : -1;
+    }
+  }
+  winPlayers.forEach(p=>applyResult(p, true, deltaW));
+  losePlayers.forEach(p=>applyResult(p, false, deltaL));
+
+  // Teammate / opponent history.
+  bumpPair(winPlayers[0].teammates, winPlayers[1].id);
+  bumpPair(winPlayers[1].teammates, winPlayers[0].id);
+  bumpPair(losePlayers[0].teammates, losePlayers[1].id);
+  bumpPair(losePlayers[1].teammates, losePlayers[0].id);
+  winPlayers.forEach(w=>losePlayers.forEach(l=>{
+    bumpPair(w.opponents, l.id); bumpPair(l.opponents, w.id);
+  }));
+
+  state.matches.push({
+    id: uid('m'),
+    round,
+    timestamp: new Date().toISOString(),
+    teamA: [...teamA],
+    teamB: [...teamB],
+    winner
+  });
+
+  state.current = null;
+  saveAll(); renderAll();
+  toast(`Round ${round} recorded — ${winner==='A'?'Team A':'Team B'} won.`);
+}
+
+function undoLastMatch(){
+  if(!state.undo){ toast('Nothing to undo.'); return; }
+  const snap = state.undo;
+  state.players = snap.players;
+  state.current = snap.current;
+  state.round = snap.round;
+  state.matches = state.matches.slice(0, snap.matchesLength);
+  state.undo = null;
+  saveAll(); renderAll();
+  toast('Last result undone — match restored as pending.');
+}
+
+/* ============================================================
+   EXPORT / IMPORT
+   ============================================================ */
+function exportData(){
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    players: state.players, matches: state.matches, settings: state.settings,
+    round: state.round, current: state.current
+  };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `kitchen-ladder-export-${Date.now()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast('Data exported.');
+}
+
+function importDataFromText(text){
+  try{
+    const data = JSON.parse(text);
+    if(!Array.isArray(data.players)) throw new Error('bad format');
+    state.players = data.players;
+    state.matches = Array.isArray(data.matches) ? data.matches : [];
+    state.settings = { ...DEFAULT_SETTINGS, ...(data.settings||{}) };
+    state.round = data.round || 0;
+    state.current = data.current || null;
+    state.undo = null;
+    saveAll(); renderAll(); closeModal();
+    toast('Data imported successfully.');
+  }catch(e){
+    toast('That file could not be read as Kitchen Ladder data.');
+  }
+}
+
+/* ============================================================
+   ICONS (inline, no external assets)
+   ============================================================ */
+const ICONS = {
+  match:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M9 9l.01.01M14.5 8.5l.01.01M15.5 13l.01.01M10.5 15l.01.01" stroke-linecap="round"/></svg>',
+  queue:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
+  players:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><circle cx="17" cy="9" r="2.3"/><path d="M16 13.2c2.6.5 4.3 2.3 5 4.8" stroke-linecap="round"/></svg>',
+  stats:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19V10M12 19V5M19 19v-7"/></svg>',
+  rankings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/></svg>',
+  history:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.8 7.8 0 0 0-1.7-1L15 3h-4l-.3 2.4a7.8 7.8 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.8 7.8 0 0 0 1.7 1L11 21h4l.3-2.4a7.8 7.8 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6Z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m-1 0v14H9V6"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  pause:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 5v14M17 5v14"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4l13 8-13 8V4z"/></svg>'
+};
+
+/* ============================================================
+   TAB NAVIGATION
+   ============================================================ */
+const TABS = [
+  {id:'match', label:'Match', icon:ICONS.match},
+  {id:'queue', label:'Queue', icon:ICONS.queue},
+  {id:'players', label:'Players', icon:ICONS.players},
+  {id:'stats', label:'Stats', icon:ICONS.stats},
+  {id:'rankings', label:'Rankings', icon:ICONS.rankings},
+  {id:'history', label:'History', icon:ICONS.history},
+  {id:'settings', label:'Settings', icon:ICONS.settings}
+];
+
+function renderTabs(){
+  const nav = document.getElementById('tabNav');
+  nav.innerHTML = TABS.map(t=>`
+    <button class="tab-btn ${state.tab===t.id?'active':''}" data-action="set-tab" data-tab="${t.id}">
+      ${t.icon}<span>${t.label}</span>
+    </button>
+  `).join('');
+}
+
+function setTab(id){
+  state.tab = id;
+  saveAll();
+  renderAll();
+  document.getElementById('view').scrollIntoView({block:'start'});
+}
+
+/* ============================================================
+   DASHBOARD STRIP (always-visible mini overview)
+   ============================================================ */
+function renderDashStrip(){
+  const el = document.getElementById('dashStrip');
+  const waiting = state.current ? Math.max(0, activePlayers().length - 4) : activePlayers().length;
+  el.innerHTML = `
+    <div class="d-item"><span class="v">${state.players.length}</span> players</div>
+    <div class="d-item"><span class="v">${state.matches.length}</span> matches</div>
+    <div class="d-item"><span class="v">${state.current ? Math.max(0, activePlayers().length-4) : activePlayers().length}</span> waiting</div>
+    <div class="d-item"><span class="v">${state.round}</span> round</div>
+  `;
+}
+
+/* ============================================================
+   VIEW: MATCH
+   ============================================================ */
+function renderMatchView(){
+  let html = '';
+  if(!state.current){
+    html += `
+      <div class="card empty-state">
+        <div class="big">🏓</div>
+        <div class="et">No match on the court</div>
+        <p>Generate a match to set the next foursome.<br>The algorithm balances games played, skill, and repeat pairings automatically.</p>
+        <div style="margin-top:14px;">
+          <button class="btn btn-primary" data-action="generate">${ICONS.plus} Generate Match</button>
+        </div>
+      </div>`;
+  } else {
+    const { teamA, teamB, round } = state.current;
+    const A = teamA.map(getPlayer), B = teamB.map(getPlayer);
+    const avgA = Math.round((A[0].rating+A[1].rating)/2);
+    const avgB = Math.round((B[0].rating+B[1].rating)/2);
+    html += `
+      <div class="scoreboard">
+        <div class="sb-head">
+          <div class="sb-round">ROUND <b>${round}</b></div>
+          <div class="live-dot"><span class="d"></span>On court</div>
+        </div>
+        <div class="sb-body">
+          <div class="sb-team team-a">
+            <div class="sb-tag">Team A</div>
+            <div class="sb-names">${esc(A[0].name)}<br>${esc(A[1].name)}</div>
+            <div class="sb-rating mono">avg rating ${avgA}</div>
+          </div>
+          <div class="sb-divider"></div>
+          <div class="sb-team team-b">
+            <div class="sb-tag">Team B</div>
+            <div class="sb-names">${esc(B[0].name)}<br>${esc(B[1].name)}</div>
+            <div class="sb-rating mono">avg rating ${avgB}</div>
+          </div>
+        </div>
+        <div class="sb-foot">
+          <button class="btn btn-secondary" data-action="record" data-winner="A">${ICONS.match} Team A wins</button>
+          <button class="btn btn-secondary" data-action="record" data-winner="B">${ICONS.match} Team B wins</button>
+        </div>
+      </div>
+      <div class="helper-text">Tap the winning team above, or use the bar at the bottom of the screen.</div>
+    `;
+  }
+
+  const waitCount = activePlayers().length - (state.current ? 4 : 0);
+  html += `<div class="section-title">Up next in queue (${Math.max(0,waitCount)})</div>`;
+  html += renderQueueList(3);
+
+  document.getElementById('view').innerHTML = html;
+}
+
+/* ============================================================
+   VIEW: QUEUE
+   ============================================================ */
+function renderQueueList(limit){
+  const inMatch = state.current ? new Set([...state.current.teamA, ...state.current.teamB]) : new Set();
+  const waiting = selectionPool().filter(p=>!inMatch.has(p.id));
+  if(!waiting.length){
+    return `<div class="card empty-state"><p>${state.current ? 'Everyone else is already on the court.' : 'No players waiting — add players to get started.'}</p></div>`;
+  }
+  const list = limit ? waiting.slice(0, limit) : waiting;
+  let rows = list.map((p,i)=>`
+    <div class="queue-row">
+      <div class="qrank">${i+1}</div>
+      <div class="avatar">${esc(initials(p.name))}</div>
+      <div class="pinfo">
+        <div class="pname">${esc(p.name)}</div>
+        <div class="qmeta">${p.gamesPlayed} games · sat out ${p.consecutiveSitOuts} round${p.consecutiveSitOuts!==1?'s':''} in a row</div>
+      </div>
+    </div>
+  `).join('');
+  let html = `<div class="card">${rows}</div>`;
+  if(limit && waiting.length>limit){
+    html += `<div style="text-align:center;margin-top:8px;"><button class="btn btn-ghost btn-sm" data-action="set-tab" data-tab="queue">See full queue (${waiting.length})</button></div>`;
+  }
+  return html;
+}
+
+function renderQueueView(){
+  let html = `<div class="section-title">Waiting queue</div>`;
+  html += `<div class="helper-text" style="margin-bottom:10px;">Ordered by priority — fewest games played first, then longest current wait. The matchmaker pulls the next four straight from the top of this list.</div>`;
+  html += renderQueueList(null);
+  document.getElementById('view').innerHTML = html;
+}
+
+/* ============================================================
+   VIEW: PLAYERS
+   ============================================================ */
+function renderPlayersView(){
+  let html = `
+    <div class="card">
+      <div class="field" style="margin-bottom:8px;">
+        <label>Add a player</label>
+        <div class="input-row">
+          <input type="text" id="newPlayerName" placeholder="Player name" maxlength="40">
+          <button class="btn btn-primary" data-action="add-player" style="flex:0 0 auto;">${ICONS.plus}</button>
+        </div>
+      </div>
+      <div class="flex-between">
+        <button class="btn btn-ghost btn-sm" data-action="open-import">Bulk import</button>
+        <span class="eyebrow">${state.players.length} total</span>
+      </div>
+    </div>
+  `;
+
+  if(!state.players.length){
+    html += `<div class="card empty-state"><div class="big">👋</div><div class="et">No players yet</div><p>Add players one at a time, or use bulk import to paste a whole list at once.</p></div>`;
+  } else {
+    const sorted = state.players.slice().sort((a,b)=>a.name.localeCompare(b.name));
+    html += `<div class="section-title">Roster</div><div class="card">`;
+    html += sorted.map(p=>{
+      const inMatch = state.current && (state.current.teamA.includes(p.id)||state.current.teamB.includes(p.id));
+      return `
+      <div class="player-row">
+        <div class="avatar">${esc(initials(p.name))}</div>
+        <div class="pinfo">
+          <div class="pname">${esc(p.name)} ${inMatch?'<span class="pill pill-active">ON COURT</span>':''}</div>
+          <div class="pmeta">${p.gamesPlayed} gp · ${winPct(p)}% win · rating ${Math.round(p.rating)}</div>
+        </div>
+        <span class="pill ${p.active?'pill-active':'pill-paused'}">${p.active?'PLAYING':'PAUSED'}</span>
+        <div class="row-actions">
+          <button class="icon-btn" data-action="toggle-active" data-id="${p.id}" title="${p.active?'Pause':'Resume'}">${p.active?ICONS.pause:ICONS.play}</button>
+          <button class="icon-btn" data-action="open-edit-player" data-id="${p.id}" title="Edit">${ICONS.edit}</button>
+        </div>
+      </div>`;
+    }).join('');
+    html += `</div>`;
+    html += `<div class="divider-thin"></div>
+      <button class="btn btn-danger btn-block" data-action="confirm-reset-players">${ICONS.trash} Reset all players &amp; statistics</button>`;
+  }
+
+  document.getElementById('view').innerHTML = html;
+  const input = document.getElementById('newPlayerName');
+  if(input){
+    input.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ addPlayer(input.value); input.value=''; }
+    });
+  }
+}
+
+function openImportModal(){
+  openModal(`
+    <div class="modal-title">Bulk import players</div>
+    <div class="modal-sub">One name per line, or separate with commas. Duplicates are skipped automatically.</div>
+    <textarea id="bulkText" placeholder="Alex Chen
+Sam Rivera
+Jo Park
+Pat Singh"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-primary" data-action="do-bulk-import">Import</button>
+    </div>
+  `);
+}
+
+function openEditPlayerModal(id){
+  const p = getPlayer(id);
+  if(!p) return;
+  openModal(`
+    <div class="modal-title">Edit player</div>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="editName" value="${esc(p.name)}" maxlength="40">
+    </div>
+    <div class="stat-grid" style="margin:14px 0;">
+      <div class="stat-box"><div class="sv">${p.gamesPlayed}</div><div class="sl">Games</div></div>
+      <div class="stat-box"><div class="sv">${p.wins}-${p.losses}</div><div class="sl">W-L</div></div>
+      <div class="stat-box"><div class="sv">${Math.round(p.rating)}</div><div class="sl">Rating</div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" data-action="confirm-remove-player" data-id="${p.id}">${ICONS.trash} Remove</button>
+      <button class="btn btn-primary" data-action="save-edit-player" data-id="${p.id}">Save</button>
+    </div>
+  `);
+}
+
+/* ============================================================
+   VIEW: STATS
+   ============================================================ */
+function renderStatsView(){
+  if(!state.players.length){
+    document.getElementById('view').innerHTML = `<div class="card empty-state"><p>Add players to see statistics here.</p></div>`;
+    return;
+  }
+  const rows = state.players.slice().sort((a,b)=>b.gamesPlayed-a.gamesPlayed);
+  let html = `<div class="section-title">Player statistics</div>`;
+  html += `<div class="card" style="padding:0;">`;
+  html += `<div class="table-wrap"><table><thead><tr>
+      <th>Player</th><th>GP</th><th>W</th><th>L</th><th>Win%</th><th>Streak</th><th>Longest</th><th>Sat out</th>
+    </tr></thead><tbody>`;
+  rows.forEach(p=>{
+    const streakClass = p.currentStreak>0?'streak-w':p.currentStreak<0?'streak-l':'streak-0';
+    const streakLabel = p.currentStreak===0?'—':(p.currentStreak>0?`W${p.currentStreak}`:`L${Math.abs(p.currentStreak)}`);
+    html += `<tr>
+      <td class="namecell">${esc(p.name)}</td>
+      <td>${p.gamesPlayed}</td>
+      <td class="txt-win">${p.wins}</td>
+      <td class="txt-loss">${p.losses}</td>
+      <td>${winPct(p)}%</td>
+      <td><span class="streak-chip ${streakClass}">${streakLabel}</span></td>
+      <td>W${p.longestStreak}</td>
+      <td>${p.sitOuts}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+
+  // Teammate / opponent detail for a selected player
+  html += `<div class="section-title">Teammate &amp; opponent history</div>`;
+  html += `<div class="card"><div class="field" style="margin-bottom:0;">
+      <label>Select a player</label>
+      <select id="statPlayerSelect">${state.players.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+    </div>
+    <div id="statPlayerDetail" style="margin-top:12px;"></div>
+  </div>`;
+
+  document.getElementById('view').innerHTML = html;
+  const sel = document.getElementById('statPlayerSelect');
+  function renderDetail(){
+    const p = getPlayer(sel.value);
+    const detail = document.getElementById('statPlayerDetail');
+    if(!p){ detail.innerHTML=''; return; }
+    const tm = Object.entries(p.teammates).sort((a,b)=>b[1]-a[1]);
+    const op = Object.entries(p.opponents).sort((a,b)=>b[1]-a[1]);
+    detail.innerHTML = `
+      <div class="eyebrow" style="margin-bottom:6px;">Most frequent teammates</div>
+      ${tm.length? tm.map(([id,c])=>`<div class="flex-between" style="padding:4px 0; font-size:13px;"><span>${esc(playerName(id))}</span><span class="mono pill pill-active">${c}×</span></div>`).join('') : '<div class="helper-text">No matches yet.</div>'}
+      <div class="divider-thin"></div>
+      <div class="eyebrow" style="margin-bottom:6px;">Most frequent opponents</div>
+      ${op.length? op.map(([id,c])=>`<div class="flex-between" style="padding:4px 0; font-size:13px;"><span>${esc(playerName(id))}</span><span class="mono pill pill-paused">${c}×</span></div>`).join('') : '<div class="helper-text">No matches yet.</div>'}
+    `;
+  }
+  sel.addEventListener('change', renderDetail);
+  renderDetail();
+}
+
+/* ============================================================
+   VIEW: RANKINGS (Dashboard / leaderboard)
+   ============================================================ */
+let rankSort = 'rating';
+function renderRankingsView(){
+  if(!state.players.length){
+    document.getElementById('view').innerHTML = `<div class="card empty-state"><p>Rankings will appear once players have been added.</p></div>`;
+    return;
+  }
+  const sorters = {
+    rating:(a,b)=>b.rating-a.rating,
+    winpct:(a,b)=>winPct(b)-winPct(a),
+    games:(a,b)=>b.gamesPlayed-a.gamesPlayed,
+    streak:(a,b)=>b.currentStreak-a.currentStreak
+  };
+  const labels = {rating:'Ladder rating', winpct:'Win %', games:'Games played', streak:'Current streak'};
+  const rows = state.players.slice().sort(sorters[rankSort]);
+
+  let html = `<div class="section-title">Rankings dashboard</div>`;
+  html += `<div class="stat-grid" style="margin-bottom:14px;">
+      <div class="stat-box"><div class="sv">${state.matches.length}</div><div class="sl">Matches</div></div>
+      <div class="stat-box"><div class="sv">${state.players.length}</div><div class="sl">Players</div></div>
+      <div class="stat-box"><div class="sv">${Math.max(0, activePlayers().length - (state.current?4:0))}</div><div class="sl">Waiting</div></div>
+    </div>`;
+
+  html += `<div class="sort-bar scroll-hide">` + Object.keys(labels).map(k=>
+    `<button class="sort-chip ${rankSort===k?'active':''}" data-action="rank-sort" data-sort="${k}">${labels[k]}</button>`
+  ).join('') + `</div>`;
+
+  html += `<div class="card" style="padding:0;"><div class="table-wrap"><table><thead><tr>
+      <th>#</th><th>Player</th><th>Rating</th><th>Win%</th><th>GP</th><th>Streak</th>
+    </tr></thead><tbody>`;
+  rows.forEach((p,i)=>{
+    const streakClass = p.currentStreak>0?'streak-w':p.currentStreak<0?'streak-l':'streak-0';
+    const streakLabel = p.currentStreak===0?'—':(p.currentStreak>0?`W${p.currentStreak}`:`L${Math.abs(p.currentStreak)}`);
+    html += `<tr class="${i===0?'rank-1':''}">
+      <td class="rankbadge">${i+1}</td>
+      <td class="namecell">${esc(p.name)}</td>
+      <td>${Math.round(p.rating)}</td>
+      <td>${winPct(p)}%</td>
+      <td>${p.gamesPlayed}</td>
+      <td><span class="streak-chip ${streakClass}">${streakLabel}</span></td>
+    </tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+
+  html += `<div class="section-title">Recently completed</div>`;
+  const recent = state.matches.slice(-3).reverse();
+  if(!recent.length){
+    html += `<div class="card empty-state"><p>No matches completed yet.</p></div>`;
+  } else {
+    html += `<div class="card">` + recent.map(renderHistoryItem).join('') + `</div>`;
+  }
+
+  document.getElementById('view').innerHTML = html;
+}
+
+/* ============================================================
+   VIEW: HISTORY
+   ============================================================ */
+let historySearch = '';
+function renderHistoryItem(m){
+  const A = m.teamA.map(playerName), B = m.teamB.map(playerName);
+  const aWin = m.winner==='A';
+  return `
+    <div class="hist-item">
+      <div class="hist-top">
+        <span class="hist-round">ROUND ${m.round} · ${fmtDate(m.timestamp)}</span>
+        <button class="icon-btn" data-action="delete-match" data-id="${m.id}" title="Delete">${ICONS.trash}</button>
+      </div>
+      <div class="hist-teams">
+        <div class="hist-team ${aWin?'winner':'loser'}">${esc(A[0])} / ${esc(A[1])}</div>
+        <div class="hist-vs">vs</div>
+        <div class="hist-team ${!aWin?'winner':'loser'}">${esc(B[0])} / ${esc(B[1])}</div>
+      </div>
+    </div>`;
+}
+
+function renderHistoryView(){
+  let html = `
+    <div class="field" style="margin-bottom:10px;">
+      <input type="text" id="historySearchInput" placeholder="Search by player name…" value="${esc(historySearch)}">
+    </div>`;
+  const filtered = state.matches.slice().reverse().filter(m=>{
+    if(!historySearch) return true;
+    const names = [...m.teamA, ...m.teamB].map(id=>playerName(id).toLowerCase());
+    return names.some(n=>n.includes(historySearch.toLowerCase()));
+  });
+  html += `<div class="flex-between" style="margin-bottom:8px;">
+      <span class="eyebrow">${filtered.length} match${filtered.length!==1?'es':''}</span>
+      ${state.matches.length? `<button class="btn btn-danger btn-sm" data-action="confirm-reset-history">${ICONS.trash} Clear history</button>`:''}
+    </div>`;
+  if(!filtered.length){
+    html += `<div class="card empty-state"><p>${state.matches.length? 'No matches found for that search.' : 'No matches recorded yet — play and record a match to see it here.'}</p></div>`;
+  } else {
+    html += `<div class="card">` + filtered.map(renderHistoryItem).join('') + `</div>`;
+  }
+  document.getElementById('view').innerHTML = html;
+  const input = document.getElementById('historySearchInput');
+  input.addEventListener('input', e=>{ historySearch = e.target.value; renderHistoryView(); });
+  input.focus(); input.setSelectionRange(historySearch.length, historySearch.length);
+}
+
+/* ============================================================
+   VIEW: SETTINGS
+   ============================================================ */
+function renderSettingsView(){
+  const s = state.settings;
+  let html = `
+    <div class="section-title">Matchmaking rules</div>
+    <div class="card">
+      <div class="field">
+        <label>Max repeat teammates allowed</label>
+        <input type="number" id="setMaxTeammates" min="0" max="20" value="${s.maxRepeatTeammates}">
+        <div class="helper-text">Soft limit — the algorithm strongly avoids pairing the same two people again past this count, but will still form a match if no better option exists.</div>
+      </div>
+      <div class="field">
+        <label>Max repeat opponents allowed</label>
+        <input type="number" id="setMaxOpponents" min="0" max="20" value="${s.maxRepeatOpponents}">
+      </div>
+      <div class="toggle-row">
+        <div><div class="t-label">Winner vs. winner grouping</div><div class="t-hint">Group players of similar current skill/streak together.</div></div>
+        <label class="switch"><input type="checkbox" id="setW2W" ${s.winnerVsWinner?'checked':''}><div class="track"></div><div class="thumb"></div></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="t-label">Equal play priority</div><div class="t-hint">Always favor players with fewer games played when forming the next match.</div></div>
+        <label class="switch"><input type="checkbox" id="setEqualPlay" ${s.equalPlayPriority?'checked':''}><div class="track"></div><div class="thumb"></div></label>
+      </div>
+      <button class="btn btn-primary btn-block" data-action="save-settings" style="margin-top:6px;">Save settings</button>
+    </div>
+
+    <div class="section-title">Data</div>
+    <div class="card">
+      <button class="btn btn-secondary btn-block" data-action="export-data">Export data (.json)</button>
+      <div style="height:8px;"></div>
+      <button class="btn btn-secondary btn-block" data-action="open-import-data">Import data (.json)</button>
+    </div>
+
+    <div class="section-title">Danger zone</div>
+    <div class="card">
+      <button class="btn btn-danger btn-block" data-action="confirm-reset-players">${ICONS.trash} Reset players &amp; statistics</button>
+      <div style="height:8px;"></div>
+      <button class="btn btn-danger btn-block" data-action="confirm-reset-all">${ICONS.trash} Reset everything</button>
+    </div>
+  `;
+  document.getElementById('view').innerHTML = html;
+}
+
+function saveSettingsFromForm(){
+  state.settings.maxRepeatTeammates = clamp(parseInt(document.getElementById('setMaxTeammates').value,10)||0, 0, 20);
+  state.settings.maxRepeatOpponents = clamp(parseInt(document.getElementById('setMaxOpponents').value,10)||0, 0, 20);
+  state.settings.winnerVsWinner = document.getElementById('setW2W').checked;
+  state.settings.equalPlayPriority = document.getElementById('setEqualPlay').checked;
+  saveAll();
+  toast('Settings saved.');
+}
+
+/* ============================================================
+   CONTROL BAR (global sticky actions)
+   ============================================================ */
+function renderControlBar(){
+  let root = document.getElementById('controlBar');
+  if(!root){
+    root = document.createElement('div');
+    root.id = 'controlBar';
+    root.className = 'controlbar';
+    document.body.appendChild(root);
+  }
+  let inner = '';
+  if(!state.current){
+    inner += `<div class="cb-top">
+        <button class="btn btn-primary" data-action="generate" ${activePlayers().length<4?'disabled':''}>${ICONS.plus} Generate Match</button>
+      </div>`;
+    if(state.undo){
+      inner += `<div class="cb-bottom"><button class="btn btn-ghost" data-action="undo">${ICONS.history} Undo Last Match</button></div>`;
+    }
+  } else {
+    const A = state.current.teamA.map(getPlayer), B = state.current.teamB.map(getPlayer);
+    inner += `<div class="cb-top">
+        <button class="btn btn-primary" data-action="record" data-winner="A">Team A wins<span class="nm">${esc(A[0].name)} / ${esc(A[1].name)}</span></button>
+        <button class="btn btn-court" data-action="record" data-winner="B">Team B wins<span class="nm">${esc(B[0].name)} / ${esc(B[1].name)}</span></button>
+      </div>
+      <div class="cb-bottom">
+        <button class="btn btn-ghost" data-action="skip">Skip Match</button>
+        <button class="btn btn-ghost" data-action="undo" ${!state.undo?'disabled':''}>Undo Last</button>
+      </div>`;
+  }
+  root.innerHTML = `<div class="controlbar-inner">${inner}</div>`;
+  // The bar's height varies (one row vs. two), so keep the page's
+  // bottom padding in sync to guarantee content never sits under it.
+  requestAnimationFrame(()=>{
+    const app = document.getElementById('app');
+    if(app) app.style.paddingBottom = (root.offsetHeight + 16) + 'px';
+  });
+}
+
+/* ============================================================
+   CONFIRM DIALOG
+   ============================================================ */
+function confirmDialog(title, sub, confirmLabel, action){
+  openModal(`
+    <div class="modal-title">${title}</div>
+    <div class="modal-sub">${sub}</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-danger" data-action="${action}">${confirmLabel}</button>
+    </div>
+  `);
+}
+
+/* ============================================================
+   MASTER RENDER
+   ============================================================ */
+function renderAll(){
+  renderDashStrip();
+  renderTabs();
+  renderControlBar();
+  switch(state.tab){
+    case 'match': renderMatchView(); break;
+    case 'queue': renderQueueView(); break;
+    case 'players': renderPlayersView(); break;
+    case 'stats': renderStatsView(); break;
+    case 'rankings': renderRankingsView(); break;
+    case 'history': renderHistoryView(); break;
+    case 'settings': renderSettingsView(); break;
+    default: renderMatchView();
+  }
+}
+
+/* ============================================================
+   EVENT DELEGATION
+   ============================================================ */
+document.addEventListener('click', function(e){
+  const t = e.target.closest('[data-action]');
+  if(!t) return;
+  const action = t.dataset.action;
+  if(action === 'modal-close' && e.target !== t) return; // ignore bubbled clicks from inside the sheet
+
+  switch(action){
+    case 'set-tab': setTab(t.dataset.tab); break;
+    case 'generate': generateMatch(); break;
+    case 'skip': skipMatch(); break;
+    case 'undo': undoLastMatch(); break;
+    case 'record': recordResult(t.dataset.winner); break;
+
+    case 'add-player': {
+      const input = document.getElementById('newPlayerName');
+      addPlayer(input.value); input.value=''; input.focus();
+      break;
+    }
+    case 'open-import': openImportModal(); break;
+    case 'do-bulk-import': {
+      const ta = document.getElementById('bulkText');
+      bulkImport(ta.value);
+      break;
+    }
+    case 'open-edit-player': openEditPlayerModal(t.dataset.id); break;
+    case 'save-edit-player': {
+      const input = document.getElementById('editName');
+      editPlayerName(t.dataset.id, input.value);
+      break;
+    }
+    case 'toggle-active': togglePlayerActive(t.dataset.id); break;
+    case 'confirm-remove-player': {
+      const p = getPlayer(t.dataset.id);
+      confirmDialog('Remove player?', `${p?esc(p.name):'This player'} and their history will be permanently removed. This cannot be undone.`, 'Remove', `do-remove-player`);
+      modalPendingId = t.dataset.id;
+      break;
+    }
+    case 'do-remove-player': removePlayer(modalPendingId); break;
+
+    case 'confirm-reset-players':
+      confirmDialog('Reset players &amp; statistics?', 'All games, wins, losses, ratings, streaks and match history will be cleared. Player names are kept.', 'Reset stats', 'do-reset-players');
+      break;
+    case 'do-reset-players': resetPlayersAndStats(); break;
+
+    case 'confirm-reset-all':
+      confirmDialog('Reset everything?', 'This permanently deletes every player, match, and setting. This cannot be undone.', 'Reset everything', 'do-reset-all');
+      break;
+    case 'do-reset-all': resetEverything(); break;
+
+    case 'confirm-reset-history':
+      confirmDialog('Clear match history?', 'All recorded matches will be deleted. Player statistics that were derived from them will not be recalculated automatically.', 'Clear history', 'do-reset-history');
+      break;
+    case 'do-reset-history':
+      state.matches = []; saveAll(); renderAll(); closeModal(); toast('Match history cleared.');
+      break;
+
+    case 'delete-match': {
+      confirmDialog('Delete this match?', 'This removes it from history. Player statistics already affected by it will not be recalculated.', 'Delete', `do-delete-match`);
+      modalPendingId = t.dataset.id;
+      break;
+    }
+    case 'do-delete-match':
+      state.matches = state.matches.filter(m=>m.id!==modalPendingId);
+      saveAll(); renderAll(); closeModal(); toast('Match deleted from history.');
+      break;
+
+    case 'rank-sort': rankSort = t.dataset.sort; renderRankingsView(); break;
+
+    case 'save-settings': saveSettingsFromForm(); break;
+    case 'export-data': exportData(); break;
+    case 'open-import-data': {
+      openModal(`
+        <div class="modal-title">Import data</div>
+        <div class="modal-sub">Paste a previously exported Kitchen Ladder JSON file's contents below. This replaces all current data.</div>
+        <textarea id="importText" placeholder="Paste JSON here…"></textarea>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-primary" data-action="do-import-data">Import</button>
+        </div>
+      `);
+      break;
+    }
+    case 'do-import-data': {
+      const ta = document.getElementById('importText');
+      importDataFromText(ta.value);
+      break;
+    }
+
+    case 'modal-close': closeModal(); break;
+  }
+});
+let modalPendingId = null;
+
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape') closeModal();
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+loadState();
+renderAll();
+
+})();
+</script>
+</body>
+</html>
