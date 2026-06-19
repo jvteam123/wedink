@@ -553,7 +553,8 @@ tr.rank-1 .rankbadge{color:var(--ball);}
    ============================================================ */
 const KEYS = {
   players:'kl_players', matches:'kl_matches', current:'kl_current',
-  settings:'kl_settings', round:'kl_round', undo:'kl_undo', tab:'kl_tab'
+  settings:'kl_settings', round:'kl_round', undo:'kl_undo', tab:'kl_tab',
+  fixedDuos:'kl_fixedDuos'
 };
 
 const DEFAULT_SETTINGS = {
@@ -577,7 +578,8 @@ let state = {
   settings: { ...DEFAULT_SETTINGS },
   round: 0,
   undo: null,
-  tab: 'match'
+  tab: 'match',
+  fixedDuos: []          // array of [id1, id2] pairs that must always be on the same team
 };
 
 function loadState(){
@@ -605,6 +607,8 @@ function loadState(){
     if(r) state.round = parseInt(r,10)||0;
     if(u) state.undo = JSON.parse(u);
     if(t) state.tab = t;
+    const fd = localStorage.getItem(KEYS.fixedDuos);
+    if(fd) state.fixedDuos = JSON.parse(fd);
   }catch(e){
     console.error('Failed to load saved data, starting fresh.', e);
   }
@@ -620,6 +624,7 @@ function saveAll(){
     localStorage.setItem(KEYS.round, String(state.round));
     localStorage.setItem(KEYS.undo, JSON.stringify(state.undo));
     localStorage.setItem(KEYS.tab, state.tab);
+    localStorage.setItem(KEYS.fixedDuos, JSON.stringify(state.fixedDuos || []));
   }catch(e){
     toast('Storage error — data may not have saved.');
     console.error(e);
@@ -699,6 +704,71 @@ function winPct(p){
 
 function pairCount(map, id){ return map[id]||0; }
 function bumpPair(map, id){ map[id] = (map[id]||0)+1; }
+
+/* ============================================================
+   FIXED DUO MANAGEMENT
+   ============================================================ */
+function addFixedDuo(id1, id2){
+  if(!state.fixedDuos) state.fixedDuos = [];
+  // Check if either player is already in a duo
+  const existing = state.fixedDuos.find(d => d.includes(id1) || d.includes(id2));
+  if(existing){
+    toast('One of these players already has a fixed duo. Remove it first.');
+    return;
+  }
+  if(id1 === id2){ toast('Select two different players.'); return; }
+  state.fixedDuos.push([id1, id2]);
+  saveAll(); renderAll(); closeModal();
+  toast(`Fixed duo: ${playerName(id1)} & ${playerName(id2)}.`);
+}
+
+function removeFixedDuo(id1, id2){
+  state.fixedDuos = (state.fixedDuos || []).filter(d => !(d.includes(id1) && d.includes(id2)));
+  saveAll(); renderAll(); closeModal();
+  toast('Fixed duo removed.');
+}
+
+function getFixedDuoPartner(playerId){
+  const duo = (state.fixedDuos || []).find(d => d.includes(playerId));
+  if(!duo) return null;
+  return duo[0] === playerId ? duo[1] : duo[0];
+}
+
+function isFixedDuoValid(id1, id2){
+  // Returns true if id1 and id2 are fixed duo partners
+  return (state.fixedDuos || []).some(d => d.includes(id1) && d.includes(id2));
+}
+
+// Rearrange a group of 4 players to honor fixed duo constraints
+// Returns reordered [p1,p2,p3,p4] where fixed duo pairs are together, or null if impossible
+function honorFixedDuosInFour(four){
+  const ids = four.map(p => p.id);
+  // Find any fixed duos within this four
+  const duoIdx = (state.fixedDuos || []).map(d => {
+    const i0 = ids.indexOf(d[0]);
+    const i1 = ids.indexOf(d[1]);
+    if(i0 !== -1 && i1 !== -1) return [i0, i1];
+    return null;
+  }).filter(Boolean);
+
+  if(!duoIdx.length) return four; // no fixed duos — pass through unchanged
+
+  // With up to 2 fixed duos in a foursome, we need to arrange them as [duo1, duo2]
+  const used = new Set();
+  const orderedPairs = [];
+  duoIdx.forEach(([i, j]) => {
+    if(!used.has(i) && !used.has(j)){
+      orderedPairs.push([four[i], four[j]]);
+      used.add(i); used.add(j);
+    }
+  });
+  // Fill any remaining spots
+  four.forEach((p, i) => { if(!used.has(i)) orderedPairs.push([p]); });
+
+  // Flatten pairs into [a,b,c,d] where a&b are forced together, c&d are forced together
+  const result = orderedPairs.flat();
+  return result;
+}
 
 /* ============================================================
    PLAYER MANAGEMENT ACTIONS
@@ -785,7 +855,7 @@ function resetPlayersAndStats(){
 }
 
 function resetEverything(){
-  state = { players:[], matches:[], current:null, currentGeneration:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match' };
+  state = { players:[], matches:[], current:null, currentGeneration:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match', fixedDuos:[] };
   saveAll(); renderAll(); closeModal();
   toast('All data has been cleared.');
 }
@@ -821,7 +891,26 @@ function combinations(arr, k){
 
 function scoreSplit(four, settings){
   const [a,b,c,d] = four;
-  const splits = [ [[a,b],[c,d]], [[a,c],[b,d]], [[a,d],[b,c]] ];
+  const allSplits = [ [[a,b],[c,d]], [[a,c],[b,d]], [[a,d],[b,c]] ];
+
+  // Filter splits to only those that honor fixed duos
+  const filteredSplits = allSplits.filter(([t1, t2]) => {
+    for(const duo of (state.fixedDuos || [])){
+      const [id1, id2] = duo;
+      const t1ids = [t1[0].id, t1[1].id];
+      const t2ids = [t2[0].id, t2[1].id];
+      const bothInFour = four.some(p=>p.id===id1) && four.some(p=>p.id===id2);
+      if(!bothInFour) continue;
+      // Both duo members are in this four — ensure they're on the same team
+      const togetherInT1 = t1ids.includes(id1) && t1ids.includes(id2);
+      const togetherInT2 = t2ids.includes(id1) && t2ids.includes(id2);
+      if(!togetherInT1 && !togetherInT2) return false;
+    }
+    return true;
+  });
+
+  const splits = filteredSplits.length ? filteredSplits : allSplits;
+
   let best = null;
   splits.forEach(([t1,t2])=>{
     const teammatePenalty = pairCount(t1[0].teammates, t1[1].id) + pairCount(t2[0].teammates, t2[1].id);
@@ -836,7 +925,28 @@ function scoreSplit(four, settings){
 function nextRotationMatch(){
   const pool = selectionPool();
   if(pool.length < 4){ toast('Need at least 4 active players.'); return; }
-  const four = pool.slice(0,4);
+
+  // Build a foursome that honors fixed duos:
+  // Pick players from the top of the fairness pool but pull in their fixed duo partner
+  // if they're not already in the next 4 slots.
+  const selected = [];
+  const remaining = pool.slice();
+  while(selected.length < 4 && remaining.length){
+    const p = remaining.shift();
+    if(selected.some(s => s.id === p.id)) continue;
+    selected.push(p);
+    // If this player has a fixed duo partner, pull them in next
+    const partnerId = getFixedDuoPartner(p.id);
+    if(partnerId && selected.length < 4){
+      const partnerIdx = remaining.findIndex(r => r.id === partnerId);
+      if(partnerIdx !== -1){
+        const partner = remaining.splice(partnerIdx, 1)[0];
+        selected.push(partner);
+      }
+    }
+  }
+
+  const four = selected.slice(0, 4);
   const best = scoreSplit(four, state.settings);
   const [[p1,p2],[p3,p4]] = best.split;
   state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id] };
@@ -890,6 +1000,36 @@ function topUpToMultipleOf4(group, donor){
 function generateRoundRobinGeneration() {
   const activeList = activePlayers().slice();
   if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.'); return; }
+
+  // Warn if the number of courts exceeds the number of possible matches
+  const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
+  const possibleMatches = Math.floor(activeList.length / 4);
+  if(possibleMatches < numCourts){
+    const excess = numCourts - possibleMatches;
+    const needed = numCourts * 4;
+    const msg = possibleMatches === 1
+      ? `⚠️ Only 1 match can be generated with ${activeList.length} active players — you need at least ${needed} players to fill ${numCourts} courts simultaneously. ${excess} court${excess>1?'s':''} will sit empty this generation.`
+      : `⚠️ Only ${possibleMatches} match${possibleMatches!==1?'es':''} can be generated with ${activeList.length} active players — ${numCourts} courts set but only ${possibleMatches} team${possibleMatches!==1?'s':''} formed. Need ${needed} players for full ${numCourts}-court play.`;
+    // Show a dismissable notification then proceed
+    openModal(`
+      <div class="modal-title" style="color:var(--ball);">⚠️ Court Count Notice</div>
+      <div class="modal-sub" style="line-height:1.7; font-size:13.5px;">${msg}</div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+        <button class="btn btn-primary" data-action="do-generate-rr">Generate Anyway</button>
+      </div>
+    `);
+    return;
+  }
+
+  _doGenerateRoundRobinGeneration(activeList);
+}
+
+function _doGenerateRoundRobinGeneration(activeList) {
+  if(!activeList) {
+    activeList = activePlayers().slice();
+    if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.'); return; }
+  }
 
   activeList.forEach(p => {
     p._jitter = Math.random();
@@ -1123,7 +1263,7 @@ function confirmRoundRobinMatch(matchId){
     state.currentGeneration = null;
     saveAll();
     toast(`Generation ${gen.generation} complete — building the next generation…`);
-    generateRoundRobinGeneration();
+    _doGenerateRoundRobinGeneration(null); // auto-advance skips court-count warning
   } else {
     saveAll(); renderAll();
     toast('Match recorded — next match is up.');
@@ -1163,26 +1303,43 @@ function openReplacePlayerModal(matchId, team, playerId){
   if(!m || m.status === 'done'){ toast('That match is already finished.'); return; }
   const p = getPlayer(playerId);
 
-  const benchPlayers = (gen.sittingOut || [])
-    .filter(id => id !== playerId)
-    .map(id => getPlayer(id))
-    .filter(Boolean)
-    .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+  // All players in the current match (to exclude from picker)
+  const inMatchIds = new Set([...m.teamA, ...m.teamB]);
 
-  const benchHtml = benchPlayers.length
-    ? benchPlayers.map(b => `
-        <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;" data-action="do-replace-manual" data-match="${matchId}" data-team="${team}" data-player="${playerId}" data-sub="${b.id}">
-          <span>${esc(b.name)}</span><span class="mono" style="color:var(--text-faint); font-size:11px;">${b.gamesPlayed} gms played</span>
-        </button>
-      `).join('')
-    : `<p class="helper-text">No one is currently sitting out to substitute in. Mark them absent below to bench this match's slot instead.</p>`;
+  // All active players not in this match, sorted: sitting-out players first (they're most available),
+  // then bench/other players, all sorted by fewest games played
+  const sittingOutIds = new Set(gen.sittingOut || []);
+
+  const availablePlayers = state.players
+    .filter(pl => pl.active && pl.id !== playerId && !inMatchIds.has(pl.id))
+    .sort((a, b) => {
+      // Sitting out this generation comes first
+      const aOut = sittingOutIds.has(a.id) ? 0 : 1;
+      const bOut = sittingOutIds.has(b.id) ? 0 : 1;
+      if(aOut !== bOut) return aOut - bOut;
+      return a.gamesPlayed - b.gamesPlayed;
+    });
+
+  const playersHtml = availablePlayers.length
+    ? availablePlayers.map(b => {
+        const isSittingOut = sittingOutIds.has(b.id);
+        const statusLabel = isSittingOut ? '🪑 Sitting out' : '🎮 In queue';
+        return `
+          <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;" data-action="do-replace-manual" data-match="${matchId}" data-team="${team}" data-player="${playerId}" data-sub="${b.id}">
+            <span>${esc(b.name)}</span>
+            <span class="mono" style="color:var(--text-faint); font-size:11px;">${statusLabel} · ${b.gamesPlayed} gms</span>
+          </button>
+        `;
+      }).join('')
+    : `<p class="helper-text">No other active players available to sub in.</p>`;
 
   openModal(`
     <div class="modal-title">Replace ${esc(p ? p.name : 'Player')}</div>
-    <div class="modal-sub">Not around? Pick a bench player to sub in for this match — the rest of the queue stays balanced automatically.</div>
+    <div class="modal-sub">Not around? Pick a player to sub in for this match — sitting-out players are shown first.</div>
     <button class="btn btn-danger btn-block" data-action="do-replace-absent" data-match="${matchId}" data-team="${team}" data-player="${playerId}">Mark Absent &amp; Auto-Sub Best Available</button>
-    ${benchPlayers.length ? '<div class="divider-thin"></div><div class="helper-text" style="margin-bottom:0;">Or choose manually:</div>' : '<div class="divider-thin"></div>'}
-    ${benchHtml}
+    <div class="divider-thin"></div>
+    <div class="helper-text" style="margin-bottom:4px;">Or choose manually:</div>
+    ${playersHtml}
     <div class="modal-actions">
       <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
     </div>
@@ -1703,11 +1860,13 @@ function renderPlayersView(el){
 
   html += '<div class="card" style="padding:6px 12px;">';
   sorted.forEach(p=>{
+    const duoPartner = getFixedDuoPartner(p.id);
+    const duoLabel = duoPartner ? ` <span style="color:var(--ball); font-size:11px; font-weight:700;">🔗 ${esc(playerName(duoPartner))}</span>` : '';
     html += `
       <div class="player-row">
         <div class="avatar">${initials(p.name)}</div>
         <div class="pinfo">
-          <div class="pname">${esc(p.name)}</div>
+          <div class="pname">${esc(p.name)}${duoLabel}</div>
           <div class="pmeta">${p.gamesPlayed} Games · Rating: ${p.rating}</div>
         </div>
         <div class="row-actions">
@@ -1955,6 +2114,18 @@ function renderSettingsView(el){
       <p class="helper-text" style="margin-top:0;">Wipe stats or start completely fresh. These actions can't be undone.</p>
       <button class="btn btn-danger btn-block" data-action="open-danger-zone">Clear / Reset Options</button>
     </div>
+
+    <div class="section-title" style="margin-top:20px;">Fixed Duos 🔗</div>
+    <div class="card">
+      <p class="helper-text" style="margin-top:0;">Lock two players together so they always play on the same team when both are active.</p>
+      ${(state.fixedDuos && state.fixedDuos.length) ? state.fixedDuos.map(([id1,id2]) => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line-soft);">
+          <span style="font-weight:700; font-size:13.5px;">${esc(playerName(id1))} <span style="color:var(--ball);">🔗</span> ${esc(playerName(id2))}</span>
+          <button class="btn btn-ghost btn-sm" data-action="remove-fixed-duo" data-p1="${id1}" data-p2="${id2}">Remove</button>
+        </div>
+      `).join('') : `<p class="helper-text" style="margin:0; color:var(--text-faint);">No fixed duos set.</p>`}
+      <button class="btn btn-secondary btn-block" style="margin-top:12px;" data-action="open-add-fixed-duo">+ Add Fixed Duo</button>
+    </div>
   `;
 }
 
@@ -1997,6 +2168,7 @@ document.addEventListener('click', function(e){
     
     // Round robin workflow
     case 'generate-roundrobin': generateRoundRobinGeneration(); break;
+    case 'do-generate-rr': closeModal(); _doGenerateRoundRobinGeneration(null); break;
     case 'set-rr-winner':
       selectRoundRobinWinner(t.dataset.match, t.dataset.team);
       break;
@@ -2007,7 +2179,21 @@ document.addEventListener('click', function(e){
     case 'do-replace-manual': replacePlayerInMatch(t.dataset.match, t.dataset.team, t.dataset.player, t.dataset.sub); break;
 
     // Standard shared management commands
-    case 'skip-match': skipCurrentMatch(); break;
+    case 'skip-match':
+      if(state.currentGeneration){
+        openModal(`
+          <div class="modal-title">Reset Generation?</div>
+          <div class="modal-sub">This will clear the current generation and all queued matches. Scores already recorded are kept.</div>
+          <div class="modal-actions" style="margin-top:16px;">
+            <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+            <button class="btn btn-secondary" data-action="do-skip-match">Yes, Reset</button>
+          </div>
+        `);
+      } else {
+        skipCurrentMatch();
+      }
+      break;
+    case 'do-skip-match': skipCurrentMatch(); closeModal(); break;
     case 'undo-match': undoLastMatch(); break;
 
     // Player operations logic
@@ -2051,9 +2237,29 @@ document.addEventListener('click', function(e){
       openModal(`
         <div class="modal-title" style="color:var(--loss);">Factory System Reset Options</div>
         <div class="modal-sub">Select your desired cleanup parameters method below safely.</div>
-        <button class="btn btn-danger btn-block" data-action="do-reset-stats">Reset Scores &amp; Match History logs only</button>
-        <button class="btn btn-danger btn-block" style="margin-top:8px;" data-action="do-reset-all">Clear everything completely from scratch</button>
+        <button class="btn btn-danger btn-block" data-action="confirm-reset-stats">Reset Scores &amp; Match History logs only</button>
+        <button class="btn btn-danger btn-block" style="margin-top:8px;" data-action="confirm-reset-all">Clear everything completely from scratch</button>
         <button class="btn btn-ghost btn-block" style="margin-top:12px;" data-action="modal-close">Cancel</button>
+      `);
+      break;
+    case 'confirm-reset-stats':
+      openModal(`
+        <div class="modal-title" style="color:var(--loss);">⚠️ Reset Stats & History?</div>
+        <div class="modal-sub" style="line-height:1.6;">This will permanently wipe all match history, scores, ELO ratings, and player stats. <strong style="color:var(--text);">Player names are kept.</strong> This cannot be undone.</div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-danger" data-action="do-reset-stats">Yes, Reset Stats</button>
+        </div>
+      `);
+      break;
+    case 'confirm-reset-all':
+      openModal(`
+        <div class="modal-title" style="color:var(--loss);">⚠️ Clear Everything?</div>
+        <div class="modal-sub" style="line-height:1.6;">This will permanently delete <strong style="color:var(--text);">all players, matches, stats, and settings</strong>. The app will return to a completely blank state. This cannot be undone.</div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-danger" data-action="do-reset-all">Yes, Clear Everything</button>
+        </div>
       `);
       break;
     case 'do-reset-stats': resetPlayersAndStats(); break;
@@ -2068,6 +2274,46 @@ document.addEventListener('click', function(e){
       t.classList.add('active');
       break;
     case 'save-settings': saveSettingsFromForm(); break;
+    case 'open-add-fixed-duo': {
+      const activePl = activePlayers();
+      if(activePl.length < 2){ toast('Need at least 2 active players to create a duo.'); break; }
+      // Filter out players already in a duo
+      const inDuo = new Set((state.fixedDuos||[]).flat());
+      const eligible = activePl.filter(p => !inDuo.has(p.id));
+      if(eligible.length < 2){ toast('All active players are already in fixed duos.'); break; }
+      openModal(`
+        <div class="modal-title">Add Fixed Duo 🔗</div>
+        <div class="modal-sub">Select two players who should always be on the same team.</div>
+        <div class="field" style="margin-top:10px;">
+          <label>Player 1</label>
+          <select id="duoP1">
+            ${eligible.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Player 2</label>
+          <select id="duoP2">
+            ${eligible.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-primary" data-action="do-add-fixed-duo">Lock as Duo 🔗</button>
+        </div>
+      `);
+      break;
+    }
+    case 'do-add-fixed-duo': {
+      const p1 = document.getElementById('duoP1')?.value;
+      const p2 = document.getElementById('duoP2')?.value;
+      if(p1 === p2){ toast('Select two different players.'); break; }
+      addFixedDuo(p1, p2);
+      break;
+    }
+    case 'remove-fixed-duo':
+      removeFixedDuo(t.dataset.p1, t.dataset.p2);
+      break;
+
     case 'export-data': exportData(); break;
     case 'open-import-data':
       openModal(`
