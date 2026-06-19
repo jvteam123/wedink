@@ -2199,10 +2199,11 @@ document.addEventListener('click', function(e){
     case 'undo-match': undoLastMatch(); break;
 
     // Player operations logic
-    case 'do-add-player':
+    case 'do-add-player': {
       const inp = document.getElementById('newPlayerName');
       addPlayer(inp.value); inp.value = '';
       break;
+    }
     case 'toggle-active': togglePlayerActive(t.dataset.id); break;
     case 'open-bulk-import':
       openModal(`
@@ -2268,13 +2269,14 @@ document.addEventListener('click', function(e){
     case 'do-reset-all': resetEverything(); break;
 
     case 'rank-sort': rankSort = t.dataset.sort; renderRankingsView(document.getElementById('view')); break;
-    case 'toggle-mode-setting':
+    case 'toggle-mode-setting': {
       state.settings.matchMode = t.dataset.value;
       const wrap = document.getElementById('courts-field-wrapper');
       if(wrap) wrap.style.display = state.settings.matchMode === 'RoundRobin' ? 'block' : 'none';
       document.querySelectorAll('.radio-box-btn').forEach(b => b.classList.remove('active'));
       t.classList.add('active');
       break;
+    }
     case 'save-settings': saveSettingsFromForm(); break;
     case 'open-add-fixed-duo': {
       const activePl = activePlayers();
