@@ -669,9 +669,14 @@ function closeModal(){
 }
 function openModal(html){
   const root = document.getElementById('modal-root');
-  root.innerHTML = `<div class="modal-bg" data-action="modal-close">
-    <div class="modal-sheet" onclick="event.stopPropagation()">${html}</div>
+  root.innerHTML = `<div class="modal-bg" id="modal-bg-inner">
+    <div class="modal-sheet">${html}</div>
   </div>`;
+  // Close only when clicking the backdrop itself, not children
+  const bg = root.querySelector('#modal-bg-inner');
+  if(bg) bg.addEventListener('click', function(e){
+    if(e.target === bg) closeModal();
+  });
 }
 
 /* ============================================================
