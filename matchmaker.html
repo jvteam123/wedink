@@ -1,7 +1,7 @@
 <!--
   ================================================================
   Kitchen Ladder — Pickleball 2v2 Matchmaker
-  © 2025 Renzku. All Rights Reserved.
+  © 2026 Renzku. All Rights Reserved.
 
   This software and its source code are the intellectual property
   of Renzku. Unauthorized copying, reproduction, modification,
@@ -10,7 +10,7 @@
   prohibited and may result in civil and criminal penalties.
 
   Original Author : Renzku
-  Created         : 2025
+  Created         : 2026
   Contact         : [your contact/email here]
   ================================================================
 -->
@@ -501,7 +501,7 @@ tr.rank-1 .rankbadge{color:var(--ball);}
    INTEGRITY CHECK — verifies authorship signature on load
    ============================================================ */
 (function(){
-  const sig = "KL-RENZKU-2025-ORIGINAL";
+  const sig = "KL-RENZKU-2026-ORIGINAL";
   const stored = sessionStorage.getItem('_kl_sig');
   if(stored && stored !== sig){
     document.body.innerHTML = `
@@ -668,7 +668,7 @@ function closeModal(){
 function openModal(html){
   const root = document.getElementById('modal-root');
   root.innerHTML = `<div class="modal-bg" data-action="modal-close">
-    <div class="modal-sheet">${html}</div>
+    <div class="modal-sheet" onclick="event.stopPropagation()">${html}</div>
   </div>`;
 }
 
@@ -2531,15 +2531,15 @@ renderAll();
 initInstallBanner();
 
 /* ================================================================
-   © 2025 Renzku — Kitchen Ladder. All Rights Reserved.
+   © 2026 Renzku — Kitchen Ladder. All Rights Reserved.
    Unauthorized use or reproduction is strictly prohibited.
-   Original Author: Renzku | Fingerprint: KL-RENZKU-2025-ORIGINAL
+   Original Author: Renzku | Fingerprint: KL-RENZKU-2026-ORIGINAL
    ================================================================ */
 const _kitchenLadderSig = Object.freeze({
   app: "Kitchen Ladder",
   author: "Renzku",
-  year: 2025,
-  fingerprint: "KL-RENZKU-2025-ORIGINAL",
+  year: 2026,
+  fingerprint: "KL-RENZKU-2026-ORIGINAL",
   rights: "All Rights Reserved"
 });
 
