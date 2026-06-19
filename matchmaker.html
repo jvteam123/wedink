@@ -55,7 +55,8 @@ body{
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
 }
-button{font-family:inherit;}
+button{font-family:inherit; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+input,select,textarea{touch-action:manipulation;}
 .eyebrow{
   font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase;
   color:var(--text-faint);
@@ -100,7 +101,7 @@ button{font-family:inherit;}
 .tabs{
   display:flex; gap:6px; overflow-x:auto; padding:10px 16px; scroll-snap-type:x proximate;
   background:var(--bg);
-  position:sticky; top:72px; z-index:29;
+  position:sticky; top:var(--topbar-h, 72px); z-index:29;
   border-bottom:1px solid var(--line-soft);
 }
 .tab-btn{
@@ -166,7 +167,7 @@ button{font-family:inherit;}
 .field label{display:block; font-size:11.5px; color:var(--text-faint); margin-bottom:5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;}
 input[type=text],input[type=number],textarea,select{
   width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text);
-  padding:11px 12px; border-radius:var(--radius-sm); font-size:14px; font-family:inherit;
+  padding:11px 12px; border-radius:var(--radius-sm); font-size:16px; font-family:inherit;
   outline:none; transition:border-color .15s;
 }
 input:focus,textarea:focus,select:focus{border-color:var(--court);}
@@ -336,6 +337,31 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 @media (min-width:560px){
   .topbar,.tabs,.controlbar-inner{border-radius:0;}
 }
+
+/* ---------- Control bar score input ---------- */
+.cb-score-row{
+  display:flex; align-items:center; gap:8px; margin-bottom:8px;
+}
+.cb-score-team{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+}
+.cb-score-label{
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width:100%; text-align:center;
+}
+.cb-score-input{
+  width:70px; background:var(--surface-3); border:1px solid var(--line); color:var(--text);
+  padding:8px 6px; border-radius:var(--radius-sm); font-size:22px; font-family:var(--font-mono);
+  font-weight:800; text-align:center; outline:none; transition:border-color .15s;
+  -webkit-appearance:none; appearance:none;
+}
+.cb-score-input:focus{border-color:var(--ball);}
+.cb-score-vs{
+  font-size:16px; font-weight:800; color:var(--text-faint); font-family:var(--font-mono);
+  flex:none; padding-top:18px;
+}
+
 </style>
 </head>
 <body>
@@ -641,8 +667,8 @@ function scoreSplit(four, settings){
     const overOpp = Math.max(0, opponentPenalty - settings.maxRepeatOpponents);
     const r1 = (t1[0].rating+t1[1].rating)/2, r2 = (t2[0].rating+t2[1].rating)/2;
     const teamBalance = Math.abs(r1-r2);
-    let score = teammatePenalty*8 + overTeam*45 + opponentPenalty*4 + overOpp*25 + teamBalance*0.6;
-    if(!settings.winnerVsWinner) score *= 0.85; // de-emphasize skill grouping if disabled
+    const balanceWeight = settings.winnerVsWinner ? 0.6 : 0.0;
+    let score = teammatePenalty*8 + overTeam*45 + opponentPenalty*4 + overOpp*25 + teamBalance*balanceWeight;
     splitScoreTrack(score);
     if(!best || score < best.score) best = { score, teamA:t1, teamB:t2 };
   });
@@ -658,7 +684,7 @@ function generateMatch(){
     toast(`Need at least 4 active players (have ${active.length}).`); return;
   }
   const pool = selectionPool();
-  const poolSize = Math.min(pool.length, 8);
+  const poolSize = Math.min(pool.length, Math.max(8, Math.ceil(pool.length * 0.7)));
   const candidates = pool.slice(0, poolSize);
 
   // Rating spread across the chosen four matters too: prefer a
@@ -708,12 +734,34 @@ function skipMatch(){
   state.current = null;
   state.round -= 1; // the skipped round didn't actually happen
   saveAll();
+  if(activePlayers().length < 4){
+    renderAll();
+    toast('Match skipped. Need 4+ active players to generate a new one.');
+    return;
+  }
   toast('Match skipped — generating a new one.');
   generateMatch();
 }
 
 function recordResult(winner){
   if(!state.current){ return; }
+  // Read optional score inputs from control bar
+  const scoreAEl = document.getElementById('scoreA');
+  const scoreBEl = document.getElementById('scoreB');
+  const scoreA = scoreAEl && scoreAEl.value !== '' ? parseInt(scoreAEl.value, 10) : null;
+  const scoreB = scoreBEl && scoreBEl.value !== '' ? parseInt(scoreBEl.value, 10) : null;
+  if(scoreA !== null && scoreB !== null){
+    if(isNaN(scoreA)||isNaN(scoreB)||scoreA<0||scoreB<0){
+      toast('Scores must be non-negative numbers.'); return;
+    }
+    if(winner==='A' && scoreA <= scoreB){
+      toast('Team A score must be higher when Team A wins.'); return;
+    }
+    if(winner==='B' && scoreB <= scoreA){
+      toast('Team B score must be higher when Team B wins.'); return;
+    }
+  }
+
   // Snapshot everything needed to fully undo this single action.
   state.undo = {
     players: deepClone(state.players),
@@ -732,8 +780,16 @@ function recordResult(winner){
   const avgL = losePlayers.reduce((s,p)=>s+p.rating,0)/2;
   const expW = 1/(1+Math.pow(10,(avgL-avgW)/400));
   const K = 28;
-  const deltaW = Math.round(K*(1-expW));
-  const deltaL = Math.round(K*(0-(1-expW)));
+  // Margin-of-victory: winning 11-2 gives more rating than winning 11-9
+  let movMult = 1.0;
+  if(scoreA != null && scoreB != null){
+    const winScore = winner==='A' ? scoreA : scoreB;
+    const loseScore = winner==='A' ? scoreB : scoreA;
+    const diff = Math.max(0, winScore - loseScore);
+    movMult = Math.min(1.25, Math.max(0.75, 0.75 + (Math.log(1 + diff) / Math.log(12)) * 0.5));
+  }
+  const deltaW = Math.round(K * (1-expW) * movMult);
+  const deltaL = Math.round(K * (0-(1-expW)) * movMult);
 
   function applyResult(p, isWin, delta){
     p.gamesPlayed += 1;
@@ -765,7 +821,9 @@ function recordResult(winner){
     timestamp: new Date().toISOString(),
     teamA: [...teamA],
     teamB: [...teamB],
-    winner
+    winner,
+    scoreA: scoreA !== null ? scoreA : undefined,
+    scoreB: scoreB !== null ? scoreB : undefined
   });
 
   state.current = null;
@@ -864,19 +922,25 @@ function setTab(id){
   state.tab = id;
   saveAll();
   renderAll();
-  document.getElementById('view').scrollIntoView({block:'start'});
+  window.scrollTo({top:0, behavior:'instant'});
 }
 
 /* ============================================================
    DASHBOARD STRIP (always-visible mini overview)
    ============================================================ */
+function updateTopbarHeight(){
+  const tb = document.querySelector('.topbar');
+  if(tb) document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
+}
+
 function renderDashStrip(){
   const el = document.getElementById('dashStrip');
   const waiting = state.current ? Math.max(0, activePlayers().length - 4) : activePlayers().length;
+  const active = activePlayers();
   el.innerHTML = `
-    <div class="d-item"><span class="v">${state.players.length}</span> players</div>
+    <div class="d-item"><span class="v">${active.length}</span> active</div>
     <div class="d-item"><span class="v">${state.matches.length}</span> matches</div>
-    <div class="d-item"><span class="v">${state.current ? Math.max(0, activePlayers().length-4) : activePlayers().length}</span> waiting</div>
+    <div class="d-item"><span class="v">${state.current ? Math.max(0, active.length-4) : active.length}</span> waiting</div>
     <div class="d-item"><span class="v">${state.round}</span> round</div>
   `;
 }
@@ -965,7 +1029,8 @@ function renderQueueList(limit){
 
 function renderQueueView(){
   let html = `<div class="section-title">Waiting queue</div>`;
-  html += `<div class="helper-text" style="margin-bottom:10px;">Ordered by priority — fewest games played first, then longest current wait. The matchmaker pulls the next four straight from the top of this list.</div>`;
+  const pausedCount = state.players.filter(p=>!p.active).length;
+  html += `<div class="helper-text" style="margin-bottom:10px;">Ordered by priority — fewest games played first, then longest wait. The matchmaker picks from the top of this list.${pausedCount?` <strong>${pausedCount} player${pausedCount>1?'s are':' is'} paused</strong> and won't be picked.`:''}</div>`;
   html += renderQueueList(null);
   document.getElementById('view').innerHTML = html;
 }
@@ -1192,7 +1257,7 @@ function renderHistoryItem(m){
       </div>
       <div class="hist-teams">
         <div class="hist-team ${aWin?'winner':'loser'}">${esc(A[0])} / ${esc(A[1])}</div>
-        <div class="hist-vs">vs</div>
+        <div class="hist-vs">${(m.scoreA!=null&&m.scoreB!=null)?m.scoreA+' – '+m.scoreB:'vs'}</div>
         <div class="hist-team ${!aWin?'winner':'loser'}">${esc(B[0])} / ${esc(B[1])}</div>
       </div>
     </div>`;
@@ -1220,7 +1285,7 @@ function renderHistoryView(){
   document.getElementById('view').innerHTML = html;
   const input = document.getElementById('historySearchInput');
   input.addEventListener('input', e=>{ historySearch = e.target.value; renderHistoryView(); });
-  input.focus(); input.setSelectionRange(historySearch.length, historySearch.length);
+  if(historySearch){ input.focus(); input.setSelectionRange(historySearch.length, historySearch.length); }
 }
 
 /* ============================================================
@@ -1298,9 +1363,20 @@ function renderControlBar(){
     }
   } else {
     const A = state.current.teamA.map(getPlayer), B = state.current.teamB.map(getPlayer);
-    inner += `<div class="cb-top">
-        <button class="btn btn-primary" data-action="record" data-winner="A">Team A wins<span class="nm">${esc(A[0].name)} / ${esc(A[1].name)}</span></button>
-        <button class="btn btn-court" data-action="record" data-winner="B">Team B wins<span class="nm">${esc(B[0].name)} / ${esc(B[1].name)}</span></button>
+    inner += `<div class="cb-score-row">
+        <div class="cb-score-team">
+          <span class="cb-score-label">${esc(A[0].name)} / ${esc(A[1].name)}</span>
+          <input class="cb-score-input" id="scoreA" type="number" min="0" max="99" placeholder="0" inputmode="numeric">
+        </div>
+        <span class="cb-score-vs">–</span>
+        <div class="cb-score-team">
+          <span class="cb-score-label">${esc(B[0].name)} / ${esc(B[1].name)}</span>
+          <input class="cb-score-input" id="scoreB" type="number" min="0" max="99" placeholder="0" inputmode="numeric">
+        </div>
+      </div>
+      <div class="cb-top">
+        <button class="btn btn-primary" data-action="record" data-winner="A">Team A wins</button>
+        <button class="btn btn-court" data-action="record" data-winner="B">Team B wins</button>
       </div>
       <div class="cb-bottom">
         <button class="btn btn-ghost" data-action="skip">Skip Match</button>
@@ -1308,12 +1384,18 @@ function renderControlBar(){
       </div>`;
   }
   root.innerHTML = `<div class="controlbar-inner">${inner}</div>`;
-  // The bar's height varies (one row vs. two), so keep the page's
-  // bottom padding in sync to guarantee content never sits under it.
-  requestAnimationFrame(()=>{
+  // Double-rAF: ensures DOM has fully painted before measuring bar height.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
     const app = document.getElementById('app');
     if(app) app.style.paddingBottom = (root.offsetHeight + 16) + 'px';
-  });
+  }));
+  // Score inputs: Tab/Enter moves focus between them; Enter on B dismisses keyboard.
+  const sA = document.getElementById('scoreA');
+  const sB = document.getElementById('scoreB');
+  if(sA && sB){
+    sA.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key==='Tab'){ e.preventDefault(); sB.focus(); sB.select(); }});
+    sB.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sB.blur(); }});
+  }
 }
 
 /* ============================================================
@@ -1337,6 +1419,7 @@ function renderAll(){
   renderDashStrip();
   renderTabs();
   renderControlBar();
+  requestAnimationFrame(updateTopbarHeight);
   switch(state.tab){
     case 'match': renderMatchView(); break;
     case 'queue': renderQueueView(); break;
@@ -1356,7 +1439,10 @@ document.addEventListener('click', function(e){
   const t = e.target.closest('[data-action]');
   if(!t) return;
   const action = t.dataset.action;
-  if(action === 'modal-close' && e.target !== t) return; // ignore bubbled clicks from inside the sheet
+  if(action === 'modal-close'){
+    const sheet = document.querySelector('.modal-sheet');
+    if(sheet && sheet.contains(e.target)) return;
+  }
 
   switch(action){
     case 'set-tab': setTab(t.dataset.tab); break;
