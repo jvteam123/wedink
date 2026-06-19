@@ -502,8 +502,10 @@ tr.rank-1 .rankbadge{color:var(--ball);}
    ============================================================ */
 (function(){
   const sig = "KL-RENZKU-2026-ORIGINAL";
+  // Clear any stale sig from a previous version so a legitimate update doesn't false-trigger
+  const knownSigs = ["KL-RENZKU-2025-ORIGINAL", "KL-RENZKU-2026-ORIGINAL"];
   const stored = sessionStorage.getItem('_kl_sig');
-  if(stored && stored !== sig){
+  if(stored && !knownSigs.includes(stored)){
     document.body.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:center;
         height:100vh;background:#11151A;color:#FF6B6B;text-align:center;
