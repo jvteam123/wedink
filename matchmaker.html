@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#11151A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kitchen Ladder">
+<meta name="format-detection" content="telephone=no">
 <title>Kitchen Ladder — Pickleball 2v2 Matchmaker</title>
 <style>
 /* ============================================================
@@ -44,19 +49,29 @@
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
+html{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  height:100%;
+}
 body{
   background:var(--bg);
   color:var(--text);
   font-family:var(--font-ui);
   -webkit-font-smoothing:antialiased;
   min-height:100vh;
+  min-height:100dvh;
   overflow-x:hidden;
+  overscroll-behavior-y:none;
 }
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
 }
-button{font-family:inherit; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
-input,select,textarea{touch-action:manipulation;}
+button{
+  font-family:inherit; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+  -webkit-touch-callout:none; user-select:none;
+}
+input,select,textarea{touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
 .eyebrow{
   font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase;
   color:var(--text-faint);
@@ -67,7 +82,7 @@ input,select,textarea{touch-action:manipulation;}
 
 /* ---------- App shell ---------- */
 #app{
-  max-width:560px; margin:0 auto; min-height:100vh; position:relative;
+  max-width:560px; margin:0 auto; min-height:100vh; min-height:100dvh; position:relative;
   display:flex; flex-direction:column; padding-bottom:96px;
 }
 
@@ -161,6 +176,13 @@ input,select,textarea{touch-action:manipulation;}
 }
 .icon-btn:active{transform:scale(0.93);}
 .icon-btn svg{width:16px;height:16px;}
+.icon-btn-tiny{
+  width:32px;height:32px;min-width:32px;border-radius:9px;background:transparent;
+  border:1px solid var(--line-soft); color:var(--text-faint); display:inline-flex;
+  align-items:center;justify-content:center; cursor:pointer; flex:none; vertical-align:middle;
+}
+.icon-btn-tiny:active{transform:scale(0.92); background:var(--surface-2); color:var(--text-dim);}
+.icon-btn-tiny svg{width:14px;height:14px;}
 
 /* ---------- Forms ---------- */
 .field{margin-bottom:10px;}
@@ -210,6 +232,7 @@ textarea{resize:vertical; min-height:90px; font-family:var(--font-mono); font-si
   background:radial-gradient(circle at 30% -10%, rgba(79,168,255,0.10), transparent 55%), var(--surface);
   border:1px solid var(--line); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-1);
 }
+.scoreboard + .scoreboard { margin-top: 14px; }
 .sb-head{
   display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
   border-bottom:1px solid var(--line-soft);
@@ -232,7 +255,7 @@ textarea{resize:vertical; min-height:90px; font-family:var(--font-mono); font-si
 }
 .sb-tag{font-size:10.5px; font-weight:800; letter-spacing:.12em; color:var(--court); text-transform:uppercase;}
 .sb-team.team-a .sb-tag{color:var(--ball);}
-.sb-names{font-weight:800; font-size:16px; line-height:1.3;}
+.sb-names{font-weight:800; font-size:16px; line-height:1.3; word-break:break-word; overflow-wrap:anywhere;}
 .sb-rating{font-family:var(--font-mono); font-size:12px; color:var(--text-faint);}
 .sb-winbtn{width:100%; margin-top:2px;}
 .sb-foot{padding:12px 16px; border-top:1px solid var(--line-soft); display:flex; gap:8px;}
@@ -337,6 +360,17 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 @media (min-width:560px){
   .topbar,.tabs,.controlbar-inner{border-radius:0;}
 }
+@media (max-width:380px){
+  .sb-team{padding:13px 9px;}
+  .sb-names{font-size:14.5px;}
+  .sb-rating{font-size:11px;}
+  .sb-tag{font-size:10px;}
+  .cb-score-input{width:62px; font-size:19px;}
+  .rr-score-input{width:48px; font-size:16px; padding:6px 2px;}
+  .scoreboard .btn-sm{font-size:12px; padding:8px 8px;}
+  .dash-strip{gap:10px;}
+  .queue-row .qmeta, .queue-row > div{font-size:12.5px;}
+}
 
 /* ---------- Control bar score input ---------- */
 .cb-score-row{
@@ -357,9 +391,21 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   -webkit-appearance:none; appearance:none;
 }
 .cb-score-input:focus{border-color:var(--ball);}
+.rr-score-input{width:56px; padding:7px 4px; font-size:17px;}
 .cb-score-vs{
   font-size:16px; font-weight:800; color:var(--text-faint); font-family:var(--font-mono);
   flex:none; padding-top:18px;
+}
+
+/* ---------- Radio List Buttons ---------- */
+.radio-group-mode {
+  display: flex; gap: 8px; margin-bottom: 12px;
+}
+.radio-box-btn {
+  flex: 1; background: var(--surface-2); border: 1px solid var(--line); padding: 12px; text-align: center; border-radius: var(--radius-md); cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--text-dim); transition: all 0.15s;
+}
+.radio-box-btn.active {
+  background: rgba(215,242,61,0.1); border-color: var(--ball); color: var(--ball);
 }
 
 </style>
@@ -374,7 +420,7 @@ tr.rank-1 .rankbadge{color:var(--ball);}
       </div>
       <div>
         <div class="brand-name">Kitchen <b>Ladder</b></div>
-        <div class="brand-sub">Open-play matchmaking for one court</div>
+        <div class="brand-sub">Open-play matchmaking with Multi-Mode systems</div>
       </div>
     </div>
     <div class="dash-strip scroll-hide" id="dashStrip"></div>
@@ -402,10 +448,13 @@ const KEYS = {
 };
 
 const DEFAULT_SETTINGS = {
-  maxRepeatTeammates: 2,
-  maxRepeatOpponents: 3,
+  matchMode: 'Rotation', // 'Rotation' or 'RoundRobin'
+  numCourts: 1,
   winnerVsWinner: true,
-  equalPlayPriority: true
+  equalPlayPriority: true,
+  smartBalance: true,
+  maxRepeatTeammates: 2,
+  maxRepeatOpponents: 3
 };
 
 /* ============================================================
@@ -414,10 +463,11 @@ const DEFAULT_SETTINGS = {
 let state = {
   players: [],
   matches: [],
-  current: null,   // { round, teamA:[id,id], teamB:[id,id] }
+  current: null,         // Rotation: { round, teamA:[id,id], teamB:[id,id] }
+  currentGeneration: null, // RoundRobin: { generation, courts:[ { court, teamA:[id,id], teamB:[id,id], scoreA:null, scoreB:null, winner:null } ] }
   settings: { ...DEFAULT_SETTINGS },
   round: 0,
-  undo: null,       // snapshot for "Undo Last Match"
+  undo: null,
   tab: 'match'
 };
 
@@ -432,7 +482,16 @@ function loadState(){
     const t = localStorage.getItem(KEYS.tab);
     if(p) state.players = JSON.parse(p);
     if(m) state.matches = JSON.parse(m);
-    if(c) state.current = JSON.parse(c);
+    if(c) {
+      const parsedC = JSON.parse(c);
+      if (parsedC && parsedC.matches) {
+        state.currentGeneration = parsedC;
+        state.current = null;
+      } else {
+        state.current = parsedC;
+        state.currentGeneration = null;
+      }
+    }
     if(s) state.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(s) };
     if(r) state.round = parseInt(r,10)||0;
     if(u) state.undo = JSON.parse(u);
@@ -446,7 +505,8 @@ function saveAll(){
   try{
     localStorage.setItem(KEYS.players, JSON.stringify(state.players));
     localStorage.setItem(KEYS.matches, JSON.stringify(state.matches));
-    localStorage.setItem(KEYS.current, JSON.stringify(state.current));
+    const currentSnapshot = state.settings.matchMode === 'RoundRobin' ? state.currentGeneration : state.current;
+    localStorage.setItem(KEYS.current, JSON.stringify(currentSnapshot));
     localStorage.setItem(KEYS.settings, JSON.stringify(state.settings));
     localStorage.setItem(KEYS.round, String(state.round));
     localStorage.setItem(KEYS.undo, JSON.stringify(state.undo));
@@ -514,6 +574,8 @@ function newPlayer(name){
     longestStreak: 0,
     sitOuts: 0,
     consecutiveSitOuts: 0,
+    sitOutPriority: 0,    // RoundRobin support
+    waitingRounds: 0,     // RoundRobin support
     results: [],          // chronological 'W'/'L'
     teammates: {},         // id -> count
     opponents: {},          // id -> count
@@ -573,14 +635,25 @@ function togglePlayerActive(id){
     toast(`${p.name} is in the current match — finish or skip it first.`);
     return;
   }
+  if(p.active && state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(id) || m.teamB.includes(id)))) {
+    toast(`${p.name} is in an unfinished generation match — use "Replace" on that match instead, or finish it first.`);
+    return;
+  }
   p.active = !p.active;
-  if(!p.active) p.consecutiveSitOuts = 0;
+  if(!p.active) {
+    p.consecutiveSitOuts = 0;
+    p.sitOutPriority = 0;
+    p.waitingRounds = 0;
+  }
   saveAll(); renderAll();
 }
 
 function removePlayer(id){
   if(state.current && (state.current.teamA.includes(id) || state.current.teamB.includes(id))){
     toast('Cannot remove a player who is in the current match.'); return;
+  }
+  if(state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(id) || m.teamB.includes(id)))) {
+    toast('Cannot remove a player who is in an unfinished generation match.'); return;
   }
   const p = getPlayer(id);
   state.players = state.players.filter(pl=>pl.id!==id);
@@ -591,11 +664,11 @@ function removePlayer(id){
 
 function resetPlayersAndStats(){
   state.players.forEach(p=>{
-    p.gamesPlayed=0; p.wins=0; p.losses=0; p.rating=1000; p.currentStreak=0; p.longestStreak=0;
-    p.sitOuts=0; p.consecutiveSitOuts=0; p.results=[]; p.teammates={}; p.opponents={};
+    p.gamesPlayed=0; p.wins=0; p.losses=0; p.rating=1000; p.currentStreak=0; p.longestStreak=0; p.sitOuts=0; p.consecutiveSitOuts=0; p.sitOutPriority=0; p.waitingRounds=0; p.results=[]; p.teammates={}; p.opponents={};
   });
   state.matches = [];
   state.current = null;
+  state.currentGeneration = null;
   state.round = 0;
   state.undo = null;
   saveAll(); renderAll(); closeModal();
@@ -603,31 +676,18 @@ function resetPlayersAndStats(){
 }
 
 function resetEverything(){
-  state = { players:[], matches:[], current:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match' };
+  state = { players:[], matches:[], current:null, currentGeneration:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match' };
   saveAll(); renderAll(); closeModal();
   toast('All data has been cleared.');
 }
 
 /* ============================================================
    MATCHMAKING ALGORITHM
-   ------------------------------------------------------------
-   Single-court rotation: exactly one match is "live" at a time.
-   Each round we pick 4 of the active players to play; everyone
-   else sits in the waiting queue and their wait-priority rises,
-   so nobody sits out for long. Within the chosen four we test
-   every 2v2 split and score it for skill balance and for how
-   often those exact pairs have already been teammates/opponents,
-   then keep the lowest-penalty split. This is a heuristic, not
-   an exhaustive optimizer — with larger groups it falls back to
-   "good enough" rather than freezing the UI.
    ============================================================ */
+function activePlayers(){
+  return state.players.filter(p=>p.active);
+}
 
-function activePlayers(){ return state.players.filter(p=>p.active); }
-
-// Priority score for who plays next: fewer games first, then
-// longest current wait, then total historical sit-outs, then a
-// small random jitter so ties don't always resolve the same way
-// (this is what stops the matchmaker from looping on one group).
 function selectionPool(){
   const pool = activePlayers().slice();
   pool.forEach(p=>{ p._jitter = Math.random(); });
@@ -652,891 +712,1269 @@ function combinations(arr, k){
 
 function scoreSplit(four, settings){
   const [a,b,c,d] = four;
-  const splits = [
-    [[a,b],[c,d]],
-    [[a,c],[b,d]],
-    [[a,d],[b,c]]
-  ];
+  const splits = [ [[a,b],[c,d]], [[a,c],[b,d]], [[a,d],[b,c]] ];
   let best = null;
   splits.forEach(([t1,t2])=>{
     const teammatePenalty = pairCount(t1[0].teammates, t1[1].id) + pairCount(t2[0].teammates, t2[1].id);
-    const opponentPenalty =
-      pairCount(t1[0].opponents, t2[0].id) + pairCount(t1[0].opponents, t2[1].id) +
-      pairCount(t1[1].opponents, t2[0].id) + pairCount(t1[1].opponents, t2[1].id);
-    const overTeam = Math.max(0, teammatePenalty - settings.maxRepeatTeammates);
-    const overOpp = Math.max(0, opponentPenalty - settings.maxRepeatOpponents);
-    const r1 = (t1[0].rating+t1[1].rating)/2, r2 = (t2[0].rating+t2[1].rating)/2;
-    const teamBalance = Math.abs(r1-r2);
-    const balanceWeight = settings.winnerVsWinner ? 0.6 : 0.0;
-    let score = teammatePenalty*8 + overTeam*45 + opponentPenalty*4 + overOpp*25 + teamBalance*balanceWeight;
-    splitScoreTrack(score);
-    if(!best || score < best.score) best = { score, teamA:t1, teamB:t2 };
+    const opponentPenalty = pairCount(t1[0].opponents, t2[0].id) + pairCount(t1[0].opponents, t2[1].id) + pairCount(t1[1].opponents, t2[0].id) + pairCount(t1[1].opponents, t2[1].id);
+    const skillDiff = Math.abs((t1[0].rating + t1[1].rating) - (t2[0].rating + t2[1].rating));
+    const score = (teammatePenalty * 300) + (opponentPenalty * 100) + (skillDiff * 0.5);
+    if(best===null || score < best.score){ best = { split:[t1,t2], score }; }
   });
   return best;
 }
-let _trackedMax = 1;
-function splitScoreTrack(s){ if(s>_trackedMax) _trackedMax = s; }
 
-function generateMatch(){
-  if(state.current){ toast('Finish or skip the current match first.'); return; }
-  const active = activePlayers();
-  if(active.length < 4){
-    toast(`Need at least 4 active players (have ${active.length}).`); return;
-  }
+function nextRotationMatch(){
   const pool = selectionPool();
-  const poolSize = Math.min(pool.length, Math.max(8, Math.ceil(pool.length * 0.7)));
-  const candidates = pool.slice(0, poolSize);
-
-  // Rating spread across the chosen four matters too: prefer a
-  // foursome of similar overall skill ("players with similar
-  // records should be grouped together").
-  const combos = combinations(candidates, 4);
-  let best = null;
-  combos.forEach(four=>{
-    const ratings = four.map(p=>p.rating);
-    const spread = Math.max(...ratings) - Math.min(...ratings);
-    const split = scoreSplit(four, state.settings);
-    const total = split.score + spread*0.5 + Math.random()*3; // tiny jitter avoids deterministic repeats
-    if(!best || total < best.total) best = { total, four, split };
-  });
-
-  const chosenIds = best.four.map(p=>p.id);
-  state.round += 1;
-  state.current = {
-    round: state.round,
-    teamA: best.split.teamA.map(p=>p.id),
-    teamB: best.split.teamB.map(p=>p.id)
-  };
-
-  // Update sit-out bookkeeping for everyone NOT chosen this round.
-  active.forEach(p=>{
-    if(chosenIds.includes(p.id)){
-      p.consecutiveSitOuts = 0;
-    } else {
-      p.sitOuts += 1;
-      p.consecutiveSitOuts += 1;
+  if(pool.length < 4){ toast('Need at least 4 active players.'); return; }
+  const four = pool.slice(0,4);
+  const best = scoreSplit(four, state.settings);
+  const [[p1,p2],[p3,p4]] = best.split;
+  state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id] };
+  state.players.forEach(p=>{
+    if(p.active){
+      if(state.current.teamA.includes(p.id) || state.current.teamB.includes(p.id)){ p.consecutiveSitOuts = 0; }
+      else { p.sitOuts++; p.consecutiveSitOuts++; }
     }
   });
-
-  state.undo = null; // a fresh match invalidates any pending undo
   saveAll(); renderAll();
-  toast(`Round ${state.round} match is ready.`);
 }
 
-function skipMatch(){
-  if(!state.current){ toast('No active match to skip.'); return; }
-  // Returning players to the pool: treat them as having sat out
-  // this round so they don't lose their place in line, then pick
-  // a new match. consecutiveSitOuts was reset to 0 when they were
-  // chosen, so bump it back up by one to keep priority fair.
-  const ids = [...state.current.teamA, ...state.current.teamB];
-  ids.forEach(id=>{ const p=getPlayer(id); if(p){ p.consecutiveSitOuts += 1; } });
-  state.current = null;
-  state.round -= 1; // the skipped round didn't actually happen
-  saveAll();
-  if(activePlayers().length < 4){
-    renderAll();
-    toast('Match skipped. Need 4+ active players to generate a new one.');
-    return;
+/* ============================================================
+   ROUND ROBIN MODE ALGORITHM & LOGIC (full-round queue engine)
+   ------------------------------------------------------------
+   A "generation" always schedules every match needed to play
+   every active player exactly once that round (floor(active/4)
+   matches) — regardless of how many physical courts you have.
+   With 1 court, those matches simply queue up as "Up Next" and
+   feed onto the court one at a time as each one finishes, so
+   you can always see who's playing next. Once every match in a
+   generation is finished, the next generation is auto-built:
+   winners are grouped with winners and losers with losers
+   (when that setting is on), while still balancing total games
+   played and avoiding repeat teammates/opponents wherever the
+   pool allows. Players who didn't fit a foursome sit out for
+   exactly one generation and get top priority next time.
+   ============================================================ */
+
+function buildBalancedMatchups(group){
+  // group.length should be a multiple of 4; any remainder is left unmatched by the caller.
+  const matches = [];
+  for(let i=0; i + 4 <= group.length; i += 4){
+    const four = group.slice(i, i + 4);
+    const best = scoreSplit(four, state.settings);
+    const [[a,b],[c,d]] = best.split;
+    matches.push({ teamA:[a.id,b.id], teamB:[c.id,d.id] });
   }
-  toast('Match skipped — generating a new one.');
-  generateMatch();
+  return matches;
 }
 
-function recordResult(winner){
-  if(!state.current){ return; }
-  // Read optional score inputs from control bar
-  const scoreAEl = document.getElementById('scoreA');
-  const scoreBEl = document.getElementById('scoreB');
-  const scoreA = scoreAEl && scoreAEl.value !== '' ? parseInt(scoreAEl.value, 10) : null;
-  const scoreB = scoreBEl && scoreBEl.value !== '' ? parseInt(scoreBEl.value, 10) : null;
-  if(scoreA !== null && scoreB !== null){
-    if(isNaN(scoreA)||isNaN(scoreB)||scoreA<0||scoreB<0){
-      toast('Scores must be non-negative numbers.'); return;
+// Pull players from `donor` (lowest scheduling priority first, since donor is
+// already fairness-sorted) until `group`'s length is a clean multiple of 4.
+function topUpToMultipleOf4(group, donor){
+  while(group.length % 4 !== 0 && donor.length){
+    group.push(donor.shift());
+  }
+  return group;
+}
+
+function generateRoundRobinGeneration() {
+  const activeList = activePlayers().slice();
+  if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.'); return; }
+
+  activeList.forEach(p => {
+    p._jitter = Math.random();
+    if(p.sitOutPriority === undefined) p.sitOutPriority = 0;
+    if(p.waitingRounds === undefined) p.waitingRounds = 0;
+  });
+
+  // Fairness sort: fewest games played first, then longest-waiting sit-outs,
+  // then lowest history of repeat pairings against the rest of the active pool, then a coin-flip.
+  activeList.sort((a,b) => {
+    if(a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
+    if(a.sitOutPriority !== b.sitOutPriority) return b.sitOutPriority - a.sitOutPriority;
+    if(a.waitingRounds !== b.waitingRounds) return b.waitingRounds - a.waitingRounds;
+    let totalRepA = 0, totalRepB = 0;
+    activeList.forEach(other => {
+      if(other.id !== a.id) totalRepA += (a.teammates[other.id]||0) + (a.opponents[other.id]||0);
+      if(other.id !== b.id) totalRepB += (b.teammates[other.id]||0) + (b.opponents[other.id]||0);
+    });
+    if(totalRepA !== totalRepB) return totalRepA - totalRepB;
+    return a._jitter - b._jitter;
+  });
+
+  // If every active player has already partnered or opposed every other active
+  // player, the matchup matrix is exhausted — reset it so pairings can repeat fairly
+  // instead of the algorithm getting stuck.
+  let allExhausted = true;
+  exhaustCheck:
+  for(let i=0; i<activeList.length; i++){
+    for(let j=i+1; j<activeList.length; j++){
+      const pI = activeList[i], pJ = activeList[j];
+      if((pI.teammates[pJ.id]||0) === 0 && (pI.opponents[pJ.id]||0) === 0){ allExhausted = false; break exhaustCheck; }
     }
-    if(winner==='A' && scoreA <= scoreB){
-      toast('Team A score must be higher when Team A wins.'); return;
-    }
-    if(winner==='B' && scoreB <= scoreA){
-      toast('Team B score must be higher when Team B wins.'); return;
+  }
+  if(allExhausted){
+    state.players.forEach(p => { p.teammates = {}; p.opponents = {}; });
+    toast('All combinations played at least once — matchup history reset for a fresh rotation.');
+  }
+
+  // Schedule EVERY foursome the active roster supports this generation (not capped by court count).
+  const matchCount = Math.floor(activeList.length / 4);
+  const playersNeeded = matchCount * 4;
+  const playingPlayers = activeList.slice(0, playersNeeded);
+  const sittingPlayers = activeList.slice(playersNeeded);
+
+  let matchups = [];
+
+  // Winner-vs-winner / Loser-vs-loser bucketing, based on the generation that just finished.
+  if(state.settings.winnerVsWinner && state.round > 0){
+    const lastGenMatches = state.matches.filter(m => m.generation === state.round);
+    if(lastGenMatches.length){
+      const lastWinners = new Set(), lastLosers = new Set();
+      lastGenMatches.forEach(m => {
+        m.winners.forEach(id => lastWinners.add(id));
+        m.losers.forEach(id => lastLosers.add(id));
+      });
+
+      // playingPlayers is already fairness-sorted; preserve that order within each bucket.
+      const winnersGroup = playingPlayers.filter(p => lastWinners.has(p.id));
+      const losersGroup  = playingPlayers.filter(p => lastLosers.has(p.id));
+      const freshGroup   = playingPlayers.filter(p => !lastWinners.has(p.id) && !lastLosers.has(p.id)); // subbed in / previously sitting
+
+      // Round each bucket up to a clean foursome multiple using the fairness-sorted "fresh" pool
+      // (newcomers / former sit-outs) before resorting to splitting buckets apart.
+      topUpToMultipleOf4(winnersGroup, freshGroup);
+      topUpToMultipleOf4(losersGroup, freshGroup);
+
+      matchups = matchups.concat(buildBalancedMatchups(winnersGroup));
+      matchups = matchups.concat(buildBalancedMatchups(losersGroup));
+      matchups = matchups.concat(buildBalancedMatchups(freshGroup));
+
+      // Anyone left over (a bucket had an unresolvable remainder) gets matched directly.
+      const consumed = new Set();
+      matchups.forEach(m => { m.teamA.forEach(id=>consumed.add(id)); m.teamB.forEach(id=>consumed.add(id)); });
+      const leftover = playingPlayers.filter(p => !consumed.has(p.id));
+      matchups = matchups.concat(buildBalancedMatchups(leftover));
     }
   }
 
-  // Snapshot everything needed to fully undo this single action.
-  state.undo = {
-    players: deepClone(state.players),
-    current: deepClone(state.current),
-    round: state.round,
-    matchesLength: state.matches.length
-  };
-
-  const { teamA, teamB, round } = state.current;
-  const winners = winner==='A' ? teamA : teamB;
-  const losers = winner==='A' ? teamB : teamA;
-  const winPlayers = winners.map(getPlayer);
-  const losePlayers = losers.map(getPlayer);
-
-  const avgW = winPlayers.reduce((s,p)=>s+p.rating,0)/2;
-  const avgL = losePlayers.reduce((s,p)=>s+p.rating,0)/2;
-  const expW = 1/(1+Math.pow(10,(avgL-avgW)/400));
-  const K = 28;
-  // Margin-of-victory: winning 11-2 gives more rating than winning 11-9
-  let movMult = 1.0;
-  if(scoreA != null && scoreB != null){
-    const winScore = winner==='A' ? scoreA : scoreB;
-    const loseScore = winner==='A' ? scoreB : scoreA;
-    const diff = Math.max(0, winScore - loseScore);
-    movMult = Math.min(1.25, Math.max(0.75, 0.75 + (Math.log(1 + diff) / Math.log(12)) * 0.5));
+  if(!matchups.length){
+    matchups = buildBalancedMatchups(playingPlayers);
   }
-  const deltaW = Math.round(K * (1-expW) * movMult);
-  const deltaL = Math.round(K * (0-(1-expW)) * movMult);
 
-  function applyResult(p, isWin, delta){
-    p.gamesPlayed += 1;
-    if(isWin){ p.wins += 1; } else { p.losses += 1; }
-    p.rating = Math.max(100, p.rating + delta);
-    p.results.push(isWin?'W':'L');
-    if(isWin){
-      p.currentStreak = p.currentStreak>0 ? p.currentStreak+1 : 1;
-      if(p.currentStreak > p.longestStreak) p.longestStreak = p.currentStreak;
-    } else {
-      p.currentStreak = p.currentStreak<0 ? p.currentStreak-1 : -1;
-    }
-  }
-  winPlayers.forEach(p=>applyResult(p, true, deltaW));
-  losePlayers.forEach(p=>applyResult(p, false, deltaL));
-
-  // Teammate / opponent history.
-  bumpPair(winPlayers[0].teammates, winPlayers[1].id);
-  bumpPair(winPlayers[1].teammates, winPlayers[0].id);
-  bumpPair(losePlayers[0].teammates, losePlayers[1].id);
-  bumpPair(losePlayers[1].teammates, losePlayers[0].id);
-  winPlayers.forEach(w=>losePlayers.forEach(l=>{
-    bumpPair(w.opponents, l.id); bumpPair(l.opponents, w.id);
+  const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
+  const genId = state.round + 1;
+  const matches = matchups.map((m, idx) => ({
+    id: uid('gm'),
+    matchIndex: idx,
+    teamA: m.teamA, teamB: m.teamB,
+    scoreA: null, scoreB: null, winner: null,
+    status: idx < numCourts ? 'active' : 'queued',
+    court: idx < numCourts ? idx + 1 : null
   }));
 
-  state.matches.push({
-    id: uid('m'),
-    round,
-    timestamp: new Date().toISOString(),
-    teamA: [...teamA],
-    teamB: [...teamB],
-    winner,
-    scoreA: scoreA !== null ? scoreA : undefined,
-    scoreB: scoreB !== null ? scoreB : undefined
+  // Only players truly left out of every match this generation sit out / earn priority.
+  const playingIds = new Set();
+  matches.forEach(m => { m.teamA.forEach(id=>playingIds.add(id)); m.teamB.forEach(id=>playingIds.add(id)); });
+  state.players.forEach(p => {
+    if(!p.active) return;
+    if(playingIds.has(p.id)){
+      p.consecutiveSitOuts = 0; p.sitOutPriority = 0; p.waitingRounds = 0;
+    } else {
+      p.sitOuts++;
+      p.consecutiveSitOuts = (p.consecutiveSitOuts||0) + 1;
+      p.sitOutPriority = (p.sitOutPriority||0) + 5;
+      p.waitingRounds = (p.waitingRounds||0) + 1;
+    }
   });
+
+  state.currentGeneration = {
+    generation: genId,
+    matches: matches,
+    sittingOut: sittingPlayers.map(p => p.id)
+  };
+  state.current = null;
+  saveAll(); renderAll();
+  toast(`Generation ${genId}: ${matches.length} match${matches.length===1?'':'es'} scheduled across ${Math.min(numCourts, matches.length)} court${Math.min(numCourts, matches.length)===1?'':'s'}.`);
+}
+
+// Pulls the next queued match(es) onto any court that just freed up.
+function advanceRRQueue(){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
+  const usedCourts = new Set(gen.matches.filter(m => m.status === 'active').map(m => m.court));
+  const queued = gen.matches.filter(m => m.status === 'queued').sort((a,b) => a.matchIndex - b.matchIndex);
+  for(let c = 1; c <= numCourts && queued.length; c++){
+    if(usedCourts.has(c)) continue;
+    const next = queued.shift();
+    next.status = 'active';
+    next.court = c;
+  }
+}
+
+function selectRoundRobinWinner(matchId, winningTeam) {
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status === 'done') return;
+  m.winner = winningTeam;
+  if(m.scoreA === null && m.scoreB === null){
+    m.scoreA = winningTeam === 'A' ? 11 : 8;
+    m.scoreB = winningTeam === 'A' ? 8 : 11;
+  }
+  saveAll(); renderAll();
+}
+
+function updateRRMatchScore(matchId, team, val){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status === 'done') return;
+  const num = parseInt(val, 10);
+  if(isNaN(num)) return;
+  if(team === 'A') m.scoreA = num; else m.scoreB = num;
+  saveAll();
+}
+
+// Finalizes a single court's result immediately (stats, rating, history),
+// frees its court, pulls the next queued match onto it, and — once every
+// match in the generation is done — auto-builds the next generation.
+function confirmRoundRobinMatch(matchId){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status === 'done') return;
+  if(m.winner === null){ toast('Select the winning team before confirming.'); return; }
+
+  state.undo = {
+    players: deepClone(state.players),
+    matches: deepClone(state.matches),
+    current: null,
+    currentGeneration: deepClone(state.currentGeneration),
+    round: state.round
+  };
+
+  const sA = parseInt(m.scoreA, 10) || 0;
+  const sB = parseInt(m.scoreB, 10) || 0;
+  const tA_win = m.winner === 'A';
+
+  const matchRecord = {
+    id: uid('m'),
+    round: gen.generation,
+    generation: gen.generation,
+    court: m.court || 0,
+    teamA: m.teamA, teamB: m.teamB,
+    scoreA: sA, scoreB: sB,
+    winners: tA_win ? m.teamA : m.teamB,
+    losers: tA_win ? m.teamB : m.teamA,
+    date: new Date().toISOString()
+  };
+  state.matches.push(matchRecord);
+
+  [...m.teamA, ...m.teamB].forEach(id => {
+    const p = getPlayer(id);
+    if(!p) return;
+    p.gamesPlayed++;
+    if(matchRecord.winners.includes(id)){
+      p.wins++; p.results.push('W'); p.currentStreak = p.currentStreak > 0 ? p.currentStreak + 1 : 1;
+    } else {
+      p.losses++; p.results.push('L'); p.currentStreak = p.currentStreak < 0 ? p.currentStreak - 1 : -1;
+    }
+    if(Math.abs(p.currentStreak) > p.longestStreak) p.longestStreak = Math.abs(p.currentStreak);
+  });
+
+  [[m.teamA[0], m.teamA[1]], [m.teamB[0], m.teamB[1]]].forEach(([p1, p2]) => {
+    const pl1 = getPlayer(p1), pl2 = getPlayer(p2);
+    if(pl1 && pl2){ bumpPair(pl1.teammates, p2); bumpPair(pl2.teammates, p1); }
+  });
+  m.teamA.forEach(idA => {
+    m.teamB.forEach(idB => {
+      const plA = getPlayer(idA), plB = getPlayer(idB);
+      if(plA && plB){ bumpPair(plA.opponents, idB); bumpPair(plB.opponents, idA); }
+    });
+  });
+
+  const rA = (getPlayer(m.teamA[0])?.rating || 1000) + (getPlayer(m.teamA[1])?.rating || 1000);
+  const rB = (getPlayer(m.teamB[0])?.rating || 1000) + (getPlayer(m.teamB[1])?.rating || 1000);
+  const expA = 1 / (1 + Math.pow(10, (rB - rA) / 400));
+  const ratingChange = Math.round(32 * ((tA_win ? 1 : 0) - expA));
+  m.teamA.forEach(id => { const p = getPlayer(id); if(p) p.rating += ratingChange; });
+  m.teamB.forEach(id => { const p = getPlayer(id); if(p) p.rating -= ratingChange; });
+
+  m.status = 'done';
+  m.court = null;
+
+  advanceRRQueue();
+
+  const allDone = gen.matches.every(x => x.status === 'done');
+  if(allDone){
+    state.round = gen.generation;
+    state.currentGeneration = null;
+    saveAll();
+    toast(`Generation ${gen.generation} complete — building the next generation…`);
+    generateRoundRobinGeneration();
+  } else {
+    saveAll(); renderAll();
+    toast('Match recorded — next match is up.');
+  }
+}
+
+/* ---------- Replace / substitute a player mid-generation ---------- */
+function openReplacePlayerPickerModal(matchId){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status === 'done'){ toast('That match is already finished.'); return; }
+
+  const rows = [
+    { team:'A', id:m.teamA[0] }, { team:'A', id:m.teamA[1] },
+    { team:'B', id:m.teamB[0] }, { team:'B', id:m.teamB[1] }
+  ];
+
+  openModal(`
+    <div class="modal-title">Replace a Player</div>
+    <div class="modal-sub">Tap whoever's not around for this upcoming match.</div>
+    ${rows.map(r => `
+      <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;" data-action="open-replace-player" data-match="${matchId}" data-team="${r.team}" data-player="${r.id}">
+        <span>${esc(playerName(r.id))}</span><span class="mono" style="color:var(--text-faint); font-size:11px;">Team ${r.team}</span>
+      </button>
+    `).join('')}
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
+    </div>
+  `);
+}
+
+function openReplacePlayerModal(matchId, team, playerId){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status === 'done'){ toast('That match is already finished.'); return; }
+  const p = getPlayer(playerId);
+
+  const benchPlayers = (gen.sittingOut || [])
+    .filter(id => id !== playerId)
+    .map(id => getPlayer(id))
+    .filter(Boolean)
+    .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+
+  const benchHtml = benchPlayers.length
+    ? benchPlayers.map(b => `
+        <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;" data-action="do-replace-manual" data-match="${matchId}" data-team="${team}" data-player="${playerId}" data-sub="${b.id}">
+          <span>${esc(b.name)}</span><span class="mono" style="color:var(--text-faint); font-size:11px;">${b.gamesPlayed} gms played</span>
+        </button>
+      `).join('')
+    : `<p class="helper-text">No one is currently sitting out to substitute in. Mark them absent below to bench this match's slot instead.</p>`;
+
+  openModal(`
+    <div class="modal-title">Replace ${esc(p ? p.name : 'Player')}</div>
+    <div class="modal-sub">Not around? Pick a bench player to sub in for this match — the rest of the queue stays balanced automatically.</div>
+    <button class="btn btn-danger btn-block" data-action="do-replace-absent" data-match="${matchId}" data-team="${team}" data-player="${playerId}">Mark Absent &amp; Auto-Sub Best Available</button>
+    ${benchPlayers.length ? '<div class="divider-thin"></div><div class="helper-text" style="margin-bottom:0;">Or choose manually:</div>' : '<div class="divider-thin"></div>'}
+    ${benchHtml}
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
+    </div>
+  `);
+}
+
+function replacePlayerInMatch(matchId, team, oldId, newId){
+  if(!newId){ toast('No substitute selected.'); return; }
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status === 'done'){ toast('That match is already finished.'); return; }
+  const teamArr = team === 'A' ? m.teamA : m.teamB;
+  const idx = teamArr.indexOf(oldId);
+  if(idx === -1) return;
+
+  teamArr[idx] = newId;
+  gen.sittingOut = (gen.sittingOut || []).filter(id => id !== newId);
+  const oldPlayer = getPlayer(oldId);
+  if(oldPlayer && oldPlayer.active && !gen.sittingOut.includes(oldId)){
+    gen.sittingOut.push(oldId);
+  }
+  saveAll(); renderAll(); closeModal();
+  toast(`${oldPlayer ? oldPlayer.name : 'Player'} swapped out for ${playerName(newId)}.`);
+}
+
+function markPlayerAbsentAndAutoReplace(matchId, team, oldId){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const oldPlayer = getPlayer(oldId);
+  if(oldPlayer) oldPlayer.active = false; // they're not around — pause their profile so they're not scheduled again
+  gen.sittingOut = (gen.sittingOut || []).filter(id => id !== oldId);
+
+  const candidates = (gen.sittingOut || []).map(id => getPlayer(id)).filter(Boolean).sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+  if(!candidates.length){
+    saveAll(); renderAll(); closeModal();
+    toast(`${oldPlayer ? oldPlayer.name : 'Player'} marked absent — no bench player available, that slot is open until someone subs in.`);
+    return;
+  }
+  replacePlayerInMatch(matchId, team, oldId, candidates[0].id);
+}
+
+/* ============================================================
+   MATCH FINALIZATION (ROTATION ORIGINAL SYSTEM)
+   ============================================================ */
+function recordRotationMatch(scoreA, scoreB) {
+  if(!state.current) return;
+  const sA = parseInt(scoreA,10);
+  const sB = parseInt(scoreB,10);
+  if(isNaN(sA) || isNaN(sB)) { toast('Enter valid scores for both teams.'); return; }
+
+  state.undo = {
+    players: deepClone(state.players),
+    matches: deepClone(state.matches),
+    current: deepClone(state.current),
+    currentGeneration: null,
+    round: state.round
+  };
+
+  const curr = state.current;
+  state.round = curr.round;
+
+  const matchRecord = {
+    id: uid('m'),
+    round: curr.round,
+    teamA: curr.teamA,
+    teamB: curr.teamB,
+    scoreA: sA,
+    scoreB: sB,
+    winners: sA > sB ? curr.teamA : curr.teamB,
+    losers: sA > sB ? curr.teamB : curr.teamA,
+    date: new Date().toISOString()
+  };
+
+  state.matches.push(matchRecord);
+
+  const allFour = [...curr.teamA, ...curr.teamB];
+  allFour.forEach(id => {
+    const p = getPlayer(id);
+    if(!p) return;
+    p.gamesPlayed++;
+    if(matchRecord.winners.includes(id)) {
+      p.wins++; p.results.push('W');
+      p.currentStreak = p.currentStreak > 0 ? p.currentStreak + 1 : 1;
+    } else {
+      p.losses++; p.results.push('L');
+      p.currentStreak = p.currentStreak < 0 ? p.currentStreak - 1 : -1;
+    }
+    if(Math.abs(p.currentStreak) > p.longestStreak) p.longestStreak = Math.abs(p.currentStreak);
+  });
+
+  const pairs = [[curr.teamA[0], curr.teamA[1]], [curr.teamB[0], curr.teamB[1]]];
+  pairs.forEach(([p1, p2]) => {
+    const pl1 = getPlayer(p1), pl2 = getPlayer(p2);
+    if(pl1 && pl2) { bumpPair(pl1.teammates, p2); bumpPair(pl2.teammates, p1); }
+  });
+
+  curr.teamA.forEach(idA => {
+    curr.teamB.forEach(idB => {
+      const plA = getPlayer(idA), plB = getPlayer(idB);
+      if(plA && plB) { bumpPair(plA.opponents, idB); bumpPair(plB.opponents, idA); }
+    });
+  });
+
+  const rA = (getPlayer(curr.teamA[0])?.rating || 1000) + (getPlayer(curr.teamA[1])?.rating || 1000);
+  const rB = (getPlayer(curr.teamB[0])?.rating || 1000) + (getPlayer(curr.teamB[1])?.rating || 1000);
+  const expA = 1 / (1 + Math.pow(10, (rB - rA) / 400));
+  const actualA = sA > sB ? 1 : 0;
+  const ratingChange = Math.round(32 * (actualA - expA));
+
+  curr.teamA.forEach(id => { const p = getPlayer(id); if(p) p.rating += ratingChange; });
+  curr.teamB.forEach(id => { const p = getPlayer(id); if(p) p.rating -= ratingChange; });
 
   state.current = null;
   saveAll(); renderAll();
-  toast(`Round ${round} recorded — ${winner==='A'?'Team A':'Team B'} won.`);
+  toast('Match score recorded.');
 }
 
-function undoLastMatch(){
-  if(!state.undo){ toast('Nothing to undo.'); return; }
-  const snap = state.undo;
-  state.players = snap.players;
-  state.current = snap.current;
-  state.round = snap.round;
-  state.matches = state.matches.slice(0, snap.matchesLength);
+function skipCurrentMatch() {
+  if(!state.current && !state.currentGeneration) return;
+  if(state.settings.matchMode === 'RoundRobin') {
+    state.currentGeneration = null;
+  } else {
+    state.current = null;
+  }
+  saveAll(); renderAll();
+  toast('Current match setup cleared/skipped.');
+}
+
+function undoLastMatch() {
+  if(!state.undo) { toast('Nothing to undo.'); return; }
+  state.players = state.undo.players;
+  state.matches = state.undo.matches;
+  state.current = state.undo.current;
+  state.currentGeneration = state.undo.currentGeneration;
+  state.round = state.undo.round;
   state.undo = null;
   saveAll(); renderAll();
-  toast('Last result undone — match restored as pending.');
+  toast('Last match results undone.');
 }
 
 /* ============================================================
    EXPORT / IMPORT
    ============================================================ */
 function exportData(){
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    players: state.players, matches: state.matches, settings: state.settings,
-    round: state.round, current: state.current
+  const dump = {
+    players: state.players,
+    matches: state.matches,
+    current: state.settings.matchMode === 'RoundRobin' ? state.currentGeneration : state.current,
+    settings: state.settings,
+    round: state.round,
+    version: '2.0-multi-mode'
   };
-  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const str = JSON.stringify(dump, null, 2);
+  const blob = new Blob([str], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `kitchen-ladder-export-${Date.now()}.json`;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-  toast('Data exported.');
+  a.href = url;
+  a.download = `kitchen_ladder_export_${Date.now().toString(36)}.json`;
+  a.click();
+  toast('Data file downloaded.');
 }
 
-function importDataFromText(text){
+function importDataFromText(txt){
   try{
-    const data = JSON.parse(text);
-    if(!Array.isArray(data.players)) throw new Error('bad format');
-    state.players = data.players;
-    state.matches = Array.isArray(data.matches) ? data.matches : [];
-    state.settings = { ...DEFAULT_SETTINGS, ...(data.settings||{}) };
-    state.round = data.round || 0;
-    state.current = data.current || null;
+    const dump = JSON.parse(txt);
+    if(!dump || !Array.isArray(dump.players)) { toast('Invalid schema format structure.'); return; }
+    state.players = dump.players;
+    state.matches = dump.matches || [];
+    state.settings = { ...DEFAULT_SETTINGS, ...dump.settings };
+    state.round = parseInt(dump.round,10)||0;
+    
+    const incomingC = dump.current;
+    if (incomingC && incomingC.matches) {
+      state.currentGeneration = incomingC;
+      state.current = null;
+    } else {
+      state.current = incomingC;
+      state.currentGeneration = null;
+    }
+
     state.undo = null;
     saveAll(); renderAll(); closeModal();
-    toast('Data imported successfully.');
+    toast('Database restored correctly.');
   }catch(e){
-    toast('That file could not be read as Kitchen Ladder data.');
+    toast('Parsing failure: verify copied content.');
   }
 }
 
 /* ============================================================
-   ICONS (inline, no external assets)
+   UI RENDERING CORE PIPELINE
    ============================================================ */
-const ICONS = {
-  match:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M9 9l.01.01M14.5 8.5l.01.01M15.5 13l.01.01M10.5 15l.01.01" stroke-linecap="round"/></svg>',
-  queue:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>',
-  players:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><circle cx="17" cy="9" r="2.3"/><path d="M16 13.2c2.6.5 4.3 2.3 5 4.8" stroke-linecap="round"/></svg>',
-  stats:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 19V10M12 19V5M19 19v-7"/></svg>',
-  rankings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/></svg>',
-  history:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
-  settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.8 7.8 0 0 0-1.7-1L15 3h-4l-.3 2.4a7.8 7.8 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.8 7.8 0 0 0 1.7 1L11 21h4l.3-2.4a7.8 7.8 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6Z" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
-  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m-1 0v14H9V6"/></svg>',
-  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
-  pause:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 5v14M17 5v14"/></svg>',
-  play:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4l13 8-13 8V4z"/></svg>'
-};
+function renderAll(){
+  updateDashStrip();
+  renderTabsNav();
+  renderActiveView();
+}
 
-/* ============================================================
-   TAB NAVIGATION
-   ============================================================ */
-const TABS = [
-  {id:'match', label:'Match', icon:ICONS.match},
-  {id:'queue', label:'Queue', icon:ICONS.queue},
-  {id:'players', label:'Players', icon:ICONS.players},
-  {id:'stats', label:'Stats', icon:ICONS.stats},
-  {id:'rankings', label:'Rankings', icon:ICONS.rankings},
-  {id:'history', label:'History', icon:ICONS.history},
-  {id:'settings', label:'Settings', icon:ICONS.settings}
-];
+function updateDashStrip(){
+  const ds = document.getElementById('dashStrip');
+  const total = state.players.length;
+  const activeCount = activePlayers().length;
+  const matchesCount = state.matches.length;
+  ds.innerHTML = `
+    <div class="d-item"><span class="eyebrow">Players:</span><span class="v">${total}</span></div>
+    <div class="d-item"><span class="eyebrow">Active:</span><span class="v">${activeCount}</span></div>
+    <div class="d-item"><span class="eyebrow">Matches:</span><span class="v">${matchesCount}</span></div>
+    <div class="d-item"><span class="eyebrow">Mode:</span><span class="v" style="color:var(--court);">${state.settings.matchMode === 'RoundRobin' ? 'Round Robin' : 'Rotation'}</span></div>
+  `;
+}
 
-function renderTabs(){
+function renderTabsNav(){
   const nav = document.getElementById('tabNav');
-  nav.innerHTML = TABS.map(t=>`
-    <button class="tab-btn ${state.tab===t.id?'active':''}" data-action="set-tab" data-tab="${t.id}">
-      ${t.icon}<span>${t.label}</span>
+  const tabsConfig = [
+    { id: 'match', label: 'Match', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12M12 6v12"/></svg>' },
+    { id: 'queue', label: 'Queue', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>' },
+    { id: 'players', label: 'Players', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>' },
+    { id: 'rankings', label: 'Rankings', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' },
+    { id: 'stats', label: 'Stats', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
+    { id: 'history', label: 'History', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
+    { id: 'settings', label: 'Settings', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' }
+  ];
+  nav.innerHTML = tabsConfig.map(t=>`
+    <button class="tab-btn ${state.tab===t.id?'active':''}" data-action="tab" data-tab="${t.id}">
+      ${t.svg}<span>${t.label}</span>
     </button>
   `).join('');
 }
 
-function setTab(id){
-  state.tab = id;
-  saveAll();
-  renderAll();
-  window.scrollTo({top:0, behavior:'instant'});
+function renderActiveView(){
+  const target = document.getElementById('view');
+  switch(state.tab){
+    case 'match': renderMatchView(target); break;
+    case 'queue': renderQueueView(target); break;
+    case 'players': renderPlayersView(target); break;
+    case 'rankings': renderRankingsView(target); break;
+    case 'stats': renderStatsView(target); break;
+    case 'history': renderHistoryView(target); break;
+    case 'settings': renderSettingsView(target); break;
+  }
 }
 
 /* ============================================================
-   DASHBOARD STRIP (always-visible mini overview)
+   VIEW COMPONENT GENERATORS
    ============================================================ */
-function updateTopbarHeight(){
-  const tb = document.querySelector('.topbar');
-  if(tb) document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight + 'px');
-}
+function renderMatchView(el){
+  if(state.settings.matchMode === 'RoundRobin') {
+    // ROUND ROBIN CURRENT SYSTEM CONTAINER VIEW
+    if(!state.currentGeneration) {
+      el.innerHTML = `
+        <div class="empty-state">
+          <div class="big">🔀</div>
+          <div class="et">Round Robin Matchmaker ready</div>
+          <p>Click below to generate the full match list for this generation — every active player gets scheduled once, even if you only have one court.</p>
+          <button class="btn btn-primary" style="margin-top:16px;" data-action="generate-roundrobin">Generate Generation 1</button>
+        </div>
+      `;
+      return;
+    }
 
-function renderDashStrip(){
-  const el = document.getElementById('dashStrip');
-  const waiting = state.current ? Math.max(0, activePlayers().length - 4) : activePlayers().length;
-  const active = activePlayers();
-  el.innerHTML = `
-    <div class="d-item"><span class="v">${active.length}</span> active</div>
-    <div class="d-item"><span class="v">${state.matches.length}</span> matches</div>
-    <div class="d-item"><span class="v">${state.current ? Math.max(0, active.length-4) : active.length}</span> waiting</div>
-    <div class="d-item"><span class="v">${state.round}</span> round</div>
-  `;
-}
+    const gen = state.currentGeneration;
+    const activeMatches = gen.matches.filter(m => m.status === 'active').sort((a,b) => a.matchIndex - b.matchIndex);
+    const queuedMatches = gen.matches.filter(m => m.status === 'queued').sort((a,b) => a.matchIndex - b.matchIndex);
+    const doneCount = gen.matches.filter(m => m.status === 'done').length;
 
-/* ============================================================
-   VIEW: MATCH
-   ============================================================ */
-function renderMatchView(){
-  let html = '';
-  if(!state.current){
-    html += `
-      <div class="card empty-state">
-        <div class="big">🏓</div>
-        <div class="et">No match on the court</div>
-        <p>Generate a match to set the next foursome.<br>The algorithm balances games played, skill, and repeat pairings automatically.</p>
-        <div style="margin-top:14px;">
-          <button class="btn btn-primary" data-action="generate">${ICONS.plus} Generate Match</button>
-        </div>
-      </div>`;
-  } else {
-    const { teamA, teamB, round } = state.current;
-    const A = teamA.map(getPlayer), B = teamB.map(getPlayer);
-    const avgA = Math.round((A[0].rating+A[1].rating)/2);
-    const avgB = Math.round((B[0].rating+B[1].rating)/2);
-    html += `
-      <div class="scoreboard">
-        <div class="sb-head">
-          <div class="sb-round">ROUND <b>${round}</b></div>
-          <div class="live-dot"><span class="d"></span>On court</div>
-        </div>
-        <div class="sb-body">
-          <div class="sb-team team-a">
-            <div class="sb-tag">Team A</div>
-            <div class="sb-names">${esc(A[0].name)}<br>${esc(A[1].name)}</div>
-            <div class="sb-rating mono">avg rating ${avgA}</div>
-          </div>
-          <div class="sb-divider"></div>
-          <div class="sb-team team-b">
-            <div class="sb-tag">Team B</div>
-            <div class="sb-names">${esc(B[0].name)}<br>${esc(B[1].name)}</div>
-            <div class="sb-rating mono">avg rating ${avgB}</div>
-          </div>
-        </div>
-        <div class="sb-foot">
-          <button class="btn btn-secondary" data-action="record" data-winner="A">${ICONS.match} Team A wins</button>
-          <button class="btn btn-secondary" data-action="record" data-winner="B">${ICONS.match} Team B wins</button>
-        </div>
-      </div>
-      <div class="helper-text">Tap the winning team above, or use the bar at the bottom of the screen.</div>
+    let html = `
+      <div class="section-title">Round Robin — Generation ${gen.generation}</div>
+      <div class="helper-text" style="margin:-4px 2px 14px;">${doneCount} of ${gen.matches.length} match${gen.matches.length===1?'':'es'} played this generation.</div>
     `;
-  }
 
-  const waitCount = activePlayers().length - (state.current ? 4 : 0);
-  html += `<div class="section-title">Up next in queue (${Math.max(0,waitCount)})</div>`;
-  html += renderQueueList(3);
+    function nameTag(matchId, team, playerId){
+      const p = getPlayer(playerId);
+      const justify = team === 'A' ? 'flex-end' : 'flex-start';
+      return `<span style="display:inline-flex; align-items:center; flex-wrap:wrap; justify-content:${justify}; gap:4px; max-width:100%;">${esc(p?.name || '—')}<button class="icon-btn-tiny" data-action="open-replace-player" data-match="${matchId}" data-team="${team}" data-player="${playerId}" aria-label="Replace player" title="Replace this player">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </button></span>`;
+    }
 
-  document.getElementById('view').innerHTML = html;
-}
+    if(!activeMatches.length){
+      html += `<div class="empty-state"><div class="big">🎉</div><div class="et">Generation ${gen.generation} complete</div><p>Building the next generation…</p></div>`;
+    }
 
-/* ============================================================
-   VIEW: QUEUE
-   ============================================================ */
-function renderQueueList(limit){
-  const inMatch = state.current ? new Set([...state.current.teamA, ...state.current.teamB]) : new Set();
-  const waiting = selectionPool().filter(p=>!inMatch.has(p.id));
-  if(!waiting.length){
-    return `<div class="card empty-state"><p>${state.current ? 'Everyone else is already on the court.' : 'No players waiting — add players to get started.'}</p></div>`;
-  }
-  const list = limit ? waiting.slice(0, limit) : waiting;
-  let rows = list.map((p,i)=>`
-    <div class="queue-row">
-      <div class="qrank">${i+1}</div>
-      <div class="avatar">${esc(initials(p.name))}</div>
-      <div class="pinfo">
-        <div class="pname">${esc(p.name)}</div>
-        <div class="qmeta">${p.gamesPlayed} games · sat out ${p.consecutiveSitOuts} round${p.consecutiveSitOuts!==1?'s':''} in a row</div>
-      </div>
-    </div>
-  `).join('');
-  let html = `<div class="card">${rows}</div>`;
-  if(limit && waiting.length>limit){
-    html += `<div style="text-align:center;margin-top:8px;"><button class="btn btn-ghost btn-sm" data-action="set-tab" data-tab="queue">See full queue (${waiting.length})</button></div>`;
-  }
-  return html;
-}
+    activeMatches.forEach(m => {
+      const activeA = m.winner === 'A', activeB = m.winner === 'B';
+      html += `
+        <div class="scoreboard" style="margin-bottom:14px;">
+          <div class="sb-head">
+            <span class="sb-round">COURT <b>${m.court}</b></span>
+            <div class="live-dot"><div class="d"></div>Live</div>
+          </div>
+          <div class="sb-body">
+            <div class="sb-team team-a">
+              <span class="sb-tag">Team A</span>
+              <div class="sb-names">${nameTag(m.id,'A',m.teamA[0])}<br>${nameTag(m.id,'A',m.teamA[1])}</div>
+              <div class="sb-rating">Avg: ${Math.round(((getPlayer(m.teamA[0])?.rating||1000)+(getPlayer(m.teamA[1])?.rating||1000))/2)}</div>
+              <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="A">
+                ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
+              </button>
+            </div>
 
-function renderQueueView(){
-  let html = `<div class="section-title">Waiting queue</div>`;
-  const pausedCount = state.players.filter(p=>!p.active).length;
-  html += `<div class="helper-text" style="margin-bottom:10px;">Ordered by priority — fewest games played first, then longest wait. The matchmaker picks from the top of this list.${pausedCount?` <strong>${pausedCount} player${pausedCount>1?'s are':' is'} paused</strong> and won't be picked.`:''}</div>`;
-  html += renderQueueList(null);
-  document.getElementById('view').innerHTML = html;
-}
+            <div class="sb-divider"></div>
 
-/* ============================================================
-   VIEW: PLAYERS
-   ============================================================ */
-function renderPlayersView(){
-  let html = `
-    <div class="card">
-      <div class="field" style="margin-bottom:8px;">
-        <label>Add a player</label>
-        <div class="input-row">
-          <input type="text" id="newPlayerName" placeholder="Player name" maxlength="40">
-          <button class="btn btn-primary" data-action="add-player" style="flex:0 0 auto;">${ICONS.plus}</button>
+            <div class="sb-team team-b">
+              <span class="sb-tag">Team B</span>
+              <div class="sb-names">${nameTag(m.id,'B',m.teamB[0])}<br>${nameTag(m.id,'B',m.teamB[1])}</div>
+              <div class="sb-rating">Avg: ${Math.round(((getPlayer(m.teamB[0])?.rating||1000)+(getPlayer(m.teamB[1])?.rating||1000))/2)}</div>
+              <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="B">
+                ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
+              </button>
+            </div>
+          </div>
+          <div class="sb-foot" style="background:var(--surface-2); padding:10px 14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <label style="font-size:11px; color:var(--text-dim); font-weight:700;">SCORES:</label>
+            <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
+            <span style="color:var(--text-faint); font-weight:bold;">vs</span>
+            <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
+          </div>
+          <div style="padding:12px 14px 14px;">
+            <button class="btn btn-primary btn-block" data-action="confirm-rr-match" data-match="${m.id}">Confirm Result &amp; Pull Next Match</button>
+          </div>
+        </div>
+      `;
+    });
+
+    if(queuedMatches.length){
+      html += `<div class="section-title">Up Next (${queuedMatches.length})</div><div class="card" style="padding:6px 4px;">`;
+      queuedMatches.forEach((m, i) => {
+        const pA1 = getPlayer(m.teamA[0]), pA2 = getPlayer(m.teamA[1]);
+        const pB1 = getPlayer(m.teamB[0]), pB2 = getPlayer(m.teamB[1]);
+        html += `
+          <div class="queue-row">
+            <span class="qrank">${i+1}</span>
+            <div style="flex:1; font-size:13px; min-width:0;">
+              <strong>${esc(pA1?.name||'—')} &amp; ${esc(pA2?.name||'—')}</strong>
+              <span style="color:var(--text-faint);"> vs </span>
+              <strong>${esc(pB1?.name||'—')} &amp; ${esc(pB2?.name||'—')}</strong>
+            </div>
+            <button class="icon-btn-tiny" data-action="open-replace-picker" data-match="${m.id}" aria-label="Replace a player in this upcoming match" title="Swap a player on this upcoming match">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </button>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    }
+
+    if(gen.sittingOut && gen.sittingOut.length){
+      html += `
+        <div class="section-title">Sitting Out This Generation (${gen.sittingOut.length})</div>
+        <div class="card"><div class="helper-text" style="margin:0;">${gen.sittingOut.map(id=>esc(playerName(id))).join(', ')}</div></div>
+      `;
+    }
+
+    html += `
+      <div class="card" style="margin-top:14px;">
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="skip-match">Reset Generation</button>
+          <button class="btn btn-danger btn-sm" style="flex:1;" data-action="undo-match" ${!state.undo?'disabled':''}>Undo Last Match</button>
         </div>
       </div>
-      <div class="flex-between">
-        <button class="btn btn-ghost btn-sm" data-action="open-import">Bulk import</button>
-        <span class="eyebrow">${state.players.length} total</span>
+    `;
+    el.innerHTML = html;
+
+    // Attach global helper cleanly to bridge input elements smoothly without complex re-render interruptions
+    window.updateRRScore = function(matchId, team, val){
+      updateRRMatchScore(matchId, team, val);
+    };
+    return;
+  }
+
+  // STANDARD EXISTING ROTATION MODE VIEW SYSTEM
+  if(!state.current){
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="big">🏓</div>
+        <div class="et">Court is clear</div>
+        <p>Ready to select players and spin up a balanced match pairing.</p>
+        <button class="btn btn-primary" style="margin-top:16px;" data-action="next-match">Generate Next Match</button>
+      </div>
+    `;
+    return;
+  }
+
+  const c = state.current;
+  const pA1 = getPlayer(c.teamA[0]), pA2 = getPlayer(c.teamA[1]);
+  const pB1 = getPlayer(c.teamB[0]), pB2 = getPlayer(c.teamB[1]);
+
+  el.innerHTML = `
+    <div class="section-title">Current Match Dashboard</div>
+    <div class="scoreboard">
+      <div class="sb-head">
+        <span class="sb-round">MATCH <b>#${c.round}</b></span>
+        <div class="live-dot"><div class="d"></div>Live</div>
+      </div>
+      <div class="sb-body">
+        <div class="sb-team team-a">
+          <span class="sb-tag">Team A</span>
+          <div class="sb-names">${esc(pA1?.name || '')}<br>${esc(pA2?.name || '')}</div>
+          <div class="sb-rating">Avg: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
+        </div>
+        
+        <div class="sb-divider"></div>
+        
+        <div class="sb-team team-b">
+          <span class="sb-tag">Team B</span>
+          <div class="sb-names">${esc(pB1?.name || '')}<br>${esc(pB2?.name || '')}</div>
+          <div class="sb-rating">Avg: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:24px;">Enter Match Scores</div>
+    <div class="card">
+      <div class="cb-score-row">
+        <div class="cb-score-team">
+          <span class="cb-score-label">Team A Score</span>
+          <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreA" value="11">
+        </div>
+        <div class="cb-score-vs">vs</div>
+        <div class="cb-score-team">
+          <span class="cb-score-label">Team B Score</span>
+          <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreB" value="9">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:12px;" data-action="save-match-score">Submit Final Score</button>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="skip-match">Clear Match</button>
+        <button class="btn btn-danger btn-sm" style="flex:1;" data-action="undo-match" ${!state.undo?'disabled':''}>Undo Previous Match</button>
       </div>
     </div>
   `;
+}
 
-  if(!state.players.length){
-    html += `<div class="card empty-state"><div class="big">👋</div><div class="et">No players yet</div><p>Add players one at a time, or use bulk import to paste a whole list at once.</p></div>`;
-  } else {
-    const sorted = state.players.slice().sort((a,b)=>a.name.localeCompare(b.name));
-    html += `<div class="section-title">Roster</div><div class="card">`;
-    html += sorted.map(p=>{
-      const inMatch = state.current && (state.current.teamA.includes(p.id)||state.current.teamB.includes(p.id));
-      return `
-      <div class="player-row">
-        <div class="avatar">${esc(initials(p.name))}</div>
-        <div class="pinfo">
-          <div class="pname">${esc(p.name)} ${inMatch?'<span class="pill pill-active">ON COURT</span>':''}</div>
-          <div class="pmeta">${p.gamesPlayed} gp · ${winPct(p)}% win · rating ${Math.round(p.rating)}</div>
-        </div>
-        <span class="pill ${p.active?'pill-active':'pill-paused'}">${p.active?'PLAYING':'PAUSED'}</span>
-        <div class="row-actions">
-          <button class="icon-btn" data-action="toggle-active" data-id="${p.id}" title="${p.active?'Pause':'Resume'}">${p.active?ICONS.pause:ICONS.play}</button>
-          <button class="icon-btn" data-action="open-edit-player" data-id="${p.id}" title="Edit">${ICONS.edit}</button>
-        </div>
-      </div>`;
-    }).join('');
-    html += `</div>`;
-    html += `<div class="divider-thin"></div>
-      <button class="btn btn-danger btn-block" data-action="confirm-reset-players">${ICONS.trash} Reset all players &amp; statistics</button>`;
+function renderQueueView(el){
+  const activeList = activePlayers().slice();
+  
+  // Sort properly for clear inspection presentation layout
+  activeList.forEach(p => {
+    if(p.sitOutPriority === undefined) p.sitOutPriority = 0;
+    if(p.waitingRounds === undefined) p.waitingRounds = 0;
+  });
+
+  // Presentation priority matches requirements index ordering layout sorting definitions
+  activeList.sort((a,b) => {
+    if(a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
+    if(b.sitOutPriority !== a.sitOutPriority) return b.sitOutPriority - a.sitOutPriority;
+    if(b.waitingRounds !== a.waitingRounds) return b.waitingRounds - a.waitingRounds;
+    return a.name.localeCompare(b.name);
+  });
+
+  if(!activeList.length){
+    el.innerHTML = `<div class="empty-state"><div class="big">👥</div><p>No active players currently in line.</p></div>`;
+    return;
   }
 
-  document.getElementById('view').innerHTML = html;
-  const input = document.getElementById('newPlayerName');
-  if(input){
-    input.addEventListener('keydown', e=>{
-      if(e.key==='Enter'){ addPlayer(input.value); input.value=''; }
+  el.innerHTML = `
+    <div class="section-title">Queue Priority Rankings</div>
+    <div class="card" style="padding:10px 4px;">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="padding-left:12px; width:60px;">Priority</th>
+              <th>Player</th>
+              <th style="text-align:center;">Games</th>
+              <th style="text-align:center;">Con. Sit</th>
+              <th style="text-align:center;">Sit Pri</th>
+              <th style="text-align:center;">Wait Rnds</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${activeList.map((p, idx) => `
+              <tr>
+                <td style="padding-left:12px;"><span class="qrank">${idx+1}</span></td>
+                <td class="namecell"><strong>${esc(p.name)}</strong></td>
+                <td style="text-align:center;">${p.gamesPlayed}</td>
+                <td style="text-align:center; color:var(--loss); font-weight:bold;">${p.consecutiveSitOuts || 0}</td>
+                <td style="text-align:center; color:var(--court);">${p.sitOutPriority || 0}</td>
+                <td style="text-align:center; color:var(--ball);">${p.waitingRounds || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderPlayersView(el){
+  const total = state.players.length;
+  let html = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="field">
+        <label>Add New Player</label>
+        <div class="input-row">
+          <input type="text" id="newPlayerName" placeholder="Enter name…">
+          <button class="btn btn-primary" data-action="do-add-player">Add</button>
+        </div>
+      </div>
+      <div style="margin-top:12px;">
+        <button class="btn btn-ghost btn-sm btn-block" data-action="open-bulk-import">Bulk Import Names</button>
+      </div>
+    </div>
+    <div class="section-title">All Registered Athletes (${total})</div>
+  `;
+
+  if(!total){
+    html += `<div class="empty-state"><div class="big">🗂️</div><p>No players available. Add some above to get going!</p></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  // Sort by active status, then alphabetically
+  const sorted = state.players.slice().sort((a,b)=>{
+    if(a.active !== b.active) return b.active ? 1 : -1;
+    return a.name.localeCompare(b.name);
+  });
+
+  html += '<div class="card" style="padding:6px 12px;">';
+  sorted.forEach(p=>{
+    html += `
+      <div class="player-row">
+        <div class="avatar">${initials(p.name)}</div>
+        <div class="pinfo">
+          <div class="pname">${esc(p.name)}</div>
+          <div class="pmeta">${p.gamesPlayed} Games · Rating: ${p.rating}</div>
+        </div>
+        <div class="row-actions">
+          <button class="pill ${p.active?'pill-active':'pill-paused'}" data-action="toggle-active" data-id="${p.id}">
+            ${p.active?'Active':'Paused'}
+          </button>
+          <button class="icon-btn" data-action="open-edit-player" data-id="${p.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+let rankSort = 'rating';
+function renderRankingsView(el){
+  let pool = state.players.slice();
+  
+  pool.sort((a,b)=>{
+    if(rankSort === 'rating') return b.rating - a.rating;
+    if(rankSort === 'winpct') return winPct(b) - winPct(a);
+    if(rankSort === 'games') return b.gamesPlayed - a.gamesPlayed;
+    return b.rating - a.rating;
+  });
+
+  el.innerHTML = `
+    <div class="section-title">Ladder Rankings</div>
+    <div class="sort-bar scroll-hide">
+      <div class="sort-chip ${rankSort==='rating'?'active':''}" data-action="rank-sort" data-sort="rating">By Rating (Elo)</div>
+      <div class="sort-chip ${rankSort==='winpct'?'active':''}" data-action="rank-sort" data-sort="winpct">By Win %</div>
+      <div class="sort-chip ${rankSort==='games'?'active':''}" data-action="rank-sort" data-sort="games">By Games Played</div>
+    </div>
+
+    <div class="card" style="padding:10px 4px;">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="padding-left:12px; width:46px;">Rank</th>
+              <th>Player</th>
+              <th style="text-align:center;">Games</th>
+              <th style="text-align:center;">W - L</th>
+              <th style="text-align:center;">Win %</th>
+              <th style="text-align:center;">Rating</th>
+              <th style="text-align:center;">Streak</th>
+              <th style="text-align:center; padding-right:12px;">Sit Out</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${pool.map((p, idx)=> {
+              const strK = p.currentStreak || 0;
+              let streakClass = 'streak-0';
+              let streakTxt = '—';
+              if(strK > 0) { streakClass = 'streak-w'; streakTxt = `W${strK}`; }
+              else if(strK < 0) { streakClass = 'streak-l'; streakTxt = `L${Math.abs(strK)}`; }
+
+              return `
+                <tr class="rank-${idx+1}">
+                  <td style="padding-left:12px;" class="rankbadge">${idx+1}</td>
+                  <td class="namecell"><strong>${esc(p.name)}</strong></td>
+                  <td style="text-align:center;">${p.gamesPlayed}</td>
+                  <td style="text-align:center; font-size:11.5px; color:var(--text-dim);">${p.wins} - ${p.losses}</td>
+                  <td style="text-align:center;" class="txt-win">${winPct(p)}%</td>
+                  <td style="text-align:center; font-weight:700; color:var(--ball);">${p.rating}</td>
+                  <td style="text-align:center;"><span class="streak-chip ${streakClass}">${streakTxt}</span></td>
+                  <td style="text-align:center; padding-right:12px; color:var(--text-faint);">${p.sitOuts || 0}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderStatsView(el){
+  if(!state.players.length){
+    el.innerHTML = `<div class="empty-state"><div class="big">📊</div><p>No players recorded yet.</p></div>`;
+    return;
+  }
+
+  let html = `<div class="section-title">Advanced Metrics Explorer</div>`;
+
+  state.players.forEach(p => {
+    // Determine highest frequency/common teammates and opponents safely
+    let tmPairs = Object.entries(p.teammates || {}).map(([id, c]) => ({ name: playerName(id), count: c }));
+    tmPairs.sort((a,b) => b.count - a.count);
+    let topTeammates = tmPairs.slice(0,2).map(x => `${x.name} (${x.count}x)`).join(', ') || 'None';
+
+    let opPairs = Object.entries(p.opponents || {}).map(([id, c]) => ({ name: playerName(id), count: c }));
+    opPairs.sort((a,b) => b.count - a.count);
+    let topOpponents = opPairs.slice(0,2).map(x => `${x.name} (${x.count}x)`).join(', ') || 'None';
+
+    html += `
+      <div class="card" style="margin-bottom:12px;">
+        <div style="font-weight:800; font-size:15px; color:var(--ball); margin-bottom:8px;">${esc(p.name)}</div>
+        <div class="stat-grid">
+          <div class="stat-box"><div class="sv">${p.wins}</div><div class="sl">Wins</div></div>
+          <div class="stat-box"><div class="sv">${p.losses}</div><div class="sl">Losses</div></div>
+          <div class="stat-box"><div class="sv" style="color:var(--court);">${p.longestStreak||0}</div><div class="sl">Max Streak</div></div>
+        </div>
+        <div class="stat-grid" style="margin-top:8px;">
+          <div class="stat-box"><div class="sv" style="color:var(--text-dim);">${p.sitOuts || 0}</div><div class="sl">Total Sits</div></div>
+          <div class="stat-box"><div class="sv" style="color:var(--loss);">${p.consecutiveSitOuts || 0}</div><div class="sl">Con. Sits</div></div>
+          <div class="stat-box"><div class="sv" style="color:var(--text-faint);">${p.rating}</div><div class="sl">Elo Score</div></div>
+        </div>
+        <div style="margin-top:10px; font-size:12px; line-height:1.4; color:var(--text-dim); border-top:1px solid var(--line-soft); padding-top:8px;">
+          <div><strong>Common Teammates:</strong> ${esc(topTeammates)}</div>
+          <div style="margin-top:3px;"><strong>Common Opponents:</strong> ${esc(topOpponents)}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  el.innerHTML = html;
+}
+
+function renderHistoryView(el){
+  let matches = state.matches.slice().reverse();
+
+  let html = `
+    <div class="card" style="margin-bottom:12px; padding:10px 14px;">
+      <input type="text" id="histSearch" placeholder="🔍 Search player name history matches…" style="font-size:14px; padding:8px 12px;">
+    </div>
+    <div class="section-title">Completed Matches Logs (${matches.length})</div>
+  `;
+
+  if(!matches.length){
+    html += `<div class="empty-state"><div class="big">🗓️</div><p>No historical items recorded yet.</p></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  html += '<div id="histItemsContainer">';
+  matches.forEach(m => {
+    const pA1 = playerName(m.teamA[0]), pA2 = playerName(m.teamA[1]);
+    const pB1 = playerName(m.teamB[0]), pB2 = playerName(m.teamB[1]);
+    const isGen = m.generation !== undefined;
+
+    html += `
+      <div class="hist-item" data-search-string="${esc(pA1.toLowerCase())} ${esc(pA2.toLowerCase())} ${esc(pB1.toLowerCase())} ${esc(pB2.toLowerCase())}">
+        <div class="hist-top">
+          <span class="hist-round">${isGen ? `Generation ${m.generation} · Court ${m.court||1}` : `Match #${m.round}`}</span>
+          <span class="hist-round" style="color:var(--text-faint);">${fmtDate(m.date)}</span>
+        </div>
+        <div class="hist-teams">
+          <div class="hist-team ${m.scoreA > m.scoreB ? 'winner' : 'loser'}">${esc(pA1)} / ${esc(pA2)}</div>
+          <div class="hist-vs mono">${m.scoreA}-${m.scoreB}</div>
+          <div class="hist-team ${m.scoreB > m.scoreA ? 'winner' : 'loser'}">${esc(pB1)} / ${esc(pB2)}</div>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+
+  // Live filter lookup binding seamlessly without full structural invalidation
+  const input = document.getElementById('histSearch');
+  if(input) {
+    input.addEventListener('input', function(e){
+      const q = e.target.value.toLowerCase().trim();
+      const rows = document.querySelectorAll('#histItemsContainer .hist-item');
+      rows.forEach(r => {
+        const str = r.dataset.searchString || '';
+        if(!q || str.includes(q)) r.style.display = 'block';
+        else r.style.display = 'none';
+      });
     });
   }
 }
 
-function openImportModal(){
-  openModal(`
-    <div class="modal-title">Bulk import players</div>
-    <div class="modal-sub">One name per line, or separate with commas. Duplicates are skipped automatically.</div>
-    <textarea id="bulkText" placeholder="Alex Chen
-Sam Rivera
-Jo Park
-Pat Singh"></textarea>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
-      <button class="btn btn-primary" data-action="do-bulk-import">Import</button>
-    </div>
-  `);
-}
-
-function openEditPlayerModal(id){
-  const p = getPlayer(id);
-  if(!p) return;
-  openModal(`
-    <div class="modal-title">Edit player</div>
-    <div class="field">
-      <label>Name</label>
-      <input type="text" id="editName" value="${esc(p.name)}" maxlength="40">
-    </div>
-    <div class="stat-grid" style="margin:14px 0;">
-      <div class="stat-box"><div class="sv">${p.gamesPlayed}</div><div class="sl">Games</div></div>
-      <div class="stat-box"><div class="sv">${p.wins}-${p.losses}</div><div class="sl">W-L</div></div>
-      <div class="stat-box"><div class="sv">${Math.round(p.rating)}</div><div class="sl">Rating</div></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-danger" data-action="confirm-remove-player" data-id="${p.id}">${ICONS.trash} Remove</button>
-      <button class="btn btn-primary" data-action="save-edit-player" data-id="${p.id}">Save</button>
-    </div>
-  `);
-}
-
-/* ============================================================
-   VIEW: STATS
-   ============================================================ */
-function renderStatsView(){
-  if(!state.players.length){
-    document.getElementById('view').innerHTML = `<div class="card empty-state"><p>Add players to see statistics here.</p></div>`;
-    return;
-  }
-  const rows = state.players.slice().sort((a,b)=>b.gamesPlayed-a.gamesPlayed);
-  let html = `<div class="section-title">Player statistics</div>`;
-  html += `<div class="card" style="padding:0;">`;
-  html += `<div class="table-wrap"><table><thead><tr>
-      <th>Player</th><th>GP</th><th>W</th><th>L</th><th>Win%</th><th>Streak</th><th>Longest</th><th>Sat out</th>
-    </tr></thead><tbody>`;
-  rows.forEach(p=>{
-    const streakClass = p.currentStreak>0?'streak-w':p.currentStreak<0?'streak-l':'streak-0';
-    const streakLabel = p.currentStreak===0?'—':(p.currentStreak>0?`W${p.currentStreak}`:`L${Math.abs(p.currentStreak)}`);
-    html += `<tr>
-      <td class="namecell">${esc(p.name)}</td>
-      <td>${p.gamesPlayed}</td>
-      <td class="txt-win">${p.wins}</td>
-      <td class="txt-loss">${p.losses}</td>
-      <td>${winPct(p)}%</td>
-      <td><span class="streak-chip ${streakClass}">${streakLabel}</span></td>
-      <td>W${p.longestStreak}</td>
-      <td>${p.sitOuts}</td>
-    </tr>`;
-  });
-  html += `</tbody></table></div></div>`;
-
-  // Teammate / opponent detail for a selected player
-  html += `<div class="section-title">Teammate &amp; opponent history</div>`;
-  html += `<div class="card"><div class="field" style="margin-bottom:0;">
-      <label>Select a player</label>
-      <select id="statPlayerSelect">${state.players.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
-    </div>
-    <div id="statPlayerDetail" style="margin-top:12px;"></div>
-  </div>`;
-
-  document.getElementById('view').innerHTML = html;
-  const sel = document.getElementById('statPlayerSelect');
-  function renderDetail(){
-    const p = getPlayer(sel.value);
-    const detail = document.getElementById('statPlayerDetail');
-    if(!p){ detail.innerHTML=''; return; }
-    const tm = Object.entries(p.teammates).sort((a,b)=>b[1]-a[1]);
-    const op = Object.entries(p.opponents).sort((a,b)=>b[1]-a[1]);
-    detail.innerHTML = `
-      <div class="eyebrow" style="margin-bottom:6px;">Most frequent teammates</div>
-      ${tm.length? tm.map(([id,c])=>`<div class="flex-between" style="padding:4px 0; font-size:13px;"><span>${esc(playerName(id))}</span><span class="mono pill pill-active">${c}×</span></div>`).join('') : '<div class="helper-text">No matches yet.</div>'}
-      <div class="divider-thin"></div>
-      <div class="eyebrow" style="margin-bottom:6px;">Most frequent opponents</div>
-      ${op.length? op.map(([id,c])=>`<div class="flex-between" style="padding:4px 0; font-size:13px;"><span>${esc(playerName(id))}</span><span class="mono pill pill-paused">${c}×</span></div>`).join('') : '<div class="helper-text">No matches yet.</div>'}
-    `;
-  }
-  sel.addEventListener('change', renderDetail);
-  renderDetail();
-}
-
-/* ============================================================
-   VIEW: RANKINGS (Dashboard / leaderboard)
-   ============================================================ */
-let rankSort = 'rating';
-function renderRankingsView(){
-  if(!state.players.length){
-    document.getElementById('view').innerHTML = `<div class="card empty-state"><p>Rankings will appear once players have been added.</p></div>`;
-    return;
-  }
-  const sorters = {
-    rating:(a,b)=>b.rating-a.rating,
-    winpct:(a,b)=>winPct(b)-winPct(a),
-    games:(a,b)=>b.gamesPlayed-a.gamesPlayed,
-    streak:(a,b)=>b.currentStreak-a.currentStreak
-  };
-  const labels = {rating:'Ladder rating', winpct:'Win %', games:'Games played', streak:'Current streak'};
-  const rows = state.players.slice().sort(sorters[rankSort]);
-
-  let html = `<div class="section-title">Rankings dashboard</div>`;
-  html += `<div class="stat-grid" style="margin-bottom:14px;">
-      <div class="stat-box"><div class="sv">${state.matches.length}</div><div class="sl">Matches</div></div>
-      <div class="stat-box"><div class="sv">${state.players.length}</div><div class="sl">Players</div></div>
-      <div class="stat-box"><div class="sv">${Math.max(0, activePlayers().length - (state.current?4:0))}</div><div class="sl">Waiting</div></div>
-    </div>`;
-
-  html += `<div class="sort-bar scroll-hide">` + Object.keys(labels).map(k=>
-    `<button class="sort-chip ${rankSort===k?'active':''}" data-action="rank-sort" data-sort="${k}">${labels[k]}</button>`
-  ).join('') + `</div>`;
-
-  html += `<div class="card" style="padding:0;"><div class="table-wrap"><table><thead><tr>
-      <th>#</th><th>Player</th><th>Rating</th><th>Win%</th><th>GP</th><th>Streak</th>
-    </tr></thead><tbody>`;
-  rows.forEach((p,i)=>{
-    const streakClass = p.currentStreak>0?'streak-w':p.currentStreak<0?'streak-l':'streak-0';
-    const streakLabel = p.currentStreak===0?'—':(p.currentStreak>0?`W${p.currentStreak}`:`L${Math.abs(p.currentStreak)}`);
-    html += `<tr class="${i===0?'rank-1':''}">
-      <td class="rankbadge">${i+1}</td>
-      <td class="namecell">${esc(p.name)}</td>
-      <td>${Math.round(p.rating)}</td>
-      <td>${winPct(p)}%</td>
-      <td>${p.gamesPlayed}</td>
-      <td><span class="streak-chip ${streakClass}">${streakLabel}</span></td>
-    </tr>`;
-  });
-  html += `</tbody></table></div></div>`;
-
-  html += `<div class="section-title">Recently completed</div>`;
-  const recent = state.matches.slice(-3).reverse();
-  if(!recent.length){
-    html += `<div class="card empty-state"><p>No matches completed yet.</p></div>`;
-  } else {
-    html += `<div class="card">` + recent.map(renderHistoryItem).join('') + `</div>`;
-  }
-
-  document.getElementById('view').innerHTML = html;
-}
-
-/* ============================================================
-   VIEW: HISTORY
-   ============================================================ */
-let historySearch = '';
-function renderHistoryItem(m){
-  const A = m.teamA.map(playerName), B = m.teamB.map(playerName);
-  const aWin = m.winner==='A';
-  return `
-    <div class="hist-item">
-      <div class="hist-top">
-        <span class="hist-round">ROUND ${m.round} · ${fmtDate(m.timestamp)}</span>
-        <button class="icon-btn" data-action="delete-match" data-id="${m.id}" title="Delete">${ICONS.trash}</button>
-      </div>
-      <div class="hist-teams">
-        <div class="hist-team ${aWin?'winner':'loser'}">${esc(A[0])} / ${esc(A[1])}</div>
-        <div class="hist-vs">${(m.scoreA!=null&&m.scoreB!=null)?m.scoreA+' – '+m.scoreB:'vs'}</div>
-        <div class="hist-team ${!aWin?'winner':'loser'}">${esc(B[0])} / ${esc(B[1])}</div>
-      </div>
-    </div>`;
-}
-
-function renderHistoryView(){
-  let html = `
-    <div class="field" style="margin-bottom:10px;">
-      <input type="text" id="historySearchInput" placeholder="Search by player name…" value="${esc(historySearch)}">
-    </div>`;
-  const filtered = state.matches.slice().reverse().filter(m=>{
-    if(!historySearch) return true;
-    const names = [...m.teamA, ...m.teamB].map(id=>playerName(id).toLowerCase());
-    return names.some(n=>n.includes(historySearch.toLowerCase()));
-  });
-  html += `<div class="flex-between" style="margin-bottom:8px;">
-      <span class="eyebrow">${filtered.length} match${filtered.length!==1?'es':''}</span>
-      ${state.matches.length? `<button class="btn btn-danger btn-sm" data-action="confirm-reset-history">${ICONS.trash} Clear history</button>`:''}
-    </div>`;
-  if(!filtered.length){
-    html += `<div class="card empty-state"><p>${state.matches.length? 'No matches found for that search.' : 'No matches recorded yet — play and record a match to see it here.'}</p></div>`;
-  } else {
-    html += `<div class="card">` + filtered.map(renderHistoryItem).join('') + `</div>`;
-  }
-  document.getElementById('view').innerHTML = html;
-  const input = document.getElementById('historySearchInput');
-  input.addEventListener('input', e=>{ historySearch = e.target.value; renderHistoryView(); });
-  if(historySearch){ input.focus(); input.setSelectionRange(historySearch.length, historySearch.length); }
-}
-
-/* ============================================================
-   VIEW: SETTINGS
-   ============================================================ */
-function renderSettingsView(){
-  const s = state.settings;
-  let html = `
-    <div class="section-title">Matchmaking rules</div>
+function renderSettingsView(el){
+  el.innerHTML = `
+    <div class="section-title">System Execution Configuration</div>
     <div class="card">
       <div class="field">
-        <label>Max repeat teammates allowed</label>
-        <input type="number" id="setMaxTeammates" min="0" max="20" value="${s.maxRepeatTeammates}">
-        <div class="helper-text">Soft limit — the algorithm strongly avoids pairing the same two people again past this count, but will still form a match if no better option exists.</div>
+        <label>Matchmaking System Mode</label>
+        <div class="radio-group-mode">
+          <div class="radio-box-btn ${state.settings.matchMode === 'Rotation' ? 'active' : ''}" data-action="toggle-mode-setting" data-value="Rotation">Rotation Mode</div>
+          <div class="radio-box-btn ${state.settings.matchMode === 'RoundRobin' ? 'active' : ''}" data-action="toggle-mode-setting" data-value="RoundRobin">Round Robin Mode</div>
+        </div>
       </div>
-      <div class="field">
-        <label>Max repeat opponents allowed</label>
-        <input type="number" id="setMaxOpponents" min="0" max="20" value="${s.maxRepeatOpponents}">
+
+      <div class="field" id="courts-field-wrapper" style="display: ${state.settings.matchMode === 'RoundRobin' ? 'block' : 'none'};">
+        <label>Number of Available Courts</label>
+        <input type="number" id="numCourtsInput" min="1" max="10" value="${state.settings.numCourts || 1}">
+        <p class="helper-text">Every active player is still scheduled each generation — courts just control how many matches play at once. With 1 court, the rest queue up as "Up Next" so you always know who's playing next.</p>
       </div>
+
       <div class="toggle-row">
-        <div><div class="t-label">Winner vs. winner grouping</div><div class="t-hint">Group players of similar current skill/streak together.</div></div>
-        <label class="switch"><input type="checkbox" id="setW2W" ${s.winnerVsWinner?'checked':''}><div class="track"></div><div class="thumb"></div></label>
+        <div>
+          <div class="t-label">Winner vs Winner / Loser vs Loser</div>
+          <div class="t-hint">Next generation pairs last generation's winners together and losers together, while still balancing games played.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="winnerVsWinnerToggle" ${state.settings.winnerVsWinner ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
       </div>
+
+
       <div class="toggle-row">
-        <div><div class="t-label">Equal play priority</div><div class="t-hint">Always favor players with fewer games played when forming the next match.</div></div>
-        <label class="switch"><input type="checkbox" id="setEqualPlay" ${s.equalPlayPriority?'checked':''}><div class="track"></div><div class="thumb"></div></label>
+        <div>
+          <div class="t-label">Equal Play Priority</div>
+          <div class="t-hint">Strictly prioritize athletes with lowest total game counts first.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="equalPlayToggle" ${state.settings.equalPlayPriority ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
       </div>
-      <button class="btn btn-primary btn-block" data-action="save-settings" style="margin-top:6px;">Save settings</button>
+
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">Smart Balance Engine</div>
+          <div class="t-hint">Optimize match splitting calculation heuristics to reduce recurrence.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="smartBalanceToggle" ${state.settings.smartBalance !== false ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+
+      <button class="btn btn-primary btn-block" style="margin-top:18px;" data-action="save-settings">Save Configurations</button>
     </div>
 
-    <div class="section-title">Data</div>
-    <div class="card">
-      <button class="btn btn-secondary btn-block" data-action="export-data">Export data (.json)</button>
-      <div style="height:8px;"></div>
-      <button class="btn btn-secondary btn-block" data-action="open-import-data">Import data (.json)</button>
+    <div class="section-title" style="margin-top:20px;">Database Backups Sync</div>
+    <div class="card" style="display:flex; gap:8px;">
+      <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="export-data">Export JSON File</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="open-import-data">Import Backup Content</button>
     </div>
 
-    <div class="section-title">Danger zone</div>
+    <div class="section-title" style="margin-top:20px; color:var(--loss);">Danger Zone</div>
     <div class="card">
-      <button class="btn btn-danger btn-block" data-action="confirm-reset-players">${ICONS.trash} Reset players &amp; statistics</button>
-      <div style="height:8px;"></div>
-      <button class="btn btn-danger btn-block" data-action="confirm-reset-all">${ICONS.trash} Reset everything</button>
+      <p class="helper-text" style="margin-top:0;">Wipe stats or start completely fresh. These actions can't be undone.</p>
+      <button class="btn btn-danger btn-block" data-action="open-danger-zone">Clear / Reset Options</button>
     </div>
   `;
-  document.getElementById('view').innerHTML = html;
 }
 
 function saveSettingsFromForm(){
-  state.settings.maxRepeatTeammates = clamp(parseInt(document.getElementById('setMaxTeammates').value,10)||0, 0, 20);
-  state.settings.maxRepeatOpponents = clamp(parseInt(document.getElementById('setMaxOpponents').value,10)||0, 0, 20);
-  state.settings.winnerVsWinner = document.getElementById('setW2W').checked;
-  state.settings.equalPlayPriority = document.getElementById('setEqualPlay').checked;
-  saveAll();
-  toast('Settings saved.');
+  const numCourtsVal = document.getElementById('numCourtsInput') ? parseInt(document.getElementById('numCourtsInput').value, 10) || 1 : 1;
+  const winnerVsWinnerVal = document.getElementById('winnerVsWinnerToggle') ? document.getElementById('winnerVsWinnerToggle').checked : true;
+  const equalPlayVal = document.getElementById('equalPlayToggle') ? document.getElementById('equalPlayToggle').checked : true;
+  const smartBalanceVal = document.getElementById('smartBalanceToggle') ? document.getElementById('smartBalanceToggle').checked : true;
+
+  state.settings.numCourts = numCourtsVal;
+  state.settings.winnerVsWinner = winnerVsWinnerVal;
+  state.settings.equalPlayPriority = equalPlayVal;
+  state.settings.smartBalance = smartBalanceVal;
+
+  if(state.currentGeneration) advanceRRQueue(); // pick up newly-freed courts right away if the count went up
+
+  saveAll(); renderAll();
+  toast('System parameters saved correctly.');
 }
 
 /* ============================================================
-   CONTROL BAR (global sticky actions)
-   ============================================================ */
-function renderControlBar(){
-  let root = document.getElementById('controlBar');
-  if(!root){
-    root = document.createElement('div');
-    root.id = 'controlBar';
-    root.className = 'controlbar';
-    document.body.appendChild(root);
-  }
-  let inner = '';
-  if(!state.current){
-    inner += `<div class="cb-top">
-        <button class="btn btn-primary" data-action="generate" ${activePlayers().length<4?'disabled':''}>${ICONS.plus} Generate Match</button>
-      </div>`;
-    if(state.undo){
-      inner += `<div class="cb-bottom"><button class="btn btn-ghost" data-action="undo">${ICONS.history} Undo Last Match</button></div>`;
-    }
-  } else {
-    const A = state.current.teamA.map(getPlayer), B = state.current.teamB.map(getPlayer);
-    inner += `<div class="cb-score-row">
-        <div class="cb-score-team">
-          <span class="cb-score-label">${esc(A[0].name)} / ${esc(A[1].name)}</span>
-          <input class="cb-score-input" id="scoreA" type="number" min="0" max="99" placeholder="0" inputmode="numeric">
-        </div>
-        <span class="cb-score-vs">–</span>
-        <div class="cb-score-team">
-          <span class="cb-score-label">${esc(B[0].name)} / ${esc(B[1].name)}</span>
-          <input class="cb-score-input" id="scoreB" type="number" min="0" max="99" placeholder="0" inputmode="numeric">
-        </div>
-      </div>
-      <div class="cb-top">
-        <button class="btn btn-primary" data-action="record" data-winner="A">Team A wins</button>
-        <button class="btn btn-court" data-action="record" data-winner="B">Team B wins</button>
-      </div>
-      <div class="cb-bottom">
-        <button class="btn btn-ghost" data-action="skip">Skip Match</button>
-        <button class="btn btn-ghost" data-action="undo" ${!state.undo?'disabled':''}>Undo Last</button>
-      </div>`;
-  }
-  root.innerHTML = `<div class="controlbar-inner">${inner}</div>`;
-  // Double-rAF: ensures DOM has fully painted before measuring bar height.
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    const app = document.getElementById('app');
-    if(app) app.style.paddingBottom = (root.offsetHeight + 16) + 'px';
-  }));
-  // Score inputs: Tab/Enter moves focus between them; Enter on B dismisses keyboard.
-  const sA = document.getElementById('scoreA');
-  const sB = document.getElementById('scoreB');
-  if(sA && sB){
-    sA.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key==='Tab'){ e.preventDefault(); sB.focus(); sB.select(); }});
-    sB.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sB.blur(); }});
-  }
-}
-
-/* ============================================================
-   CONFIRM DIALOG
-   ============================================================ */
-function confirmDialog(title, sub, confirmLabel, action){
-  openModal(`
-    <div class="modal-title">${title}</div>
-    <div class="modal-sub">${sub}</div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
-      <button class="btn btn-danger" data-action="${action}">${confirmLabel}</button>
-    </div>
-  `);
-}
-
-/* ============================================================
-   MASTER RENDER
-   ============================================================ */
-function renderAll(){
-  renderDashStrip();
-  renderTabs();
-  renderControlBar();
-  requestAnimationFrame(updateTopbarHeight);
-  switch(state.tab){
-    case 'match': renderMatchView(); break;
-    case 'queue': renderQueueView(); break;
-    case 'players': renderPlayersView(); break;
-    case 'stats': renderStatsView(); break;
-    case 'rankings': renderRankingsView(); break;
-    case 'history': renderHistoryView(); break;
-    case 'settings': renderSettingsView(); break;
-    default: renderMatchView();
-  }
-}
-
-/* ============================================================
-   EVENT DELEGATION
+   GLOBAL CAPTURE DELEGATED CLICK ROUTERS EVENT DISPATCHER
    ============================================================ */
 document.addEventListener('click', function(e){
   const t = e.target.closest('[data-action]');
   if(!t) return;
   const action = t.dataset.action;
-  if(action === 'modal-close'){
-    const sheet = document.querySelector('.modal-sheet');
-    if(sheet && sheet.contains(e.target)) return;
-  }
 
   switch(action){
-    case 'set-tab': setTab(t.dataset.tab); break;
-    case 'generate': generateMatch(); break;
-    case 'skip': skipMatch(); break;
-    case 'undo': undoLastMatch(); break;
-    case 'record': recordResult(t.dataset.winner); break;
+    case 'tab':
+      state.tab = t.dataset.tab;
+      saveAll(); renderAll();
+      break;
+    
+    // Rotation workflow
+    case 'next-match': nextRotationMatch(); break;
+    case 'save-match-score':
+      recordRotationMatch(document.getElementById('scoreA').value, document.getElementById('scoreB').value);
+      break;
+    
+    // Round robin workflow
+    case 'generate-roundrobin': generateRoundRobinGeneration(); break;
+    case 'set-rr-winner':
+      selectRoundRobinWinner(t.dataset.match, t.dataset.team);
+      break;
+    case 'confirm-rr-match': confirmRoundRobinMatch(t.dataset.match); break;
+    case 'open-replace-player': openReplacePlayerModal(t.dataset.match, t.dataset.team, t.dataset.player); break;
+    case 'open-replace-picker': openReplacePlayerPickerModal(t.dataset.match); break;
+    case 'do-replace-absent': markPlayerAbsentAndAutoReplace(t.dataset.match, t.dataset.team, t.dataset.player); break;
+    case 'do-replace-manual': replacePlayerInMatch(t.dataset.match, t.dataset.team, t.dataset.player, t.dataset.sub); break;
 
-    case 'add-player': {
-      const input = document.getElementById('newPlayerName');
-      addPlayer(input.value); input.value=''; input.focus();
+    // Standard shared management commands
+    case 'skip-match': skipCurrentMatch(); break;
+    case 'undo-match': undoLastMatch(); break;
+
+    // Player operations logic
+    case 'do-add-player':
+      const inp = document.getElementById('newPlayerName');
+      addPlayer(inp.value); inp.value = '';
       break;
-    }
-    case 'open-import': openImportModal(); break;
-    case 'do-bulk-import': {
-      const ta = document.getElementById('bulkText');
-      bulkImport(ta.value);
-      break;
-    }
-    case 'open-edit-player': openEditPlayerModal(t.dataset.id); break;
-    case 'save-edit-player': {
-      const input = document.getElementById('editName');
-      editPlayerName(t.dataset.id, input.value);
-      break;
-    }
     case 'toggle-active': togglePlayerActive(t.dataset.id); break;
-    case 'confirm-remove-player': {
-      const p = getPlayer(t.dataset.id);
-      confirmDialog('Remove player?', `${p?esc(p.name):'This player'} and their history will be permanently removed. This cannot be undone.`, 'Remove', `do-remove-player`);
-      modalPendingId = t.dataset.id;
-      break;
-    }
-    case 'do-remove-player': removePlayer(modalPendingId); break;
-
-    case 'confirm-reset-players':
-      confirmDialog('Reset players &amp; statistics?', 'All games, wins, losses, ratings, streaks and match history will be cleared. Player names are kept.', 'Reset stats', 'do-reset-players');
-      break;
-    case 'do-reset-players': resetPlayersAndStats(); break;
-
-    case 'confirm-reset-all':
-      confirmDialog('Reset everything?', 'This permanently deletes every player, match, and setting. This cannot be undone.', 'Reset everything', 'do-reset-all');
-      break;
-    case 'do-reset-all': resetEverything(); break;
-
-    case 'confirm-reset-history':
-      confirmDialog('Clear match history?', 'All recorded matches will be deleted. Player statistics that were derived from them will not be recalculated automatically.', 'Clear history', 'do-reset-history');
-      break;
-    case 'do-reset-history':
-      state.matches = []; saveAll(); renderAll(); closeModal(); toast('Match history cleared.');
-      break;
-
-    case 'delete-match': {
-      confirmDialog('Delete this match?', 'This removes it from history. Player statistics already affected by it will not be recalculated.', 'Delete', `do-delete-match`);
-      modalPendingId = t.dataset.id;
-      break;
-    }
-    case 'do-delete-match':
-      state.matches = state.matches.filter(m=>m.id!==modalPendingId);
-      saveAll(); renderAll(); closeModal(); toast('Match deleted from history.');
-      break;
-
-    case 'rank-sort': rankSort = t.dataset.sort; renderRankingsView(); break;
-
-    case 'save-settings': saveSettingsFromForm(); break;
-    case 'export-data': exportData(); break;
-    case 'open-import-data': {
+    case 'open-bulk-import':
       openModal(`
-        <div class="modal-title">Import data</div>
-        <div class="modal-sub">Paste a previously exported Kitchen Ladder JSON file's contents below. This replaces all current data.</div>
-        <textarea id="importText" placeholder="Paste JSON here…"></textarea>
+        <div class="modal-title">Bulk Import Players</div>
+        <div class="modal-sub">Paste name strings separated by newlines or commas.</div>
+        <textarea id="bulkText" placeholder="Alice\nBob\nCharlie"></textarea>
         <div class="modal-actions">
           <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
-          <button class="btn btn-primary" data-action="do-import-data">Import</button>
+          <button class="btn btn-primary" data-action="do-bulk-import">Import Bulk</button>
         </div>
       `);
       break;
-    }
-    case 'do-import-data': {
-      const ta = document.getElementById('importText');
-      importDataFromText(ta.value);
+    case 'do-bulk-import':
+      bulkImport(document.getElementById('bulkText').value);
+      break;
+    case 'open-edit-player': {
+      const p = getPlayer(t.dataset.id);
+      if(p){
+        openModal(`
+          <div class="modal-title">Edit Name Info</div>
+          <input type="text" id="editName" value="${esc(p.name)}" style="margin-top:8px;">
+          <div class="modal-actions">
+            <button class="btn btn-danger" data-action="do-delete-player" data-id="${p.id}">Remove Player</button>
+            <button class="btn btn-primary" data-action="do-save-player" data-id="${p.id}">Save Changes</button>
+          </div>
+        `);
+      }
       break;
     }
+    case 'do-save-player': editPlayerName(t.dataset.id, document.getElementById('editName').value); break;
+    case 'do-delete-player': removePlayer(t.dataset.id); break;
 
+    case 'open-danger-zone':
+      openModal(`
+        <div class="modal-title" style="color:var(--loss);">Factory System Reset Options</div>
+        <div class="modal-sub">Select your desired cleanup parameters method below safely.</div>
+        <button class="btn btn-danger btn-block" data-action="do-reset-stats">Reset Scores &amp; Match History logs only</button>
+        <button class="btn btn-danger btn-block" style="margin-top:8px;" data-action="do-reset-all">Clear everything completely from scratch</button>
+        <button class="btn btn-ghost btn-block" style="margin-top:12px;" data-action="modal-close">Cancel</button>
+      `);
+      break;
+    case 'do-reset-stats': resetPlayersAndStats(); break;
+    case 'do-reset-all': resetEverything(); break;
+
+    case 'rank-sort': rankSort = t.dataset.sort; renderRankingsView(document.getElementById('view')); break;
+    case 'toggle-mode-setting':
+      state.settings.matchMode = t.dataset.value;
+      const wrap = document.getElementById('courts-field-wrapper');
+      if(wrap) wrap.style.display = state.settings.matchMode === 'RoundRobin' ? 'block' : 'none';
+      document.querySelectorAll('.radio-box-btn').forEach(b => b.classList.remove('active'));
+      t.classList.add('active');
+      break;
+    case 'save-settings': saveSettingsFromForm(); break;
+    case 'export-data': exportData(); break;
+    case 'open-import-data':
+      openModal(`
+        <div class="modal-title">Import Exported Matrix JSON</div>
+        <textarea id="importText" placeholder="Paste data backup string content here…"></textarea>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-primary" data-action="do-import-data">Trigger Override Restore</button>
+        </div>
+      `);
+      break;
+    case 'do-import-data': importDataFromText(document.getElementById('importText').value); break;
     case 'modal-close': closeModal(); break;
   }
 });
-let modalPendingId = null;
 
 document.addEventListener('keydown', function(e){
-  if(e.key==='Escape') closeModal();
+  if(e.key === 'Escape') closeModal();
 });
 
 /* ============================================================
-   INIT
+   SYSTEM BOOT INITIALIZER EXECUTION
    ============================================================ */
 loadState();
 renderAll();
