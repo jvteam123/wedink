@@ -426,38 +426,9 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 }
 
 
-/* ---------- Match Timer ---------- */
-.match-timer-bar{
-  display:flex; align-items:center; gap:10px; padding:10px 14px;
-  background:var(--surface-2); border:1px solid var(--line-soft);
-  border-radius:var(--radius-md); margin-bottom:12px;
-}
-.timer-display{
-  font-family:var(--font-mono); font-size:22px; font-weight:800;
-  color:var(--ball); min-width:58px; letter-spacing:.04em;
-}
-.timer-display.warning{ color:var(--loss); animation:timerPulse .6s ease infinite; }
-@keyframes timerPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
-.timer-label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.08em; font-weight:700; }
-.timer-btns{ display:flex; gap:6px; margin-left:auto; }
 
-/* ---------- Install Banner ---------- */
-#install-banner{
-  display:none; align-items:center; gap:10px;
-  background:linear-gradient(135deg,rgba(215,242,61,0.12),rgba(79,168,255,0.08));
-  border:1px solid rgba(215,242,61,0.25); border-radius:var(--radius-md);
-  padding:12px 14px; margin:10px 16px 0; position:relative;
-}
-#install-banner.visible{ display:flex; }
-#install-banner .ib-icon{ font-size:22px; flex:none; }
-#install-banner .ib-text{ flex:1; min-width:0; }
-#install-banner .ib-title{ font-weight:800; font-size:13.5px; color:var(--ball); }
-#install-banner .ib-sub{ font-size:11.5px; color:var(--text-dim); margin-top:2px; }
-#install-banner .ib-close{
-  position:absolute; top:8px; right:8px; background:none; border:none;
-  color:var(--text-faint); font-size:16px; cursor:pointer; padding:2px 6px; line-height:1;
-}
-.ib-actions{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+/* ---------- Topbar Install Button ---------- */
+#topbar-install-btn:active{ transform:scale(0.95); }
 
 /* ---------- Player Profile Modal ---------- */
 .profile-header{ display:flex; align-items:center; gap:14px; margin-bottom:16px; }
@@ -496,29 +467,19 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 <body>
 <div id="app">
 
-  <!-- Install / Add to Home Screen Banner -->
-  <div id="install-banner">
-    <div class="ib-icon">📲</div>
-    <div class="ib-text">
-      <div class="ib-title">Install Kitchen Ladder</div>
-      <div class="ib-sub">Add to your home screen for quick access</div>
-      <div class="ib-actions">
-        <button class="btn btn-primary btn-sm" id="install-btn">Install App</button>
-        <button class="btn btn-ghost btn-sm" id="install-ios-hint" style="display:none;">How to install on iOS</button>
-      </div>
-    </div>
-    <button class="ib-close" id="install-dismiss">✕</button>
-  </div>
-
   <div class="topbar">
     <div class="brand-row">
       <div class="brand-mark">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#D7F23D" stroke-width="2"/><circle cx="9" cy="9" r="1" fill="#D7F23D"/><circle cx="14" cy="8.5" r="1" fill="#D7F23D"/><circle cx="15.5" cy="13" r="1" fill="#D7F23D"/><circle cx="10.5" cy="15" r="1" fill="#D7F23D"/></svg>
       </div>
-      <div>
+      <div style="flex:1;">
         <div class="brand-name">Kitchen <b>Ladder</b></div>
         <div class="brand-sub">Open-play matchmaking with Multi-Mode systems</div>
       </div>
+      <button id="topbar-install-btn" style="display:none; flex:none; align-items:center; gap:5px; background:var(--surface-2); border:1px solid var(--ball); color:var(--ball); border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Install
+      </button>
     </div>
     <div class="dash-strip scroll-hide" id="dashStrip"></div>
   </div>
@@ -1467,34 +1428,6 @@ function renderActiveView(){
 /* ============================================================
    VIEW COMPONENT GENERATORS
    ============================================================ */
-function renderTimerBar(){
-  const t = window._matchTimer || { running:false, secs:0, max:600 };
-  const mins = String(Math.floor(t.secs/60)).padStart(2,'0');
-  const secsD = String(t.secs%60).padStart(2,'0');
-  const warn = t.secs >= t.max * 0.85;
-  return `
-    <div class="match-timer-bar">
-      <div>
-        <div class="timer-label">Match Timer</div>
-        <div class="timer-display${warn?' warning':''}" id="timerDisplay">${mins}:${secsD}</div>
-      </div>
-      <div class="timer-btns">
-        <button class="btn btn-sm btn-secondary" data-action="timer-toggle">${t.running?'⏸ Pause':'▶ Start'}</button>
-        <button class="btn btn-sm btn-ghost" data-action="timer-reset">↺ Reset</button>
-      </div>
-      <div style="margin-left:4px;">
-        <div class="timer-label">Limit</div>
-        <select id="timerLimit" style="background:var(--surface-3);border:1px solid var(--line);color:var(--text);padding:4px 6px;border-radius:6px;font-size:12px;" data-action="timer-set-limit">
-          <option value="300" ${t.max===300?'selected':''}>5 min</option>
-          <option value="600" ${t.max===600?'selected':''}>10 min</option>
-          <option value="900" ${t.max===900?'selected':''}>15 min</option>
-          <option value="1200" ${t.max===1200?'selected':''}>20 min</option>
-        </select>
-      </div>
-    </div>
-  `;
-}
-
 function renderMatchView(el){
   if(state.settings.matchMode === 'RoundRobin') {
     // ROUND ROBIN CURRENT SYSTEM CONTAINER VIEW
@@ -1623,7 +1556,6 @@ function renderMatchView(el){
   // STANDARD EXISTING ROTATION MODE VIEW SYSTEM
   if(!state.current){
     el.innerHTML = `
-      ${renderTimerBar()}
       <div class="empty-state">
         <div class="big">🏓</div>
         <div class="et">Court is clear</div>
@@ -2151,71 +2083,12 @@ document.addEventListener('click', function(e){
     case 'modal-close': closeModal(); break;
     case 'open-player-profile': openPlayerProfile(t.dataset.id); break;
     case 'show-session-summary': showSessionSummary(); break;
-    case 'timer-toggle': timerToggle(); break;
-    case 'timer-reset': timerReset(); break;
-    case 'timer-set-limit':
-      const sel = document.getElementById('timerLimit');
-      if(sel) timerSetLimit(sel.value);
-      break;
   }
 });
 
 document.addEventListener('keydown', function(e){
   if(e.key === 'Escape') closeModal();
 });
-
-/* ============================================================
-   MATCH TIMER ENGINE
-   ============================================================ */
-window._matchTimer = { running:false, secs:0, max:600, _interval:null };
-
-function timerTick(){
-  const t = window._matchTimer;
-  if(!t.running) return;
-  t.secs++;
-  const el = document.getElementById('timerDisplay');
-  if(el){
-    const mins = String(Math.floor(t.secs/60)).padStart(2,'0');
-    const secsD = String(t.secs%60).padStart(2,'0');
-    el.textContent = mins+':'+secsD;
-    el.className = 'timer-display' + (t.secs >= t.max*0.85 ? ' warning' : '');
-  }
-  if(t.secs >= t.max){
-    t.running = false;
-    clearInterval(t._interval);
-    t._interval = null;
-    toast('⏱ Times up! Match time limit reached.');
-    if('vibrate' in navigator) navigator.vibrate([300,100,300,100,300]);
-    renderAll();
-  }
-}
-
-function timerToggle(){
-  const t = window._matchTimer;
-  if(t.running){
-    t.running = false;
-    clearInterval(t._interval);
-    t._interval = null;
-  } else {
-    t.running = true;
-    t._interval = setInterval(timerTick, 1000);
-  }
-  renderAll();
-}
-
-function timerReset(){
-  const t = window._matchTimer;
-  t.running = false;
-  clearInterval(t._interval);
-  t._interval = null;
-  t.secs = 0;
-  renderAll();
-}
-
-function timerSetLimit(val){
-  window._matchTimer.max = parseInt(val,10)||600;
-  renderAll();
-}
 
 /* ============================================================
    PLAYER PROFILE MODAL
@@ -2352,69 +2225,54 @@ let _deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', function(e){
   e.preventDefault();
   _deferredInstallPrompt = e;
-  const banner = document.getElementById('install-banner');
-  if(banner && !localStorage.getItem('kl_install_dismissed')){
-    banner.classList.add('visible');
-  }
+  const topBtn = document.getElementById('topbar-install-btn');
+  if(topBtn) topBtn.style.display = 'inline-flex';
 });
 
 window.addEventListener('appinstalled', function(){
-  const banner = document.getElementById('install-banner');
-  if(banner) banner.classList.remove('visible');
+  const topBtn = document.getElementById('topbar-install-btn');
+  if(topBtn) topBtn.style.display = 'none';
   _deferredInstallPrompt = null;
-  toast('✅ Kitchen Ladder installed successfully!');
+  toast('✅ Kitchen Ladder installed!');
 });
 
 function initInstallBanner(){
-  const banner = document.getElementById('install-banner');
-  const btn = document.getElementById('install-btn');
-  const iosHint = document.getElementById('install-ios-hint');
-  const dismiss = document.getElementById('install-dismiss');
+  const topBtn = document.getElementById('topbar-install-btn');
 
-  // Detect iOS (no beforeinstallprompt support)
+  // Detect iOS (Safari — no beforeinstallprompt)
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
   const isInStandaloneMode = window.navigator.standalone === true;
 
-  if(isIOS && !isInStandaloneMode && !localStorage.getItem('kl_install_dismissed')){
-    if(banner){ banner.classList.add('visible'); }
-    if(btn) btn.style.display = 'none';
-    if(iosHint) iosHint.style.display = 'inline-flex';
+  // Show the topbar install button
+  function showInstallBtn(){
+    if(topBtn && !isInStandaloneMode) topBtn.style.display = 'inline-flex';
   }
 
-  if(btn){
-    btn.addEventListener('click', async function(){
+  if(isIOS && !isInStandaloneMode){ showInstallBtn(); }
+
+  if(topBtn){
+    topBtn.addEventListener('click', async function(){
       if(_deferredInstallPrompt){
+        // Android / Chrome / Edge — native prompt
         _deferredInstallPrompt.prompt();
         const { outcome } = await _deferredInstallPrompt.userChoice;
-        if(outcome === 'accepted'){
-          toast('Installing Kitchen Ladder…');
-        }
+        if(outcome === 'accepted') toast('Installing Kitchen Ladder…');
         _deferredInstallPrompt = null;
-        if(banner) banner.classList.remove('visible');
+        topBtn.style.display = 'none';
+      } else if(isIOS){
+        // iOS Safari — show manual instructions
+        openModal(`
+          <div class="modal-title">Install on iPhone / iPad</div>
+          <div class="modal-sub" style="line-height:1.8; font-size:13.5px; color:var(--text-dim);">
+            <div style="margin-bottom:10px;">1. Tap the <strong style="color:var(--text);">Share</strong> button ⬆️ in Safari's bottom toolbar</div>
+            <div style="margin-bottom:10px;">2. Scroll and tap <strong style="color:var(--text);">"Add to Home Screen"</strong></div>
+            <div>3. Tap <strong style="color:var(--ball);">Add</strong> — Kitchen Ladder appears on your home screen like a native app!</div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-primary btn-block" data-action="modal-close">Got it</button>
+          </div>
+        `);
       }
-    });
-  }
-
-  if(iosHint){
-    iosHint.addEventListener('click', function(){
-      openModal(`
-        <div class="modal-title">Install on iPhone / iPad</div>
-        <div class="modal-sub" style="line-height:1.7; font-size:13.5px; color:var(--text-dim);">
-          <div style="margin-bottom:10px;">1. Tap the <strong style="color:var(--text);">Share</strong> button <span style="font-size:16px;">⬆️</span> in Safari's bottom toolbar</div>
-          <div style="margin-bottom:10px;">2. Scroll down and tap <strong style="color:var(--text);">"Add to Home Screen"</strong></div>
-          <div>3. Tap <strong style="color:var(--ball);">Add</strong> — Kitchen Ladder will appear on your home screen like a native app!</div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-primary btn-block" data-action="modal-close">Got it</button>
-        </div>
-      `);
-    });
-  }
-
-  if(dismiss){
-    dismiss.addEventListener('click', function(){
-      localStorage.setItem('kl_install_dismissed','1');
-      if(banner) banner.classList.remove('visible');
     });
   }
 }
