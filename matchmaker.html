@@ -1,3 +1,19 @@
+<!--
+  ================================================================
+  Kitchen Ladder — Pickleball 2v2 Matchmaker
+  © 2025 Renzku. All Rights Reserved.
+
+  This software and its source code are the intellectual property
+  of Renzku. Unauthorized copying, reproduction, modification,
+  distribution, or use of this software, in whole or in part,
+  without the express written permission of the author is strictly
+  prohibited and may result in civil and criminal penalties.
+
+  Original Author : Renzku
+  Created         : 2025
+  Contact         : [your contact/email here]
+  ================================================================
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,6 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Kitchen Ladder">
 <meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Kitchen%20Ladder%22%2C%22short_name%22%3A%22KL%22%2C%22description%22%3A%22Pickleball%202v2%20Matchmaker%20by%20Renzku%22%2C%22start_url%22%3A%22.%2Fmatchmaker.html%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%2311151A%22%2C%22theme_color%22%3A%22%2311151A%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%270%200%2024%2024%2527%253E%253Ccircle%2520cx%3D%252712%2527%2520cy%3D%252712%2527%2520r%3D%252712%2527%2520fill%3D%2527%252311151A%2527%2F%253E%253Ccircle%2520cx%3D%252712%2527%2520cy%3D%252712%2527%2520r%3D%25278%2527%2520stroke%3D%2527%2523D7F23D%2527%2520stroke-width%3D%25272%2527%2520fill%3D%2527none%2527%2F%253E%253C%2FSvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
 <title>Kitchen Ladder — Pickleball 2v2 Matchmaker</title>
 <style>
 /* ============================================================
@@ -408,10 +425,90 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   background: rgba(215,242,61,0.1); border-color: var(--ball); color: var(--ball);
 }
 
+
+/* ---------- Match Timer ---------- */
+.match-timer-bar{
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  background:var(--surface-2); border:1px solid var(--line-soft);
+  border-radius:var(--radius-md); margin-bottom:12px;
+}
+.timer-display{
+  font-family:var(--font-mono); font-size:22px; font-weight:800;
+  color:var(--ball); min-width:58px; letter-spacing:.04em;
+}
+.timer-display.warning{ color:var(--loss); animation:timerPulse .6s ease infinite; }
+@keyframes timerPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+.timer-label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.08em; font-weight:700; }
+.timer-btns{ display:flex; gap:6px; margin-left:auto; }
+
+/* ---------- Install Banner ---------- */
+#install-banner{
+  display:none; align-items:center; gap:10px;
+  background:linear-gradient(135deg,rgba(215,242,61,0.12),rgba(79,168,255,0.08));
+  border:1px solid rgba(215,242,61,0.25); border-radius:var(--radius-md);
+  padding:12px 14px; margin:10px 16px 0; position:relative;
+}
+#install-banner.visible{ display:flex; }
+#install-banner .ib-icon{ font-size:22px; flex:none; }
+#install-banner .ib-text{ flex:1; min-width:0; }
+#install-banner .ib-title{ font-weight:800; font-size:13.5px; color:var(--ball); }
+#install-banner .ib-sub{ font-size:11.5px; color:var(--text-dim); margin-top:2px; }
+#install-banner .ib-close{
+  position:absolute; top:8px; right:8px; background:none; border:none;
+  color:var(--text-faint); font-size:16px; cursor:pointer; padding:2px 6px; line-height:1;
+}
+.ib-actions{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+
+/* ---------- Player Profile Modal ---------- */
+.profile-header{ display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+.profile-avatar{
+  width:52px; height:52px; border-radius:14px; background:var(--surface-3);
+  color:var(--ball); display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:20px; flex:none;
+}
+.profile-name{ font-weight:800; font-size:18px; }
+.profile-rating{ font-family:var(--font-mono); font-size:13px; color:var(--court); margin-top:3px; }
+.profile-stat-row{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:12px; }
+.profile-stat{ background:var(--surface-2); border-radius:var(--radius-sm); padding:10px; text-align:center; }
+.profile-stat .psv{ font-family:var(--font-mono); font-size:18px; font-weight:800; }
+.profile-stat .psl{ font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.06em; margin-top:3px; }
+.profile-pair-row{ font-size:12.5px; color:var(--text-dim); margin-top:4px; line-height:1.6; }
+.profile-pair-row b{ color:var(--text); }
+
+/* ---------- Session Summary ---------- */
+.summary-hero{
+  text-align:center; padding:20px 0 10px;
+}
+.summary-trophy{ font-size:48px; margin-bottom:6px; }
+.summary-title{ font-size:20px; font-weight:800; color:var(--ball); }
+.summary-sub{ font-size:13px; color:var(--text-dim); margin-top:4px; }
+.summary-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0; }
+.summary-card{
+  background:var(--surface-2); border:1px solid var(--line-soft);
+  border-radius:var(--radius-md); padding:14px; text-align:center;
+}
+.summary-card .sc-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-faint); font-weight:700; margin-bottom:6px; }
+.summary-card .sc-name{ font-size:15px; font-weight:800; color:var(--text); }
+.summary-card .sc-val{ font-family:var(--font-mono); font-size:13px; color:var(--court); margin-top:3px; }
+
 </style>
 </head>
 <body>
 <div id="app">
+
+  <!-- Install / Add to Home Screen Banner -->
+  <div id="install-banner">
+    <div class="ib-icon">📲</div>
+    <div class="ib-text">
+      <div class="ib-title">Install Kitchen Ladder</div>
+      <div class="ib-sub">Add to your home screen for quick access</div>
+      <div class="ib-actions">
+        <button class="btn btn-primary btn-sm" id="install-btn">Install App</button>
+        <button class="btn btn-ghost btn-sm" id="install-ios-hint" style="display:none;">How to install on iOS</button>
+      </div>
+    </div>
+    <button class="ib-close" id="install-dismiss">✕</button>
+  </div>
 
   <div class="topbar">
     <div class="brand-row">
@@ -438,6 +535,57 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 <script>
 (function(){
 "use strict";
+
+/* ============================================================
+   INTEGRITY CHECK — verifies authorship signature on load
+   ============================================================ */
+(function(){
+  const sig = "KL-RENZKU-2025-ORIGINAL";
+  const stored = sessionStorage.getItem('_kl_sig');
+  if(stored && stored !== sig){
+    document.body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;
+        height:100vh;background:#11151A;color:#FF6B6B;text-align:center;
+        font-family:sans-serif;padding:40px;">
+        <div>
+          <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
+          <h2 style="color:#F1F4F0;margin-bottom:8px;">Unauthorized Copy Detected</h2>
+          <p style="color:#9AA5B1;line-height:1.6;">Kitchen Ladder is an original app by Renzku.<br>
+          This copy has been tampered with.</p>
+        </div>
+      </div>`;
+    throw new Error("Integrity check failed.");
+  }
+  sessionStorage.setItem('_kl_sig', sig);
+})();
+
+/* ============================================================
+   DOMAIN LOCK — only authorized domains can run this app
+   ============================================================ */
+(function(){
+  const allowedDomains = [
+    'localhost',
+    '127.0.0.1',
+    'wedink.vercel.app',
+    'jvteam123.github.io',
+  ];
+  const host = window.location.hostname;
+  const allowed = allowedDomains.some(d => host === d || host.endsWith('.' + d));
+  if(!allowed){
+    document.body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;
+        height:100vh;background:#11151A;text-align:center;
+        font-family:sans-serif;padding:40px;">
+        <div>
+          <div style="font-size:48px;margin-bottom:12px;">🔒</div>
+          <h2 style="color:#D7F23D;margin-bottom:8px;">Kitchen Ladder</h2>
+          <p style="color:#9AA5B1;line-height:1.6;">Original app by <strong style="color:#F1F4F0;">Renzku</strong>.<br>
+          This app is not authorized to run on this domain.</p>
+        </div>
+      </div>`;
+    throw new Error("Domain not authorized: " + host);
+  }
+})();
 
 /* ============================================================
    STORAGE KEYS
@@ -1319,6 +1467,34 @@ function renderActiveView(){
 /* ============================================================
    VIEW COMPONENT GENERATORS
    ============================================================ */
+function renderTimerBar(){
+  const t = window._matchTimer || { running:false, secs:0, max:600 };
+  const mins = String(Math.floor(t.secs/60)).padStart(2,'0');
+  const secsD = String(t.secs%60).padStart(2,'0');
+  const warn = t.secs >= t.max * 0.85;
+  return `
+    <div class="match-timer-bar">
+      <div>
+        <div class="timer-label">Match Timer</div>
+        <div class="timer-display${warn?' warning':''}" id="timerDisplay">${mins}:${secsD}</div>
+      </div>
+      <div class="timer-btns">
+        <button class="btn btn-sm btn-secondary" data-action="timer-toggle">${t.running?'⏸ Pause':'▶ Start'}</button>
+        <button class="btn btn-sm btn-ghost" data-action="timer-reset">↺ Reset</button>
+      </div>
+      <div style="margin-left:4px;">
+        <div class="timer-label">Limit</div>
+        <select id="timerLimit" style="background:var(--surface-3);border:1px solid var(--line);color:var(--text);padding:4px 6px;border-radius:6px;font-size:12px;" data-action="timer-set-limit">
+          <option value="300" ${t.max===300?'selected':''}>5 min</option>
+          <option value="600" ${t.max===600?'selected':''}>10 min</option>
+          <option value="900" ${t.max===900?'selected':''}>15 min</option>
+          <option value="1200" ${t.max===1200?'selected':''}>20 min</option>
+        </select>
+      </div>
+    </div>
+  `;
+}
+
 function renderMatchView(el){
   if(state.settings.matchMode === 'RoundRobin') {
     // ROUND ROBIN CURRENT SYSTEM CONTAINER VIEW
@@ -1447,6 +1623,7 @@ function renderMatchView(el){
   // STANDARD EXISTING ROTATION MODE VIEW SYSTEM
   if(!state.current){
     el.innerHTML = `
+      ${renderTimerBar()}
       <div class="empty-state">
         <div class="big">🏓</div>
         <div class="et">Court is clear</div>
@@ -1726,6 +1903,7 @@ function renderHistoryView(el){
   let html = `
     <div class="card" style="margin-bottom:12px; padding:10px 14px;">
       <input type="text" id="histSearch" placeholder="🔍 Search player name history matches…" style="font-size:14px; padding:8px 12px;">
+      <button class="btn btn-secondary btn-sm btn-block" style="margin-top:10px;" data-action="show-session-summary">🏆 View Session Summary</button>
     </div>
     <div class="section-title">Completed Matches Logs (${matches.length})</div>
   `;
@@ -1833,6 +2011,11 @@ function renderSettingsView(el){
     <div class="card" style="display:flex; gap:8px;">
       <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="export-data">Export JSON File</button>
       <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="open-import-data">Import Backup Content</button>
+    </div>
+
+    <div class="section-title" style="margin-top:20px;">Session</div>
+    <div class="card">
+      <button class="btn btn-secondary btn-block" data-action="show-session-summary">🏆 View Session Summary</button>
     </div>
 
     <div class="section-title" style="margin-top:20px; color:var(--loss);">Danger Zone</div>
@@ -1966,6 +2149,14 @@ document.addEventListener('click', function(e){
       break;
     case 'do-import-data': importDataFromText(document.getElementById('importText').value); break;
     case 'modal-close': closeModal(); break;
+    case 'open-player-profile': openPlayerProfile(t.dataset.id); break;
+    case 'show-session-summary': showSessionSummary(); break;
+    case 'timer-toggle': timerToggle(); break;
+    case 'timer-reset': timerReset(); break;
+    case 'timer-set-limit':
+      const sel = document.getElementById('timerLimit');
+      if(sel) timerSetLimit(sel.value);
+      break;
   }
 });
 
@@ -1974,10 +2165,279 @@ document.addEventListener('keydown', function(e){
 });
 
 /* ============================================================
+   MATCH TIMER ENGINE
+   ============================================================ */
+window._matchTimer = { running:false, secs:0, max:600, _interval:null };
+
+function timerTick(){
+  const t = window._matchTimer;
+  if(!t.running) return;
+  t.secs++;
+  const el = document.getElementById('timerDisplay');
+  if(el){
+    const mins = String(Math.floor(t.secs/60)).padStart(2,'0');
+    const secsD = String(t.secs%60).padStart(2,'0');
+    el.textContent = mins+':'+secsD;
+    el.className = 'timer-display' + (t.secs >= t.max*0.85 ? ' warning' : '');
+  }
+  if(t.secs >= t.max){
+    t.running = false;
+    clearInterval(t._interval);
+    t._interval = null;
+    toast('⏱ Times up! Match time limit reached.');
+    if('vibrate' in navigator) navigator.vibrate([300,100,300,100,300]);
+    renderAll();
+  }
+}
+
+function timerToggle(){
+  const t = window._matchTimer;
+  if(t.running){
+    t.running = false;
+    clearInterval(t._interval);
+    t._interval = null;
+  } else {
+    t.running = true;
+    t._interval = setInterval(timerTick, 1000);
+  }
+  renderAll();
+}
+
+function timerReset(){
+  const t = window._matchTimer;
+  t.running = false;
+  clearInterval(t._interval);
+  t._interval = null;
+  t.secs = 0;
+  renderAll();
+}
+
+function timerSetLimit(val){
+  window._matchTimer.max = parseInt(val,10)||600;
+  renderAll();
+}
+
+/* ============================================================
+   PLAYER PROFILE MODAL
+   ============================================================ */
+function openPlayerProfile(id){
+  const p = getPlayer(id);
+  if(!p) return;
+
+  const wp = winPct(p);
+  const tmPairs = Object.entries(p.teammates||{}).map(([tid,c])=>({name:playerName(tid),count:c})).sort((a,b)=>b.count-a.count).slice(0,3);
+  const opPairs = Object.entries(p.opponents||{}).map(([oid,c])=>({name:playerName(oid),count:c})).sort((a,b)=>b.count-a.count).slice(0,3);
+
+  const strK = p.currentStreak||0;
+  let streakTxt = 'None';
+  if(strK>0) streakTxt = `🔥 W${strK} streak`;
+  else if(strK<0) streakTxt = `❄️ L${Math.abs(strK)} streak`;
+
+  const ratingColor = p.rating>=1100?'var(--win)':p.rating<=900?'var(--loss)':'var(--court)';
+
+  openModal(`
+    <div class="profile-header">
+      <div class="profile-avatar">${initials(p.name)}</div>
+      <div>
+        <div class="profile-name">${esc(p.name)}</div>
+        <div class="profile-rating" style="color:${ratingColor};">⚡ ELO ${p.rating} · ${streakTxt}</div>
+      </div>
+    </div>
+    <div class="profile-stat-row">
+      <div class="profile-stat">
+        <div class="psv" style="color:var(--win);">${p.wins}</div>
+        <div class="psl">Wins</div>
+      </div>
+      <div class="profile-stat">
+        <div class="psv" style="color:var(--loss);">${p.losses}</div>
+        <div class="psl">Losses</div>
+      </div>
+      <div class="profile-stat">
+        <div class="psv" style="color:var(--ball);">${wp}%</div>
+        <div class="psl">Win Rate</div>
+      </div>
+    </div>
+    <div class="profile-stat-row">
+      <div class="profile-stat">
+        <div class="psv">${p.gamesPlayed}</div>
+        <div class="psl">Games</div>
+      </div>
+      <div class="profile-stat">
+        <div class="psv" style="color:var(--court);">${p.longestStreak||0}</div>
+        <div class="psl">Best Streak</div>
+      </div>
+      <div class="profile-stat">
+        <div class="psv" style="color:var(--text-faint);">${p.sitOuts||0}</div>
+        <div class="psl">Sit-outs</div>
+      </div>
+    </div>
+    ${tmPairs.length ? `
+    <div class="profile-pair-row">
+      <b>🤝 Best partners:</b> ${tmPairs.map(x=>`${esc(x.name)} (${x.count}x)`).join(', ')}
+    </div>` : ''}
+    ${opPairs.length ? `
+    <div class="profile-pair-row">
+      <b>⚔️ Common opponents:</b> ${opPairs.map(x=>`${esc(x.name)} (${x.count}x)`).join(', ')}
+    </div>` : ''}
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="modal-close">Close</button>
+      <button class="btn btn-secondary" data-action="open-edit-player" data-id="${p.id}">Edit</button>
+    </div>
+  `);
+}
+
+/* ============================================================
+   SESSION SUMMARY
+   ============================================================ */
+function showSessionSummary(){
+  if(!state.matches.length){ toast('No matches played yet this session.'); return; }
+
+  // Find MVP (most wins today / highest rating)
+  const ratedPlayers = state.players.filter(p=>p.gamesPlayed>0).sort((a,b)=>b.rating-a.rating);
+  const mvp = ratedPlayers[0];
+  const mostGames = state.players.slice().sort((a,b)=>b.gamesPlayed-a.gamesPlayed)[0];
+  const hotStreak = state.players.slice().sort((a,b)=>(b.currentStreak||0)-(a.currentStreak||0)).filter(p=>p.currentStreak>0)[0];
+  const topWinRate = state.players.filter(p=>p.gamesPlayed>=2).sort((a,b)=>winPct(b)-winPct(a))[0];
+  const recentMatches = state.matches.slice(-5).reverse();
+
+  openModal(`
+    <div class="summary-hero">
+      <div class="summary-trophy">🏆</div>
+      <div class="summary-title">Session Summary</div>
+      <div class="summary-sub">${state.matches.length} match${state.matches.length!==1?'es':''} played · ${state.players.filter(p=>p.gamesPlayed>0).length} players active</div>
+    </div>
+    <div class="summary-grid">
+      ${mvp ? `<div class="summary-card">
+        <div class="sc-label">⚡ Top Rated</div>
+        <div class="sc-name">${esc(mvp.name)}</div>
+        <div class="sc-val">ELO ${mvp.rating}</div>
+      </div>` : ''}
+      ${topWinRate ? `<div class="summary-card">
+        <div class="sc-label">🎯 Best Win Rate</div>
+        <div class="sc-name">${esc(topWinRate.name)}</div>
+        <div class="sc-val">${winPct(topWinRate)}%</div>
+      </div>` : ''}
+      ${mostGames ? `<div class="summary-card">
+        <div class="sc-label">🎾 Most Active</div>
+        <div class="sc-name">${esc(mostGames.name)}</div>
+        <div class="sc-val">${mostGames.gamesPlayed} games</div>
+      </div>` : ''}
+      ${hotStreak ? `<div class="summary-card">
+        <div class="sc-label">🔥 Hot Streak</div>
+        <div class="sc-name">${esc(hotStreak.name)}</div>
+        <div class="sc-val">W${hotStreak.currentStreak} in a row</div>
+      </div>` : '<div class="summary-card"><div class="sc-label">🔥 Hot Streak</div><div class="sc-name" style="color:var(--text-faint);">None yet</div></div>'}
+    </div>
+    <div class="section-title" style="margin-top:4px;">Recent Matches</div>
+    ${recentMatches.map(m=>{
+      const pA1=playerName(m.teamA[0]),pA2=playerName(m.teamA[1]);
+      const pB1=playerName(m.teamB[0]),pB2=playerName(m.teamB[1]);
+      return `<div style="font-size:12.5px;padding:7px 2px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:${m.scoreA>m.scoreB?'var(--win)':'var(--text-dim)'};">${esc(pA1)}/${esc(pA2)}</span>
+        <span class="mono" style="color:var(--text-faint);font-size:11px;">${m.scoreA}-${m.scoreB}</span>
+        <span style="color:${m.scoreB>m.scoreA?'var(--win)':'var(--text-dim)'};">${esc(pB1)}/${esc(pB2)}</span>
+      </div>`;
+    }).join('')}
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-primary btn-block" data-action="modal-close">Close Summary</button>
+    </div>
+  `);
+}
+
+/* ============================================================
+   PWA INSTALL PROMPT
+   ============================================================ */
+let _deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  const banner = document.getElementById('install-banner');
+  if(banner && !localStorage.getItem('kl_install_dismissed')){
+    banner.classList.add('visible');
+  }
+});
+
+window.addEventListener('appinstalled', function(){
+  const banner = document.getElementById('install-banner');
+  if(banner) banner.classList.remove('visible');
+  _deferredInstallPrompt = null;
+  toast('✅ Kitchen Ladder installed successfully!');
+});
+
+function initInstallBanner(){
+  const banner = document.getElementById('install-banner');
+  const btn = document.getElementById('install-btn');
+  const iosHint = document.getElementById('install-ios-hint');
+  const dismiss = document.getElementById('install-dismiss');
+
+  // Detect iOS (no beforeinstallprompt support)
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  const isInStandaloneMode = window.navigator.standalone === true;
+
+  if(isIOS && !isInStandaloneMode && !localStorage.getItem('kl_install_dismissed')){
+    if(banner){ banner.classList.add('visible'); }
+    if(btn) btn.style.display = 'none';
+    if(iosHint) iosHint.style.display = 'inline-flex';
+  }
+
+  if(btn){
+    btn.addEventListener('click', async function(){
+      if(_deferredInstallPrompt){
+        _deferredInstallPrompt.prompt();
+        const { outcome } = await _deferredInstallPrompt.userChoice;
+        if(outcome === 'accepted'){
+          toast('Installing Kitchen Ladder…');
+        }
+        _deferredInstallPrompt = null;
+        if(banner) banner.classList.remove('visible');
+      }
+    });
+  }
+
+  if(iosHint){
+    iosHint.addEventListener('click', function(){
+      openModal(`
+        <div class="modal-title">Install on iPhone / iPad</div>
+        <div class="modal-sub" style="line-height:1.7; font-size:13.5px; color:var(--text-dim);">
+          <div style="margin-bottom:10px;">1. Tap the <strong style="color:var(--text);">Share</strong> button <span style="font-size:16px;">⬆️</span> in Safari's bottom toolbar</div>
+          <div style="margin-bottom:10px;">2. Scroll down and tap <strong style="color:var(--text);">"Add to Home Screen"</strong></div>
+          <div>3. Tap <strong style="color:var(--ball);">Add</strong> — Kitchen Ladder will appear on your home screen like a native app!</div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary btn-block" data-action="modal-close">Got it</button>
+        </div>
+      `);
+    });
+  }
+
+  if(dismiss){
+    dismiss.addEventListener('click', function(){
+      localStorage.setItem('kl_install_dismissed','1');
+      if(banner) banner.classList.remove('visible');
+    });
+  }
+}
+
+/* ============================================================
    SYSTEM BOOT INITIALIZER EXECUTION
    ============================================================ */
 loadState();
 renderAll();
+initInstallBanner();
+
+/* ================================================================
+   © 2025 Renzku — Kitchen Ladder. All Rights Reserved.
+   Unauthorized use or reproduction is strictly prohibited.
+   Original Author: Renzku | Fingerprint: KL-RENZKU-2025-ORIGINAL
+   ================================================================ */
+const _kitchenLadderSig = Object.freeze({
+  app: "Kitchen Ladder",
+  author: "Renzku",
+  year: 2025,
+  fingerprint: "KL-RENZKU-2025-ORIGINAL",
+  rights: "All Rights Reserved"
+});
 
 })();
 </script>
