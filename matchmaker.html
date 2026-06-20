@@ -1515,8 +1515,11 @@ function updateRRMatchScore(matchId, team, val){
 // ------------------------------------------------------------
 // Captures who's serving / server number / first-serve flag right before
 // each serve-changing action (picking the 1st server, switching to serve 2,
-// side-out), so a mis-tap can be reverted on its own — without touching the
-// score or rolling back an entire confirmed match.
+// side-out), pushing onto a per-match stack so ANY number of past serve
+// decisions can be unwound, one at a time, oldest-last. Undoing always asks
+// for confirmation first since it can't be redone. None of this touches the
+// score or rolls back an entire confirmed match — that's the separate
+// "Undo Last Match" button.
 // ============================================================
 function snapshotServe(obj){
   return { serving: obj.serving, serverNum: obj.serverNum, firstServe: obj.firstServe };
@@ -1525,6 +1528,24 @@ function restoreServe(obj, snap){
   obj.serving = snap.serving;
   obj.serverNum = snap.serverNum;
   obj.firstServe = snap.firstServe;
+}
+function pushServeUndo(obj){
+  if(!Array.isArray(obj._serveUndoStack)) obj._serveUndoStack = [];
+  obj._serveUndoStack.push(snapshotServe(obj));
+}
+
+// Voice announcer for score milestones — called only when a point is
+// actually scored (never on a manual correction). 10 calls "match point",
+// 11 calls out a win with congratulations; every other score gets the
+// normal score call.
+function speakScoreOrMilestone(m, scoringTeamScore){
+  if(scoringTeamScore === 10){
+    speakUtterance('Match, 10', true);
+  } else if(scoringTeamScore === 11){
+    speakUtterance('Congratulations!', true);
+  } else {
+    speakScoreCall(m);
+  }
 }
 
 function adjustRRScore(matchId, team, delta){
@@ -1542,8 +1563,13 @@ function adjustRRScore(matchId, team, delta){
   cur = (cur === null || isNaN(cur)) ? 0 : cur;
   cur = Math.max(0, cur + delta);
   updateRRMatchScore(matchId, team, cur);
-  delta > 0 ? playPointUpSound() : playPointDownSound();
-  speakScoreCall(m);
+  if(delta > 0){
+    playPointUpSound();
+    speakScoreOrMilestone(m, cur);
+  } else {
+    playPointDownSound();
+    speakScoreCall(m);
+  }
   renderMatchView(document.getElementById('view'));
 }
 
@@ -1553,7 +1579,7 @@ function setServingTeamRR(matchId, team){
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done') return;
   if(!m.firstServe) return; // who serves first can only be set before the very first serve of the game
-  m._serveUndo = snapshotServe(m);
+  pushServeUndo(m);
   m.serving = team;
   saveAll();
   renderMatchView(document.getElementById('view'));
@@ -1566,7 +1592,7 @@ function advanceServerRR(matchId){
   if(!m || m.status === 'done') return;
   if(m.firstServe) return; // the very first serve of the game is a single serve — no serve 2 to switch to
   if(m.serverNum !== 1) return; // already on serve 2 — side out is the next move, not this
-  m._serveUndo = snapshotServe(m);
+  pushServeUndo(m);
   m.serverNum = 2;
   saveAll();
   playSideOutSound();
@@ -1583,7 +1609,7 @@ function sideOutRR(matchId){
   // very first serve of the game, which is just one serve before the first
   // side-out (per official pickleball rules).
   if(!m.firstServe && m.serverNum !== 2) return;
-  m._serveUndo = snapshotServe(m);
+  pushServeUndo(m);
   m.serving = m.serving === 'A' ? 'B' : 'A';
   m.serverNum = 1;
   m.firstServe = false;
@@ -1593,14 +1619,31 @@ function sideOutRR(matchId){
   renderMatchView(document.getElementById('view'));
 }
 
+// Asks for confirmation before unwinding the most recent serve decision —
+// undoing isn't itself undoable, so we make sure that's really what's wanted.
+function confirmUndoServeRR(matchId){
+  const gen = state.currentGeneration;
+  const m = gen && gen.matches.find(x => x.id === matchId);
+  if(!m || !m._serveUndoStack || !m._serveUndoStack.length){ toast('No serve decision to undo.'); return; }
+  openModal(`
+    <div class="modal-title">Undo Serve Decision?</div>
+    <div class="modal-sub">This reverts the most recent serve action (1st server / serve 2 / side out) on this court. The score is not affected. ${m._serveUndoStack.length > 1 ? `You can undo ${m._serveUndoStack.length} steps in total.` : ''}</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-danger" data-action="do-rr-undo-serve" data-match="${matchId}">Yes, Undo</button>
+    </div>
+  `);
+}
+
 function undoServeRR(matchId){
   const gen = state.currentGeneration;
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
-  if(!m || !m._serveUndo){ toast('No serve decision to undo.'); return; }
-  restoreServe(m, m._serveUndo);
-  m._serveUndo = null;
+  if(!m || !m._serveUndoStack || !m._serveUndoStack.length){ toast('No serve decision to undo.'); return; }
+  const snap = m._serveUndoStack.pop();
+  restoreServe(m, snap);
   saveAll();
+  closeModal();
   toast('Serve decision undone.');
   renderMatchView(document.getElementById('view'));
 }
@@ -1844,15 +1887,20 @@ function adjustRotationScore(team, delta){
   cur = Math.max(0, cur + delta);
   if(team === 'A') state.current.scoreA = cur; else state.current.scoreB = cur;
   saveAll();
-  delta > 0 ? playPointUpSound() : playPointDownSound();
-  speakScoreCall(state.current);
+  if(delta > 0){
+    playPointUpSound();
+    speakScoreOrMilestone(state.current, cur);
+  } else {
+    playPointDownSound();
+    speakScoreCall(state.current);
+  }
   renderMatchView(document.getElementById('view'));
 }
 
 function setServingTeamRotation(team){
   if(!state.current) return;
   if(!state.current.firstServe) return; // who serves first can only be set before the very first serve of the game
-  state.current._serveUndo = snapshotServe(state.current);
+  pushServeUndo(state.current);
   state.current.serving = team;
   saveAll();
   renderMatchView(document.getElementById('view'));
@@ -1862,7 +1910,7 @@ function advanceServerRotation(){
   if(!state.current) return;
   if(state.current.firstServe) return; // the very first serve of the game is a single serve — no serve 2 to switch to
   if(state.current.serverNum !== 1) return;
-  state.current._serveUndo = snapshotServe(state.current);
+  pushServeUndo(state.current);
   state.current.serverNum = 2;
   saveAll();
   playSideOutSound();
@@ -1873,7 +1921,7 @@ function advanceServerRotation(){
 function sideOutRotation(){
   if(!state.current) return;
   if(!state.current.firstServe && state.current.serverNum !== 2) return;
-  state.current._serveUndo = snapshotServe(state.current);
+  pushServeUndo(state.current);
   state.current.serving = state.current.serving === 'A' ? 'B' : 'A';
   state.current.serverNum = 1;
   state.current.firstServe = false;
@@ -1883,11 +1931,27 @@ function sideOutRotation(){
   renderMatchView(document.getElementById('view'));
 }
 
+// Asks for confirmation before unwinding the most recent serve decision —
+// undoing isn't itself undoable, so we make sure that's really what's wanted.
+function confirmUndoServeRotation(){
+  if(!state.current || !state.current._serveUndoStack || !state.current._serveUndoStack.length){ toast('No serve decision to undo.'); return; }
+  const n = state.current._serveUndoStack.length;
+  openModal(`
+    <div class="modal-title">Undo Serve Decision?</div>
+    <div class="modal-sub">This reverts the most recent serve action (1st server / serve 2 / side out). The score is not affected. ${n > 1 ? `You can undo ${n} steps in total.` : ''}</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-danger" data-action="do-rotation-undo-serve">Yes, Undo</button>
+    </div>
+  `);
+}
+
 function undoServeRotation(){
-  if(!state.current || !state.current._serveUndo){ toast('No serve decision to undo.'); return; }
-  restoreServe(state.current, state.current._serveUndo);
-  state.current._serveUndo = null;
+  if(!state.current || !state.current._serveUndoStack || !state.current._serveUndoStack.length){ toast('No serve decision to undo.'); return; }
+  const snap = state.current._serveUndoStack.pop();
+  restoreServe(state.current, snap);
   saveAll();
+  closeModal();
   toast('Serve decision undone.');
   renderMatchView(document.getElementById('view'));
 }
@@ -2287,7 +2351,7 @@ function renderMatchView(el){
             <div style="display:flex; gap:8px; margin-bottom:10px;">
               <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="rr-advance-server" data-match="${m.id}" ${(m.firstServe || m.serverNum===2)?'disabled':''}>🎾 Switch to Serve 2</button>
               <button class="btn btn-secondary btn-sm sideout-btn" style="flex:1;" data-action="rr-side-out" data-match="${m.id}" ${(!m.firstServe && m.serverNum===1)?'disabled':''}>🔁 Side Out</button>
-              <button class="btn btn-ghost btn-sm undo-serve-btn" data-action="rr-undo-serve" data-match="${m.id}" title="Undo the last serve decision (1st server / serve 2 / side out)" ${!m._serveUndo?'disabled':''}>↩️</button>
+              <button class="btn btn-ghost btn-sm undo-serve-btn" data-action="rr-undo-serve" data-match="${m.id}" title="Undo the last serve decision (1st server / serve 2 / side out)" ${(!m._serveUndoStack || !m._serveUndoStack.length)?'disabled':''}>↩️${(m._serveUndoStack && m._serveUndoStack.length) ? ' '+m._serveUndoStack.length : ''}</button>
             </div>
             <button class="btn btn-primary btn-block" data-action="confirm-rr-match" data-match="${m.id}">Confirm Result &amp; Pull Next Match</button>
           </div>
@@ -2413,7 +2477,7 @@ function renderMatchView(el){
       <div style="display:flex; gap:8px; margin-top:10px;">
         <button class="btn btn-secondary" style="flex:1;" data-action="rotation-advance-server" ${(c.firstServe || c.serverNum===2)?'disabled':''}>🎾 Switch to Serve 2</button>
         <button class="btn btn-secondary sideout-btn" style="flex:1;" data-action="rotation-side-out" ${(!c.firstServe && c.serverNum===1)?'disabled':''}>🔁 Side Out</button>
-        <button class="btn btn-ghost undo-serve-btn" data-action="rotation-undo-serve" title="Undo the last serve decision (1st server / serve 2 / side out)" ${!c._serveUndo?'disabled':''}>↩️</button>
+        <button class="btn btn-ghost undo-serve-btn" data-action="rotation-undo-serve" title="Undo the last serve decision (1st server / serve 2 / side out)" ${(!c._serveUndoStack || !c._serveUndoStack.length)?'disabled':''}>↩️${(c._serveUndoStack && c._serveUndoStack.length) ? ' '+c._serveUndoStack.length : ''}</button>
       </div>
       <button class="btn btn-primary btn-block" style="margin-top:12px;" data-action="save-match-score">Submit Final Score</button>
       <div style="display:flex; gap:8px; margin-top:8px;">
@@ -2879,7 +2943,8 @@ document.addEventListener('click', function(e){
     case 'rotation-set-server': setServingTeamRotation(t.dataset.team); break;
     case 'rotation-advance-server': advanceServerRotation(); break;
     case 'rotation-side-out': sideOutRotation(); break;
-    case 'rotation-undo-serve': undoServeRotation(); break;
+    case 'rotation-undo-serve': confirmUndoServeRotation(); break;
+    case 'do-rotation-undo-serve': undoServeRotation(); break;
 
     // Round robin workflow
     case 'generate-roundrobin': generateRoundRobinGeneration(); break;
@@ -2891,7 +2956,8 @@ document.addEventListener('click', function(e){
     case 'rr-set-server': setServingTeamRR(t.dataset.match, t.dataset.team); break;
     case 'rr-advance-server': advanceServerRR(t.dataset.match); break;
     case 'rr-side-out': sideOutRR(t.dataset.match); break;
-    case 'rr-undo-serve': undoServeRR(t.dataset.match); break;
+    case 'rr-undo-serve': confirmUndoServeRR(t.dataset.match); break;
+    case 'do-rr-undo-serve': undoServeRR(t.dataset.match); break;
     case 'confirm-rr-match': confirmRoundRobinMatch(t.dataset.match); break;
     case 'open-replace-player': openReplacePlayerModal(t.dataset.match, t.dataset.team, t.dataset.player); break;
     case 'open-replace-picker': openReplacePlayerPickerModal(t.dataset.match); break;
