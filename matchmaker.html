@@ -858,13 +858,16 @@ function speakUtterance(text, interrupt){
   if(!('speechSynthesis' in window)) return;
   try{
     const synth = window.speechSynthesis;
-    if(interrupt && (synth.speaking || synth.pending)){
+    if(interrupt){
+      // Always cancel + wait a beat before speaking, rather than only doing
+      // so when synth.speaking/pending report true. Those flags are
+      // unreliable on some browsers (can read stale/false when something is
+      // actually still queued), and skipping the cancel+delay in that case
+      // was causing repeat announcements — e.g. hitting "Match" again after
+      // going back down and scoring up to 10 a second time — to be silently
+      // dropped. cancel() on an already-idle engine is a harmless no-op, so
+      // doing it unconditionally is safe.
       synth.cancel();
-      // Calling speak() in the very same tick as cancel() is a known
-      // Chrome/Android bug — the new utterance gets silently dropped,
-      // so nothing is ever heard even though it was "spoken". Giving the
-      // engine a beat to actually clear before queuing the next line
-      // fixes that.
       setTimeout(function(){ speakNow(text); }, 50);
     } else {
       speakNow(text);
@@ -888,12 +891,8 @@ function speakSideOut(m){
   try{
     const synth = window.speechSynthesis;
     const text = scoreCallText(m);
-    if(synth.speaking || synth.pending){
-      synth.cancel();
-      setTimeout(function(){ speakNow('Side out'); speakNow(text); }, 50);
-    } else {
-      speakNow('Side out'); speakNow(text);
-    }
+    synth.cancel();
+    setTimeout(function(){ speakNow('Side out'); speakNow(text); }, 50);
   }catch(e){ /* speech not available — fail silently */ }
 }
 
