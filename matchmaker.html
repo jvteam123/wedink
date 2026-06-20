@@ -678,7 +678,8 @@ const DEFAULT_SETTINGS = {
   smartBalance: true,
   maxRepeatTeammates: 2,
   maxRepeatOpponents: 3,
-  audioScoring: true     // play sound cues for +/- points, side-outs, and game wins
+  audioScoring: true,    // play sound cues for +/- points, side-outs, and game wins
+  voiceAnnounce: true    // speak the score call (server's score first) and side-out announcements out loud
 };
 
 /* ============================================================
@@ -811,6 +812,52 @@ function playSideOutSound(){
 }
 function playGameWinSound(){
   [660, 880, 1100].forEach((f, i) => playTone(f, 0.18, 'triangle', 0.22, i * 0.11));
+}
+
+/* ============================================================
+   VOICE SCORE ANNOUNCER
+   ------------------------------------------------------------
+   Speaks the score call out loud (Web Speech API) following the
+   standard doubles pickleball calling order: the serving team's
+   own score is always said first, then the receiving team's
+   score, then the current server number — e.g. "2 1 1". Side-outs
+   say the words "Side out" followed by the new server's call.
+   Respects the "Voice Announce" toggle in Settings
+   (state.settings.voiceAnnounce). Works on either a round-robin
+   match object or the rotation-mode state.current object — both
+   share the same { serving, scoreA, scoreB, serverNum } shape.
+   ============================================================ */
+function safeScore(n){ return (n === null || n === undefined || isNaN(n)) ? 0 : n; }
+
+function speakUtterance(text, interrupt){
+  if(!state.settings.voiceAnnounce) return;
+  if(!('speechSynthesis' in window)) return;
+  try{
+    if(interrupt) window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1.05;
+    window.speechSynthesis.speak(utter);
+  }catch(e){ /* speech not available — fail silently */ }
+}
+
+function scoreCallText(m){
+  const servingScore = m.serving === 'A' ? safeScore(m.scoreA) : safeScore(m.scoreB);
+  const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
+  return `${servingScore} ${otherScore} ${m.serverNum}`;
+}
+
+function speakScoreCall(m){
+  speakUtterance(scoreCallText(m), true);
+}
+
+function speakSideOut(m){
+  if(!state.settings.voiceAnnounce) return;
+  if(!('speechSynthesis' in window)) return;
+  try{
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance('Side out'));
+    window.speechSynthesis.speak(new SpeechSynthesisUtterance(scoreCallText(m)));
+  }catch(e){ /* speech not available — fail silently */ }
 }
 
 function toast(msg){
@@ -1424,6 +1471,7 @@ function adjustRRScore(matchId, team, delta){
   cur = Math.max(0, cur + delta);
   updateRRMatchScore(matchId, team, cur);
   delta > 0 ? playPointUpSound() : playPointDownSound();
+  speakScoreCall(m);
   renderMatchView(document.getElementById('view'));
 }
 
@@ -1448,6 +1496,7 @@ function advanceServerRR(matchId){
   m.serverNum = 2;
   saveAll();
   playSideOutSound();
+  speakScoreCall(m);
   renderMatchView(document.getElementById('view'));
 }
 
@@ -1465,6 +1514,7 @@ function sideOutRR(matchId){
   m.firstServe = false;
   saveAll();
   playSideOutSound();
+  speakSideOut(m);
   renderMatchView(document.getElementById('view'));
 }
 
@@ -1702,6 +1752,7 @@ function adjustRotationScore(team, delta){
   if(team === 'A') state.current.scoreA = cur; else state.current.scoreB = cur;
   saveAll();
   delta > 0 ? playPointUpSound() : playPointDownSound();
+  speakScoreCall(state.current);
   renderMatchView(document.getElementById('view'));
 }
 
@@ -1720,6 +1771,7 @@ function advanceServerRotation(){
   state.current.serverNum = 2;
   saveAll();
   playSideOutSound();
+  speakScoreCall(state.current);
   renderMatchView(document.getElementById('view'));
 }
 
@@ -1731,6 +1783,7 @@ function sideOutRotation(){
   state.current.firstServe = false;
   saveAll();
   playSideOutSound();
+  speakSideOut(state.current);
   renderMatchView(document.getElementById('view'));
 }
 
@@ -2618,6 +2671,17 @@ function renderSettingsView(el){
         </label>
       </div>
 
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">🗣️ Voice Announce</div>
+          <div class="t-hint">Speak the score call out loud — server's score first, then opponent's, then server number (e.g. "2 1 1") — and say "Side out" on a side-out.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="voiceAnnounceToggle" ${state.settings.voiceAnnounce !== false ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+
       <button class="btn btn-primary btn-block" style="margin-top:18px;" data-action="save-settings">Save Configurations</button>
     </div>
 
@@ -2658,12 +2722,14 @@ function saveSettingsFromForm(){
   const equalPlayVal = document.getElementById('equalPlayToggle') ? document.getElementById('equalPlayToggle').checked : true;
   const smartBalanceVal = document.getElementById('smartBalanceToggle') ? document.getElementById('smartBalanceToggle').checked : true;
   const audioScoringVal = document.getElementById('audioScoringToggle') ? document.getElementById('audioScoringToggle').checked : true;
+  const voiceAnnounceVal = document.getElementById('voiceAnnounceToggle') ? document.getElementById('voiceAnnounceToggle').checked : true;
 
   state.settings.numCourts = numCourtsVal;
   state.settings.winnerVsWinner = winnerVsWinnerVal;
   state.settings.equalPlayPriority = equalPlayVal;
   state.settings.smartBalance = smartBalanceVal;
   state.settings.audioScoring = audioScoringVal;
+  state.settings.voiceAnnounce = voiceAnnounceVal;
 
   if(state.currentGeneration) advanceRRQueue(); // pick up newly-freed courts right away if the count went up
 
