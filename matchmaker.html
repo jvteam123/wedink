@@ -878,7 +878,26 @@ function speakUtterance(text, interrupt){
 function scoreCallText(m){
   const servingScore = m.serving === 'A' ? safeScore(m.scoreA) : safeScore(m.scoreB);
   const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
+  // Tied scores get the standard pickleball "All" call instead of saying
+  // the same number twice — e.g. "All 3 1" rather than "3 3 1".
+  if(servingScore === otherScore){
+    return `All ${servingScore} ${m.serverNum}`;
+  }
   return `${servingScore} ${otherScore} ${m.serverNum}`;
+}
+
+// Special call for switching to serve 2 while the score is tied at 10-10 —
+// says "All Match" followed by the server number, e.g. "All Match 2".
+// Any other score at this moment just gets the normal call (which already
+// handles ties via the "All" wording above).
+function speakServeSwitchCall(m){
+  const servingScore = m.serving === 'A' ? safeScore(m.scoreA) : safeScore(m.scoreB);
+  const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
+  if(servingScore === otherScore && servingScore === 10){
+    speakUtterance(`All Match ${m.serverNum}`, true);
+  } else {
+    speakScoreCall(m);
+  }
 }
 
 function speakScoreCall(m){
@@ -1528,9 +1547,15 @@ function pushServeUndo(obj){
 function speakScoreOrMilestone(m, scoringTeamScore){
   if(scoringTeamScore === 10){
     // "Match" already means 10 — don't also say the number. Just call the
-    // other side's score and the server number, e.g. "Match, 7 2".
+    // other side's score and the server number, e.g. "Match, 7 2". If the
+    // other side is also at 10, it's tied — say "All Match" instead of
+    // "Match, 10 2".
     const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
-    speakUtterance(`Match, ${otherScore} ${m.serverNum}`, true);
+    if(otherScore === 10){
+      speakUtterance(`All Match ${m.serverNum}`, true);
+    } else {
+      speakUtterance(`Match, ${otherScore} ${m.serverNum}`, true);
+    }
   } else if(scoringTeamScore === 11){
     speakUtterance('Congratulations!', true);
   } else {
@@ -1586,7 +1611,7 @@ function advanceServerRR(matchId){
   m.serverNum = 2;
   saveAll();
   playSideOutSound();
-  speakScoreCall(m);
+  speakServeSwitchCall(m);
   renderMatchView(document.getElementById('view'));
 }
 
@@ -1904,7 +1929,7 @@ function advanceServerRotation(){
   state.current.serverNum = 2;
   saveAll();
   playSideOutSound();
-  speakScoreCall(state.current);
+  speakServeSwitchCall(state.current);
   renderMatchView(document.getElementById('view'));
 }
 
