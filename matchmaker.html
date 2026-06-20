@@ -917,6 +917,9 @@ function removePlayer(id){
   const p = getPlayer(id);
   state.players = state.players.filter(pl=>pl.id!==id);
   state.players.forEach(pl=>{ delete pl.teammates[id]; delete pl.opponents[id]; });
+  // Clean up any fixed duo that referenced this player — otherwise their old
+  // partner is left "stuck" thinking they still have a duo partner.
+  state.fixedDuos = (state.fixedDuos || []).filter(d => !d.includes(id));
   saveAll(); renderAll(); closeModal();
   if(p) toast(`Removed ${p.name}.`);
 }
@@ -1773,7 +1776,7 @@ function renderMatchView(el){
           <div class="big">🔀</div>
           <div class="et">Round Robin Matchmaker ready</div>
           <p>Click below to generate the full match list for this generation — every active player gets scheduled once, even if you only have one court.</p>
-          <button class="btn btn-primary" style="margin-top:16px;" data-action="generate-roundrobin">Generate Generation 1</button>
+          <button class="btn btn-primary" style="margin-top:16px;" data-action="generate-roundrobin">Generate Generation ${state.round + 1}</button>
         </div>
       `;
       return;
