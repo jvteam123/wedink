@@ -1608,7 +1608,28 @@ function undoLastMatch() {
 /* ============================================================
    EXPORT / IMPORT
    ============================================================ */
-function exportData(){
+function defaultExportFileName(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `kitchen_ladder_backup_${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function openExportNameModal(){
+  openModal(`
+    <div class="modal-title">Export Backup</div>
+    <div class="modal-sub">Name this backup so you can tell it apart later — ".json" will be added automatically.</div>
+    <div class="field" style="margin-top:10px;">
+      <label>File Name</label>
+      <input type="text" id="exportFileName" value="${esc(defaultExportFileName())}">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-primary" data-action="do-export-data">Download JSON</button>
+    </div>
+  `);
+}
+
+function exportData(filename){
   const dump = {
     players: state.players,
     matches: state.matches,
@@ -1620,11 +1641,18 @@ function exportData(){
   const str = JSON.stringify(dump, null, 2);
   const blob = new Blob([str], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
+
+  let name = (filename || '').trim().replace(/[\\/:*?"<>|]/g, ''); // strip characters invalid in file names
+  if(!name) name = defaultExportFileName();
+  if(!/\.json$/i.test(name)) name += '.json';
+
   const a = document.createElement('a');
   a.href = url;
-  a.download = `kitchen_ladder_export_${Date.now().toString(36)}.json`;
+  a.download = name;
   a.click();
-  toast('Data file downloaded.');
+  URL.revokeObjectURL(url);
+  closeModal();
+  toast(`Saved as ${name}`);
 }
 
 function importDataFromText(txt){
@@ -1652,6 +1680,24 @@ function importDataFromText(txt){
     toast('Parsing failure: verify copied content.');
   }
 }
+
+// Reads a user-selected backup .json file and drops its contents into the
+// import textarea so it can be reviewed before the restore is confirmed.
+window.handleImportFileSelect = function(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(){
+    const ta = document.getElementById('importText');
+    if(ta) ta.value = typeof reader.result === 'string' ? reader.result : '';
+    toast(`Loaded "${file.name}" — tap "Trigger Override Restore" to confirm.`);
+  };
+  reader.onerror = function(){
+    toast('Could not read that file.');
+  };
+  reader.readAsText(file);
+  input.value = ''; // reset so picking the same file again still fires onchange
+};
 
 /* ============================================================
    UI RENDERING CORE PIPELINE
@@ -2510,17 +2556,29 @@ document.addEventListener('click', function(e){
       removeFixedDuo(t.dataset.p1, t.dataset.p2);
       break;
 
-    case 'export-data': exportData(); break;
+    case 'export-data': openExportNameModal(); break;
+    case 'do-export-data':
+      exportData(document.getElementById('exportFileName') ? document.getElementById('exportFileName').value : '');
+      break;
     case 'open-import-data':
       openModal(`
         <div class="modal-title">Import Exported Matrix JSON</div>
-        <textarea id="importText" placeholder="Paste data backup string content here…"></textarea>
+        <div class="modal-sub">Upload a backup .json file, or paste its contents below.</div>
+        <button class="btn btn-secondary btn-block" data-action="trigger-import-file">📁 Choose Backup File…</button>
+        <input type="file" id="importFileInput" accept=".json,application/json" style="display:none;" onchange="window.handleImportFileSelect(this)">
+        <div class="divider-thin"></div>
+        <textarea id="importText" placeholder="…or paste data backup string content here…"></textarea>
         <div class="modal-actions">
           <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
           <button class="btn btn-primary" data-action="do-import-data">Trigger Override Restore</button>
         </div>
       `);
       break;
+    case 'trigger-import-file': {
+      const fileInput = document.getElementById('importFileInput');
+      if(fileInput) fileInput.click();
+      break;
+    }
     case 'do-import-data': importDataFromText(document.getElementById('importText').value); break;
     case 'modal-close': closeModal(); break;
     case 'open-player-profile': openPlayerProfile(t.dataset.id); break;
