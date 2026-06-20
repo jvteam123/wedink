@@ -449,6 +449,8 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   .sb-tag{font-size:10px;}
   .cb-score-input{width:62px; font-size:19px;}
   .rr-score-input{width:48px; font-size:16px; padding:6px 2px;}
+  .score-btn{width:32px; height:32px; font-size:17px;}
+  .rr-score-btn{width:26px; height:26px; font-size:13px;}
   .scoreboard .btn-sm{font-size:12px; padding:8px 8px;}
   .dash-strip{gap:10px;}
   .queue-row .qmeta, .queue-row > div{font-size:12.5px;}
@@ -478,6 +480,25 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   font-size:16px; font-weight:800; color:var(--text-faint); font-family:var(--font-mono);
   flex:none; padding-top:18px;
 }
+
+/* ---------- Live scoring controls: +/- stepper, serve badge, side-out ---------- */
+.score-stepper{ display:flex; align-items:center; gap:6px; }
+.score-btn{
+  appearance:none; flex:none; width:36px; height:36px; border-radius:10px;
+  border:1px solid var(--line); background:var(--surface-3); color:var(--text);
+  font-size:19px; font-weight:800; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:transform .08s ease, filter .15s ease;
+}
+.score-btn:active{ transform:scale(0.9); }
+.score-btn-plus{ color:var(--win); border-color:var(--win-dim); }
+.score-btn-minus{ color:var(--loss); border-color:var(--loss-dim); }
+.rr-score-btn{ width:28px; height:28px; font-size:14px; border-radius:8px; }
+.serve-badge{
+  display:inline-flex; align-items:center; gap:3px; font-size:9.5px; font-weight:800;
+  letter-spacing:.04em; color:var(--ball); background:rgba(215,242,61,0.12);
+  border:1px solid var(--ball-dim); border-radius:999px; padding:2px 7px; text-transform:uppercase;
+}
+.sideout-btn{ display:flex; align-items:center; justify-content:center; gap:6px; }
 
 /* ---------- Radio List Buttons ---------- */
 .radio-group-mode {
@@ -647,7 +668,8 @@ const DEFAULT_SETTINGS = {
   equalPlayPriority: true,
   smartBalance: true,
   maxRepeatTeammates: 2,
-  maxRepeatOpponents: 3
+  maxRepeatOpponents: 3,
+  audioScoring: true     // play sound cues for +/- points, side-outs, and game wins
 };
 
 /* ============================================================
@@ -734,6 +756,53 @@ function fmtDate(iso){
 function getPlayer(id){ return state.players.find(p=>p.id===id); }
 function playerName(id){ const p = getPlayer(id); return p ? p.name : '—'; }
 function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
+
+/* ============================================================
+   AUDIO SCORING ENGINE
+   ------------------------------------------------------------
+   Lightweight synthesized sound cues (Web Audio API oscillators)
+   for point changes, side-outs, and game wins. No external audio
+   files needed — works fully offline. Respects the "Audio Scoring"
+   toggle in Settings (state.settings.audioScoring).
+   ============================================================ */
+let _audioCtx = null;
+function getAudioCtx(){
+  if(!window.AudioContext && !window.webkitAudioContext) return null;
+  try{
+    if(!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(_audioCtx.state === 'suspended') _audioCtx.resume();
+    return _audioCtx;
+  }catch(e){ return null; }
+}
+
+function playTone(freq, duration, type, startGain, delay){
+  if(!state.settings.audioScoring) return;
+  const ctx = getAudioCtx();
+  if(!ctx) return;
+  try{
+    const t0 = ctx.currentTime + (delay || 0);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(startGain || 0.18, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.03);
+  }catch(e){ /* audio not available — fail silently */ }
+}
+
+function playPointUpSound(){ playTone(880, 0.13, 'sine', 0.22, 0); }
+function playPointDownSound(){ playTone(320, 0.12, 'sine', 0.16, 0); }
+function playSideOutSound(){
+  playTone(660, 0.09, 'square', 0.16, 0);
+  playTone(415, 0.16, 'square', 0.16, 0.10);
+}
+function playGameWinSound(){
+  [660, 880, 1100].forEach((f, i) => playTone(f, 0.18, 'triangle', 0.22, i * 0.11));
+}
 
 function toast(msg){
   const root = document.getElementById('toast-root');
@@ -1058,7 +1127,7 @@ function nextRotationMatch(){
   const four = selected.slice(0, 4);
   const best = scoreSplit(four, state.settings);
   const [[p1,p2],[p3,p4]] = best.split;
-  state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id] };
+  state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id], scoreA: null, scoreB: null, serving: 'A' };
   state.players.forEach(p=>{
     if(p.active){
       if(state.current.teamA.includes(p.id) || state.current.teamB.includes(p.id)){ p.consecutiveSitOuts = 0; }
@@ -1227,7 +1296,7 @@ function _doGenerateRoundRobinGeneration(activeList) {
     id: uid('gm'),
     matchIndex: idx,
     teamA: m.teamA, teamB: m.teamB,
-    scoreA: null, scoreB: null, winner: null,
+    scoreA: null, scoreB: null, winner: null, serving: 'A',
     status: idx < numCourts ? 'active' : 'queued',
     court: idx < numCourts ? idx + 1 : null
   }));
@@ -1321,6 +1390,30 @@ function updateRRMatchScore(matchId, team, val){
   saveAll();
 }
 
+function adjustRRScore(matchId, team, delta){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status === 'done') return;
+  let cur = team === 'A' ? m.scoreA : m.scoreB;
+  cur = (cur === null || isNaN(cur)) ? 0 : cur;
+  cur = Math.max(0, cur + delta);
+  updateRRMatchScore(matchId, team, cur);
+  delta > 0 ? playPointUpSound() : playPointDownSound();
+  renderMatchView(document.getElementById('view'));
+}
+
+function sideOutRR(matchId){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status === 'done') return;
+  m.serving = m.serving === 'A' ? 'B' : 'A';
+  saveAll();
+  playSideOutSound();
+  renderMatchView(document.getElementById('view'));
+}
+
 // Updates a Round Robin scoreboard's "Team A/B Wins" buttons in place after
 // an auto-detected winner, without re-rendering the whole match list (which
 // would yank focus away from whichever score input the user is still typing in).
@@ -1407,6 +1500,7 @@ function confirmRoundRobinMatch(matchId){
 
   m.status = 'done';
   m.court = null;
+  playGameWinSound();
 
   advanceRRQueue();
 
@@ -1538,6 +1632,33 @@ function markPlayerAbsentAndAutoReplace(matchId, team, oldId){
 /* ============================================================
    MATCH FINALIZATION (ROTATION ORIGINAL SYSTEM)
    ============================================================ */
+function updateRotationScoreInput(team, val){
+  if(!state.current) return;
+  const num = val === '' ? null : parseInt(val, 10);
+  if(team === 'A') state.current.scoreA = (num === null || isNaN(num)) ? null : num;
+  else state.current.scoreB = (num === null || isNaN(num)) ? null : num;
+  saveAll();
+}
+
+function adjustRotationScore(team, delta){
+  if(!state.current) return;
+  let cur = team === 'A' ? state.current.scoreA : state.current.scoreB;
+  cur = (cur === null || isNaN(cur)) ? 0 : cur;
+  cur = Math.max(0, cur + delta);
+  if(team === 'A') state.current.scoreA = cur; else state.current.scoreB = cur;
+  saveAll();
+  delta > 0 ? playPointUpSound() : playPointDownSound();
+  renderMatchView(document.getElementById('view'));
+}
+
+function sideOutRotation(){
+  if(!state.current) return;
+  state.current.serving = state.current.serving === 'A' ? 'B' : 'A';
+  saveAll();
+  playSideOutSound();
+  renderMatchView(document.getElementById('view'));
+}
+
 function recordRotationMatch(scoreA, scoreB) {
   if(!state.current) return;
   const sA = parseInt(scoreA,10);
@@ -1608,6 +1729,7 @@ function recordRotationMatch(scoreA, scoreB) {
 
   state.current = null;
   saveAll(); renderAll();
+  playGameWinSound();
   toast('Match score recorded.');
 }
 
@@ -1881,6 +2003,8 @@ function renderMatchView(el){
 
     activeMatches.forEach(m => {
       const activeA = m.winner === 'A', activeB = m.winner === 'B';
+      if(m.serving === undefined) m.serving = 'A';
+      const servingA = m.serving === 'A', servingB = m.serving === 'B';
       html += `
         <div class="scoreboard" style="margin-bottom:14px;">
           <div class="sb-head">
@@ -1892,6 +2016,7 @@ function renderMatchView(el){
               <span class="sb-tag">Team A</span>
               <div class="sb-names">${nameTag(m.id,'A',m.teamA[0])}<br>${nameTag(m.id,'A',m.teamA[1])}</div>
               <div class="sb-rating">Avg: ${Math.round(((getPlayer(m.teamA[0])?.rating||1000)+(getPlayer(m.teamA[1])?.rating||1000))/2)}</div>
+              ${servingA ? `<span class="serve-badge">🎾 Serving</span>` : ''}
               <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="A">
                 ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
               </button>
@@ -1903,6 +2028,7 @@ function renderMatchView(el){
               <span class="sb-tag">Team B</span>
               <div class="sb-names">${nameTag(m.id,'B',m.teamB[0])}<br>${nameTag(m.id,'B',m.teamB[1])}</div>
               <div class="sb-rating">Avg: ${Math.round(((getPlayer(m.teamB[0])?.rating||1000)+(getPlayer(m.teamB[1])?.rating||1000))/2)}</div>
+              ${servingB ? `<span class="serve-badge">🎾 Serving</span>` : ''}
               <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="B">
                 ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
               </button>
@@ -1910,11 +2036,20 @@ function renderMatchView(el){
           </div>
           <div class="sb-foot" style="background:var(--surface-2); padding:10px 14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
             <label style="font-size:11px; color:var(--text-dim); font-weight:700;">SCORES:</label>
-            <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
+            <div class="score-stepper">
+              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="-1" aria-label="Decrease Team A score">−</button>
+              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
+              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score">+</button>
+            </div>
             <span style="color:var(--text-faint); font-weight:bold;">vs</span>
-            <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
+            <div class="score-stepper">
+              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="-1" aria-label="Decrease Team B score">−</button>
+              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
+              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="1" aria-label="Increase Team B score">+</button>
+            </div>
           </div>
-          <div style="padding:12px 14px 14px;">
+          <div style="padding:0 14px 14px;">
+            <button class="btn btn-secondary btn-block btn-sm sideout-btn" style="margin-bottom:10px;" data-action="rr-side-out" data-match="${m.id}">🔁 Side Out — Switch Serve</button>
             <button class="btn btn-primary btn-block" data-action="confirm-rr-match" data-match="${m.id}">Confirm Result &amp; Pull Next Match</button>
           </div>
         </div>
@@ -1983,6 +2118,8 @@ function renderMatchView(el){
   const c = state.current;
   const pA1 = getPlayer(c.teamA[0]), pA2 = getPlayer(c.teamA[1]);
   const pB1 = getPlayer(c.teamB[0]), pB2 = getPlayer(c.teamB[1]);
+  if(c.serving === undefined) c.serving = 'A';
+  const servingA = c.serving === 'A', servingB = c.serving === 'B';
 
   el.innerHTML = `
     <div class="section-title">Current Match Dashboard</div>
@@ -1996,6 +2133,7 @@ function renderMatchView(el){
           <span class="sb-tag">Team A</span>
           <div class="sb-names">${esc(pA1?.name || '')}<br>${esc(pA2?.name || '')}</div>
           <div class="sb-rating">Avg: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
+          ${servingA ? `<span class="serve-badge">🎾 Serving</span>` : ''}
         </div>
         
         <div class="sb-divider"></div>
@@ -2004,6 +2142,7 @@ function renderMatchView(el){
           <span class="sb-tag">Team B</span>
           <div class="sb-names">${esc(pB1?.name || '')}<br>${esc(pB2?.name || '')}</div>
           <div class="sb-rating">Avg: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
+          ${servingB ? `<span class="serve-badge">🎾 Serving</span>` : ''}
         </div>
       </div>
     </div>
@@ -2013,14 +2152,23 @@ function renderMatchView(el){
       <div class="cb-score-row">
         <div class="cb-score-team">
           <span class="cb-score-label">Team A Score</span>
-          <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreA" value="11">
+          <div class="score-stepper">
+            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="A" data-delta="-1" aria-label="Decrease Team A score">−</button>
+            <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreA" placeholder="0" value="${c.scoreA !== null && c.scoreA !== undefined ? c.scoreA : ''}" oninput="window.updateRotationScoreInput('A', this.value)">
+            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="A" data-delta="1" aria-label="Increase Team A score">+</button>
+          </div>
         </div>
         <div class="cb-score-vs">vs</div>
         <div class="cb-score-team">
           <span class="cb-score-label">Team B Score</span>
-          <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreB" value="9">
+          <div class="score-stepper">
+            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="B" data-delta="-1" aria-label="Decrease Team B score">−</button>
+            <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreB" placeholder="0" value="${c.scoreB !== null && c.scoreB !== undefined ? c.scoreB : ''}" oninput="window.updateRotationScoreInput('B', this.value)">
+            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="B" data-delta="1" aria-label="Increase Team B score">+</button>
+          </div>
         </div>
       </div>
+      <button class="btn btn-secondary btn-block sideout-btn" style="margin-top:10px;" data-action="rotation-side-out">🔁 Side Out — Switch Serve</button>
       <button class="btn btn-primary btn-block" style="margin-top:12px;" data-action="save-match-score">Submit Final Score</button>
       <div style="display:flex; gap:8px; margin-top:8px;">
         <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="skip-match">Clear Match</button>
@@ -2028,6 +2176,10 @@ function renderMatchView(el){
       </div>
     </div>
   `;
+
+  window.updateRotationScoreInput = function(team, val){
+    updateRotationScoreInput(team, val);
+  };
 }
 
 function renderQueueView(el){
@@ -2369,6 +2521,17 @@ function renderSettingsView(el){
         </label>
       </div>
 
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">🔊 Audio Scoring</div>
+          <div class="t-hint">Play sound cues for +/- points, side-outs, and game wins.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="audioScoringToggle" ${state.settings.audioScoring !== false ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+
       <button class="btn btn-primary btn-block" style="margin-top:18px;" data-action="save-settings">Save Configurations</button>
     </div>
 
@@ -2408,11 +2571,13 @@ function saveSettingsFromForm(){
   const winnerVsWinnerVal = document.getElementById('winnerVsWinnerToggle') ? document.getElementById('winnerVsWinnerToggle').checked : true;
   const equalPlayVal = document.getElementById('equalPlayToggle') ? document.getElementById('equalPlayToggle').checked : true;
   const smartBalanceVal = document.getElementById('smartBalanceToggle') ? document.getElementById('smartBalanceToggle').checked : true;
+  const audioScoringVal = document.getElementById('audioScoringToggle') ? document.getElementById('audioScoringToggle').checked : true;
 
   state.settings.numCourts = numCourtsVal;
   state.settings.winnerVsWinner = winnerVsWinnerVal;
   state.settings.equalPlayPriority = equalPlayVal;
   state.settings.smartBalance = smartBalanceVal;
+  state.settings.audioScoring = audioScoringVal;
 
   if(state.currentGeneration) advanceRRQueue(); // pick up newly-freed courts right away if the count went up
 
@@ -2451,13 +2616,17 @@ document.addEventListener('click', function(e){
     case 'save-match-score':
       recordRotationMatch(document.getElementById('scoreA').value, document.getElementById('scoreB').value);
       break;
-    
+    case 'rotation-score-adjust': adjustRotationScore(t.dataset.team, parseInt(t.dataset.delta,10)); break;
+    case 'rotation-side-out': sideOutRotation(); break;
+
     // Round robin workflow
     case 'generate-roundrobin': generateRoundRobinGeneration(); break;
     case 'do-generate-rr': closeModal(); _doGenerateRoundRobinGeneration(null); break;
     case 'set-rr-winner':
       selectRoundRobinWinner(t.dataset.match, t.dataset.team);
       break;
+    case 'rr-score-adjust': adjustRRScore(t.dataset.match, t.dataset.team, parseInt(t.dataset.delta,10)); break;
+    case 'rr-side-out': sideOutRR(t.dataset.match); break;
     case 'confirm-rr-match': confirmRoundRobinMatch(t.dataset.match); break;
     case 'open-replace-player': openReplacePlayerModal(t.dataset.match, t.dataset.team, t.dataset.player); break;
     case 'open-replace-picker': openReplacePlayerPickerModal(t.dataset.match); break;
