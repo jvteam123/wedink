@@ -129,13 +129,48 @@ input,select,textarea{touch-action:manipulation; -webkit-tap-highlight-color:tra
 .dash-strip .d-item{display:flex; align-items:baseline; gap:5px; flex:none; white-space:nowrap;}
 .dash-strip .d-item .v{font-family:var(--font-mono); color:var(--text); font-weight:700; font-size:13px;}
 
+/* ---------- Icon buttons (topbar utility cluster) ---------- */
+.topbar-icon-btn{
+  width:34px; height:34px; border-radius:10px; flex:none; appearance:none;
+  background:var(--surface-2); border:1px solid var(--line-soft); color:var(--text);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:background .15s ease, border-color .15s ease, transform .08s ease;
+}
+.topbar-icon-btn svg{width:17px; height:17px;}
+.topbar-icon-btn:active{transform:scale(0.93);}
+.topbar-icon-btn:hover{border-color:var(--line);}
+
+/* ---------- Onboarding hint banner ---------- */
+.nav-hint{
+  display:flex; align-items:flex-start; gap:10px; margin-top:10px;
+  background:rgba(215,242,61,0.08); border:1px solid rgba(215,242,61,0.32);
+  border-radius:var(--radius-md); padding:9px 8px 9px 12px; font-size:12.5px;
+  line-height:1.5; color:var(--text-dim); animation:fadeIn .25s ease;
+}
+.nav-hint b{color:var(--ball);}
+.nav-hint-text{flex:1;}
+.nav-hint-close{
+  flex:none; background:transparent; border:none; color:var(--text-faint);
+  font-size:13px; cursor:pointer; padding:3px 6px; line-height:1; border-radius:6px;
+}
+.nav-hint-close:active{color:var(--text); background:var(--surface-2);}
+
 /* ---------- Tab nav ---------- */
+.tabs-row{
+  position:sticky; top:var(--topbar-h, 72px); z-index:29; background:var(--bg);
+}
 .tabs{
   display:flex; gap:6px; overflow-x:auto; padding:10px 16px; scroll-snap-type:x proximate;
   background:var(--bg);
-  position:sticky; top:var(--topbar-h, 72px); z-index:29;
   border-bottom:1px solid var(--line-soft);
 }
+.tabs-fade{
+  position:absolute; top:0; bottom:1px; width:30px; pointer-events:none;
+  opacity:0; transition:opacity .2s ease; z-index:1;
+}
+.tabs-fade-l{left:0; background:linear-gradient(90deg, var(--bg) 15%, transparent);}
+.tabs-fade-r{right:0; background:linear-gradient(270deg, var(--bg) 15%, transparent);}
+.tabs-fade.show{opacity:1;}
 .tab-btn{
   flex:none; display:flex; align-items:center; gap:6px;
   background:transparent; border:1px solid transparent; color:var(--text-dim);
@@ -146,6 +181,28 @@ input,select,textarea{touch-action:manipulation; -webkit-tap-highlight-color:tra
 .tab-btn svg{width:15px;height:15px;flex:none;}
 .tab-btn.active{background:var(--surface-2); color:var(--ball); border-color:var(--line);}
 .tab-btn:active{transform:scale(0.97);}
+
+/* ---------- Nav menu (bottom-sheet "find anything" launcher) ---------- */
+.nav-menu-list{display:flex; flex-direction:column; gap:6px; margin-top:2px;}
+.nav-menu-item{
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left; appearance:none;
+  background:var(--surface-2); border:1px solid var(--line-soft); border-radius:var(--radius-md);
+  padding:11px 12px; cursor:pointer; color:var(--text); transition:border-color .15s, background .15s;
+}
+.nav-menu-item:active{transform:scale(0.99);}
+.nav-menu-item.active{border-color:var(--ball); background:rgba(215,242,61,0.08);}
+.nav-menu-item .nmi-ico{
+  width:34px; height:34px; border-radius:9px; background:var(--surface-3); color:var(--ball);
+  display:flex; align-items:center; justify-content:center; flex:none;
+}
+.nav-menu-item .nmi-ico svg{width:16px; height:16px;}
+.nav-menu-item .nmi-text{flex:1; min-width:0; display:flex; flex-direction:column; gap:1px;}
+.nav-menu-item .nmi-label{font-weight:700; font-size:14px;}
+.nav-menu-item .nmi-desc{font-size:11.5px; color:var(--text-faint);}
+.nav-menu-item .nmi-current{
+  flex:none; font-size:9.5px; font-weight:800; color:var(--ball); text-transform:uppercase;
+  letter-spacing:.06em; border:1px solid var(--ball-dim); border-radius:999px; padding:3px 7px;
+}
 
 /* ---------- Content ---------- */
 .view{padding:14px 16px 12px; animation:fadeIn .22s ease;}
@@ -469,22 +526,33 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 
   <div class="topbar">
     <div class="brand-row">
+      <button class="topbar-icon-btn" data-action="open-nav-menu" aria-label="Open navigation menu" title="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div class="brand-mark">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#D7F23D" stroke-width="2"/><circle cx="9" cy="9" r="1" fill="#D7F23D"/><circle cx="14" cy="8.5" r="1" fill="#D7F23D"/><circle cx="15.5" cy="13" r="1" fill="#D7F23D"/><circle cx="10.5" cy="15" r="1" fill="#D7F23D"/></svg>
       </div>
-      <div style="flex:1;">
+      <div style="flex:1; min-width:0;">
         <div class="brand-name">Kitchen <b>Ladder</b></div>
         <div class="brand-sub">Open-play matchmaking with Multi-Mode systems</div>
       </div>
+      <button class="topbar-icon-btn" data-action="tab" data-tab="settings" aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
       <button id="topbar-install-btn" style="display:none; flex:none; align-items:center; gap:5px; background:var(--surface-2); border:1px solid var(--ball); color:var(--ball); border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Install
       </button>
     </div>
     <div class="dash-strip scroll-hide" id="dashStrip"></div>
+    <div id="onboardingBanner"></div>
   </div>
 
-  <nav class="tabs scroll-hide" id="tabNav"></nav>
+  <div class="tabs-row">
+    <nav class="tabs scroll-hide" id="tabNav"></nav>
+    <div class="tabs-fade tabs-fade-l" id="tabsFadeL"></div>
+    <div class="tabs-fade tabs-fade-r" id="tabsFadeR"></div>
+  </div>
 
   <main class="view" id="view"></main>
 
@@ -499,6 +567,8 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 
 /* ============================================================
    INTEGRITY CHECK — verifies authorship signature on load
+   DISABLED FOR TESTING (re-enable by uncommenting the IIFE body
+   below before shipping to production).
    ============================================================ */
 (function(){
   const sig = "KL-RENZKU-2026-ORIGINAL";
@@ -524,6 +594,9 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 
 /* ============================================================
    DOMAIN LOCK — only authorized domains can run this app
+   DISABLED FOR TESTING (re-enable by uncommenting the IIFE body
+   below before shipping to production, and add your test domain
+   to allowedDomains if you want to keep this on while testing).
    ============================================================ */
 (function(){
   const allowedDomains = [
@@ -1558,22 +1631,80 @@ function updateDashStrip(){
   `;
 }
 
+/* ============================================================
+   NAVIGATION CONFIG — single source of truth for tab strip + nav menu
+   ============================================================ */
+const NAV_SECTIONS = [
+  { id: 'match', label: 'Match', desc: 'Live pairing & scoreboard', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12M12 6v12"/></svg>' },
+  { id: 'queue', label: 'Queue', desc: "Who's up next on court", svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>' },
+  { id: 'players', label: 'Players', desc: 'Roster & active status', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>' },
+  { id: 'rankings', label: 'Rankings', desc: 'ELO leaderboard', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' },
+  { id: 'stats', label: 'Stats', desc: 'Session performance breakdown', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
+  { id: 'history', label: 'History', desc: 'Past match results', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
+  { id: 'settings', label: 'Settings', desc: 'Match mode & configuration', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' }
+];
+
 function renderTabsNav(){
   const nav = document.getElementById('tabNav');
-  const tabsConfig = [
-    { id: 'match', label: 'Match', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12M12 6v12"/></svg>' },
-    { id: 'queue', label: 'Queue', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>' },
-    { id: 'players', label: 'Players', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>' },
-    { id: 'rankings', label: 'Rankings', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' },
-    { id: 'stats', label: 'Stats', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
-    { id: 'history', label: 'History', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
-    { id: 'settings', label: 'Settings', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' }
-  ];
-  nav.innerHTML = tabsConfig.map(t=>`
+  nav.innerHTML = NAV_SECTIONS.map(t=>`
     <button class="tab-btn ${state.tab===t.id?'active':''}" data-action="tab" data-tab="${t.id}">
       ${t.svg}<span>${t.label}</span>
     </button>
   `).join('');
+  requestAnimationFrame(updateTabsFade);
+}
+
+/* ---------- Scroll-edge fade hints on the tab strip ---------- */
+function updateTabsFade(){
+  const nav = document.getElementById('tabNav');
+  const fl = document.getElementById('tabsFadeL');
+  const fr = document.getElementById('tabsFadeR');
+  if(!nav || !fl || !fr) return;
+  const maxScroll = nav.scrollWidth - nav.clientWidth;
+  fl.classList.toggle('show', nav.scrollLeft > 4);
+  fr.classList.toggle('show', maxScroll > 4 && nav.scrollLeft < maxScroll - 4);
+}
+
+/* ---------- Nav menu: bottom-sheet listing every section ---------- */
+function openNavMenu(){
+  openModal(`
+    <div class="modal-title">Navigate</div>
+    <div class="modal-sub">Jump straight to any section of Kitchen Ladder.</div>
+    <div class="nav-menu-list">
+      ${NAV_SECTIONS.map(it=>`
+        <button class="nav-menu-item ${state.tab===it.id?'active':''}" data-action="nav-menu-go" data-tab="${it.id}">
+          <span class="nmi-ico">${it.svg}</span>
+          <span class="nmi-text">
+            <span class="nmi-label">${it.label}</span>
+            <span class="nmi-desc">${it.desc}</span>
+          </span>
+          ${state.tab===it.id ? '<span class="nmi-current">Current</span>' : ''}
+        </button>
+      `).join('')}
+    </div>
+  `);
+}
+
+/* ---------- First-run nav hint banner (shown once per device) ---------- */
+function maybeShowNavHint(){
+  const root = document.getElementById('onboardingBanner');
+  if(!root) return;
+  if(localStorage.getItem('kl_seen_nav_hint')){ root.innerHTML=''; return; }
+  root.innerHTML = `
+    <div class="nav-hint">
+      <span class="nav-hint-text">👋 New here? Tap <b>☰ Menu</b> (top-left) anytime to jump to Settings, Rankings, History &amp; every other section.</span>
+      <button class="nav-hint-close" data-action="dismiss-nav-hint" aria-label="Dismiss tip">✕</button>
+    </div>`;
+}
+
+function nudgeTabsOnce(){
+  if(localStorage.getItem('kl_seen_nav_hint')) return;
+  const nav = document.getElementById('tabNav');
+  if(!nav) return;
+  const maxScroll = nav.scrollWidth - nav.clientWidth;
+  if(maxScroll <= 4) return;
+  setTimeout(()=>{ nav.scrollTo({left:36, behavior:'smooth'}); }, 700);
+  setTimeout(()=>{ nav.scrollTo({left:0, behavior:'smooth'}); }, 1300);
 }
 
 function renderActiveView(){
@@ -2166,6 +2297,18 @@ document.addEventListener('click', function(e){
       state.tab = t.dataset.tab;
       saveAll(); renderAll();
       break;
+
+    case 'open-nav-menu': openNavMenu(); break;
+    case 'nav-menu-go':
+      state.tab = t.dataset.tab;
+      saveAll(); closeModal(); renderAll();
+      break;
+    case 'dismiss-nav-hint': {
+      localStorage.setItem('kl_seen_nav_hint', '1');
+      const banner = document.getElementById('onboardingBanner');
+      if(banner) banner.innerHTML = '';
+      break;
+    }
     
     // Rotation workflow
     case 'next-match': nextRotationMatch(); break;
@@ -2538,6 +2681,16 @@ function initInstallBanner(){
 loadState();
 renderAll();
 initInstallBanner();
+maybeShowNavHint();
+
+(function initTabsFadeListeners(){
+  const nav = document.getElementById('tabNav');
+  if(!nav) return;
+  nav.addEventListener('scroll', updateTabsFade, { passive: true });
+  window.addEventListener('resize', updateTabsFade);
+  updateTabsFade();
+  nudgeTabsOnce();
+})();
 
 /* ================================================================
    © 2026 Renzku — Kitchen Ladder. All Rights Reserved.
