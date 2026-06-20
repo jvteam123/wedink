@@ -1264,7 +1264,41 @@ function updateRRMatchScore(matchId, team, val){
   const num = parseInt(val, 10);
   if(isNaN(num)) return;
   if(team === 'A') m.scoreA = num; else m.scoreB = num;
+
+  // Auto-detect the winner straight from the scores typed in: first team to
+  // 11+ that's also ahead by 2 (standard pickleball win condition) gets
+  // marked as the winner automatically, no button tap required.
+  const sA = m.scoreA, sB = m.scoreB;
+  const winsIt = (s, o) => s !== null && s >= 11 && s - (o === null ? 0 : o) >= 2;
+  let autoWinner = null;
+  if(winsIt(sA, sB)) autoWinner = 'A';
+  else if(winsIt(sB, sA)) autoWinner = 'B';
+
+  if(autoWinner && m.winner !== autoWinner){
+    m.winner = autoWinner;
+    syncRRWinnerButtons(matchId); // update buttons in place, no full re-render (keeps the score input focused)
+  }
+
   saveAll();
+}
+
+// Updates a Round Robin scoreboard's "Team A/B Wins" buttons in place after
+// an auto-detected winner, without re-rendering the whole match list (which
+// would yank focus away from whichever score input the user is still typing in).
+function syncRRWinnerButtons(matchId){
+  const gen = state.currentGeneration;
+  const m = gen && gen.matches.find(x => x.id === matchId);
+  if(!m) return;
+  const btnA = document.querySelector(`.sb-winbtn[data-match="${matchId}"][data-team="A"]`);
+  const btnB = document.querySelector(`.sb-winbtn[data-match="${matchId}"][data-team="B"]`);
+  if(!btnA || !btnB) return;
+  const aWin = m.winner === 'A', bWin = m.winner === 'B';
+  btnA.classList.toggle('btn-primary', aWin);
+  btnA.classList.toggle('btn-secondary', !aWin);
+  btnA.textContent = aWin ? '✓ Winner Selected' : 'Team A Wins';
+  btnB.classList.toggle('btn-primary', bWin);
+  btnB.classList.toggle('btn-secondary', !bWin);
+  btnB.textContent = bWin ? '✓ Winner Selected' : 'Team B Wins';
 }
 
 // Finalizes a single court's result immediately (stats, rating, history),
