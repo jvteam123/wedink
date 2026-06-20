@@ -842,18 +842,6 @@ if('speechSynthesis' in window){
       window.speechSynthesis.getVoices();
     });
   }catch(e){}
-  // Chrome/Android keep-alive: Chrome has a long-standing bug where the
-  // speech engine can get stuck "paused" after sitting idle mid-match,
-  // after which every later speak() plays silently. Nudging it with
-  // pause()/resume() periodically keeps it responsive for the whole game.
-  setInterval(function(){
-    try{
-      if(window.speechSynthesis.speaking){
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
-      }
-    }catch(e){}
-  }, 4000);
 }
 
 function speakNow(text){
