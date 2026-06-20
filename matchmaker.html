@@ -490,6 +490,7 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   display:flex; align-items:center; justify-content:center; transition:transform .08s ease, filter .15s ease;
 }
 .score-btn:active{ transform:scale(0.9); }
+.score-btn:disabled{ opacity:.32; cursor:not-allowed; filter:grayscale(.4); transform:none; }
 .score-btn-plus{ color:var(--win); border-color:var(--win-dim); }
 .score-btn-minus{ color:var(--loss); border-color:var(--loss-dim); }
 .rr-score-btn{ width:26px; height:26px; font-size:14px; border-radius:8px; flex:none; }
@@ -506,6 +507,7 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 }
 .serve-set-btn:active{ color:var(--ball); border-color:var(--ball-dim); transform:scale(0.96); }
 .sideout-btn{ display:flex; align-items:center; justify-content:center; gap:6px; }
+.undo-serve-btn{ flex:none !important; width:auto; padding:0 10px; }
 .rr-score-foot{ flex-wrap:nowrap !important; justify-content:center; gap:8px !important; overflow-x:auto; }
 .rr-score-vs-sm{ font-size:13px; font-weight:800; color:var(--text-faint); flex:none; }
 
@@ -829,14 +831,56 @@ function playGameWinSound(){
    ============================================================ */
 function safeScore(n){ return (n === null || n === undefined || isNaN(n)) ? 0 : n; }
 
+// Warm up the voice list as early as possible. On Chrome/Android the very
+// first speak() call can be silently swallowed if speechSynthesis hasn't
+// finished loading its voice list yet — calling getVoices() (and again once
+// 'voiceschanged' fires) forces that to happen well before anyone scores.
+if('speechSynthesis' in window){
+  try{
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', function(){
+      window.speechSynthesis.getVoices();
+    });
+  }catch(e){}
+  // Chrome/Android keep-alive: Chrome has a long-standing bug where the
+  // speech engine can get stuck "paused" after sitting idle mid-match,
+  // after which every later speak() plays silently. Nudging it with
+  // pause()/resume() periodically keeps it responsive for the whole game.
+  setInterval(function(){
+    try{
+      if(window.speechSynthesis.speaking){
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }
+    }catch(e){}
+  }, 4000);
+}
+
+function speakNow(text){
+  try{
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1.05;
+    utter.volume = 1;
+    window.speechSynthesis.speak(utter);
+  }catch(e){ /* speech not available — fail silently */ }
+}
+
 function speakUtterance(text, interrupt){
   if(!state.settings.voiceAnnounce) return;
   if(!('speechSynthesis' in window)) return;
   try{
-    if(interrupt) window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1.05;
-    window.speechSynthesis.speak(utter);
+    const synth = window.speechSynthesis;
+    if(interrupt && (synth.speaking || synth.pending)){
+      synth.cancel();
+      // Calling speak() in the very same tick as cancel() is a known
+      // Chrome/Android bug — the new utterance gets silently dropped,
+      // so nothing is ever heard even though it was "spoken". Giving the
+      // engine a beat to actually clear before queuing the next line
+      // fixes that.
+      setTimeout(function(){ speakNow(text); }, 50);
+    } else {
+      speakNow(text);
+    }
   }catch(e){ /* speech not available — fail silently */ }
 }
 
@@ -854,9 +898,14 @@ function speakSideOut(m){
   if(!state.settings.voiceAnnounce) return;
   if(!('speechSynthesis' in window)) return;
   try{
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance('Side out'));
-    window.speechSynthesis.speak(new SpeechSynthesisUtterance(scoreCallText(m)));
+    const synth = window.speechSynthesis;
+    const text = scoreCallText(m);
+    if(synth.speaking || synth.pending){
+      synth.cancel();
+      setTimeout(function(){ speakNow('Side out'); speakNow(text); }, 50);
+    } else {
+      speakNow('Side out'); speakNow(text);
+    }
   }catch(e){ /* speech not available — fail silently */ }
 }
 
@@ -1461,11 +1510,34 @@ function updateRRMatchScore(matchId, team, val){
   saveAll();
 }
 
+// ============================================================
+// SERVE-DECISION UNDO (separate from the match-level "Undo Last Match")
+// ------------------------------------------------------------
+// Captures who's serving / server number / first-serve flag right before
+// each serve-changing action (picking the 1st server, switching to serve 2,
+// side-out), so a mis-tap can be reverted on its own — without touching the
+// score or rolling back an entire confirmed match.
+// ============================================================
+function snapshotServe(obj){
+  return { serving: obj.serving, serverNum: obj.serverNum, firstServe: obj.firstServe };
+}
+function restoreServe(obj, snap){
+  obj.serving = snap.serving;
+  obj.serverNum = snap.serverNum;
+  obj.firstServe = snap.firstServe;
+}
+
 function adjustRRScore(matchId, team, delta){
   const gen = state.currentGeneration;
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done') return;
+  // Only the serving team can score in pickleball — the receiving team's
+  // stepper is disabled in the UI, but this guard covers any stray click too.
+  if(m.serving !== team){
+    toast(`Only the serving team can score — Team ${m.serving} is serving.`);
+    return;
+  }
   let cur = team === 'A' ? m.scoreA : m.scoreB;
   cur = (cur === null || isNaN(cur)) ? 0 : cur;
   cur = Math.max(0, cur + delta);
@@ -1481,6 +1553,7 @@ function setServingTeamRR(matchId, team){
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done') return;
   if(!m.firstServe) return; // who serves first can only be set before the very first serve of the game
+  m._serveUndo = snapshotServe(m);
   m.serving = team;
   saveAll();
   renderMatchView(document.getElementById('view'));
@@ -1493,6 +1566,7 @@ function advanceServerRR(matchId){
   if(!m || m.status === 'done') return;
   if(m.firstServe) return; // the very first serve of the game is a single serve — no serve 2 to switch to
   if(m.serverNum !== 1) return; // already on serve 2 — side out is the next move, not this
+  m._serveUndo = snapshotServe(m);
   m.serverNum = 2;
   saveAll();
   playSideOutSound();
@@ -1509,12 +1583,25 @@ function sideOutRR(matchId){
   // very first serve of the game, which is just one serve before the first
   // side-out (per official pickleball rules).
   if(!m.firstServe && m.serverNum !== 2) return;
+  m._serveUndo = snapshotServe(m);
   m.serving = m.serving === 'A' ? 'B' : 'A';
   m.serverNum = 1;
   m.firstServe = false;
   saveAll();
   playSideOutSound();
   speakSideOut(m);
+  renderMatchView(document.getElementById('view'));
+}
+
+function undoServeRR(matchId){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || !m._serveUndo){ toast('No serve decision to undo.'); return; }
+  restoreServe(m, m._serveUndo);
+  m._serveUndo = null;
+  saveAll();
+  toast('Serve decision undone.');
   renderMatchView(document.getElementById('view'));
 }
 
@@ -1746,6 +1833,12 @@ function updateRotationScoreInput(team, val){
 
 function adjustRotationScore(team, delta){
   if(!state.current) return;
+  // Only the serving team can score in pickleball — the receiving team's
+  // stepper is disabled in the UI, but this guard covers any stray click too.
+  if(state.current.serving !== team){
+    toast(`Only the serving team can score — Team ${state.current.serving} is serving.`);
+    return;
+  }
   let cur = team === 'A' ? state.current.scoreA : state.current.scoreB;
   cur = (cur === null || isNaN(cur)) ? 0 : cur;
   cur = Math.max(0, cur + delta);
@@ -1759,6 +1852,7 @@ function adjustRotationScore(team, delta){
 function setServingTeamRotation(team){
   if(!state.current) return;
   if(!state.current.firstServe) return; // who serves first can only be set before the very first serve of the game
+  state.current._serveUndo = snapshotServe(state.current);
   state.current.serving = team;
   saveAll();
   renderMatchView(document.getElementById('view'));
@@ -1768,6 +1862,7 @@ function advanceServerRotation(){
   if(!state.current) return;
   if(state.current.firstServe) return; // the very first serve of the game is a single serve — no serve 2 to switch to
   if(state.current.serverNum !== 1) return;
+  state.current._serveUndo = snapshotServe(state.current);
   state.current.serverNum = 2;
   saveAll();
   playSideOutSound();
@@ -1778,12 +1873,22 @@ function advanceServerRotation(){
 function sideOutRotation(){
   if(!state.current) return;
   if(!state.current.firstServe && state.current.serverNum !== 2) return;
+  state.current._serveUndo = snapshotServe(state.current);
   state.current.serving = state.current.serving === 'A' ? 'B' : 'A';
   state.current.serverNum = 1;
   state.current.firstServe = false;
   saveAll();
   playSideOutSound();
   speakSideOut(state.current);
+  renderMatchView(document.getElementById('view'));
+}
+
+function undoServeRotation(){
+  if(!state.current || !state.current._serveUndo){ toast('No serve decision to undo.'); return; }
+  restoreServe(state.current, state.current._serveUndo);
+  state.current._serveUndo = null;
+  saveAll();
+  toast('Serve decision undone.');
   renderMatchView(document.getElementById('view'));
 }
 
@@ -2167,21 +2272,22 @@ function renderMatchView(el){
           </div>
           <div class="sb-foot rr-score-foot">
             <div class="score-stepper">
-              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="-1" aria-label="Decrease Team A score">−</button>
+              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>−</button>
               <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
-              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score">+</button>
+              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>+</button>
             </div>
             <span class="rr-score-vs-sm">vs</span>
             <div class="score-stepper">
-              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="-1" aria-label="Decrease Team B score">−</button>
+              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>−</button>
               <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
-              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="1" aria-label="Increase Team B score">+</button>
+              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="1" aria-label="Increase Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>+</button>
             </div>
           </div>
           <div style="padding:0 14px 14px;">
             <div style="display:flex; gap:8px; margin-bottom:10px;">
               <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="rr-advance-server" data-match="${m.id}" ${(m.firstServe || m.serverNum===2)?'disabled':''}>🎾 Switch to Serve 2</button>
               <button class="btn btn-secondary btn-sm sideout-btn" style="flex:1;" data-action="rr-side-out" data-match="${m.id}" ${(!m.firstServe && m.serverNum===1)?'disabled':''}>🔁 Side Out</button>
+              <button class="btn btn-ghost btn-sm undo-serve-btn" data-action="rr-undo-serve" data-match="${m.id}" title="Undo the last serve decision (1st server / serve 2 / side out)" ${!m._serveUndo?'disabled':''}>↩️</button>
             </div>
             <button class="btn btn-primary btn-block" data-action="confirm-rr-match" data-match="${m.id}">Confirm Result &amp; Pull Next Match</button>
           </div>
@@ -2289,24 +2395,25 @@ function renderMatchView(el){
         <div class="cb-score-team">
           <span class="cb-score-label">Team A Score</span>
           <div class="score-stepper">
-            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="A" data-delta="-1" aria-label="Decrease Team A score">−</button>
+            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>−</button>
             <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreA" placeholder="0" value="${c.scoreA !== null && c.scoreA !== undefined ? c.scoreA : ''}" oninput="window.updateRotationScoreInput('A', this.value)">
-            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="A" data-delta="1" aria-label="Increase Team A score">+</button>
+            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="A" data-delta="1" aria-label="Increase Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>+</button>
           </div>
         </div>
         <div class="cb-score-vs">vs</div>
         <div class="cb-score-team">
           <span class="cb-score-label">Team B Score</span>
           <div class="score-stepper">
-            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="B" data-delta="-1" aria-label="Decrease Team B score">−</button>
+            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>−</button>
             <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreB" placeholder="0" value="${c.scoreB !== null && c.scoreB !== undefined ? c.scoreB : ''}" oninput="window.updateRotationScoreInput('B', this.value)">
-            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="B" data-delta="1" aria-label="Increase Team B score">+</button>
+            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="B" data-delta="1" aria-label="Increase Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>+</button>
           </div>
         </div>
       </div>
       <div style="display:flex; gap:8px; margin-top:10px;">
         <button class="btn btn-secondary" style="flex:1;" data-action="rotation-advance-server" ${(c.firstServe || c.serverNum===2)?'disabled':''}>🎾 Switch to Serve 2</button>
         <button class="btn btn-secondary sideout-btn" style="flex:1;" data-action="rotation-side-out" ${(!c.firstServe && c.serverNum===1)?'disabled':''}>🔁 Side Out</button>
+        <button class="btn btn-ghost undo-serve-btn" data-action="rotation-undo-serve" title="Undo the last serve decision (1st server / serve 2 / side out)" ${!c._serveUndo?'disabled':''}>↩️</button>
       </div>
       <button class="btn btn-primary btn-block" style="margin-top:12px;" data-action="save-match-score">Submit Final Score</button>
       <div style="display:flex; gap:8px; margin-top:8px;">
@@ -2772,6 +2879,7 @@ document.addEventListener('click', function(e){
     case 'rotation-set-server': setServingTeamRotation(t.dataset.team); break;
     case 'rotation-advance-server': advanceServerRotation(); break;
     case 'rotation-side-out': sideOutRotation(); break;
+    case 'rotation-undo-serve': undoServeRotation(); break;
 
     // Round robin workflow
     case 'generate-roundrobin': generateRoundRobinGeneration(); break;
@@ -2783,6 +2891,7 @@ document.addEventListener('click', function(e){
     case 'rr-set-server': setServingTeamRR(t.dataset.match, t.dataset.team); break;
     case 'rr-advance-server': advanceServerRR(t.dataset.match); break;
     case 'rr-side-out': sideOutRR(t.dataset.match); break;
+    case 'rr-undo-serve': undoServeRR(t.dataset.match); break;
     case 'confirm-rr-match': confirmRoundRobinMatch(t.dataset.match); break;
     case 'open-replace-player': openReplacePlayerModal(t.dataset.match, t.dataset.team, t.dataset.player); break;
     case 'open-replace-picker': openReplacePlayerPickerModal(t.dataset.match); break;
