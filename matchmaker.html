@@ -1129,7 +1129,7 @@ function nextRotationMatch(){
   const four = selected.slice(0, 4);
   const best = scoreSplit(four, state.settings);
   const [[p1,p2],[p3,p4]] = best.split;
-  state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id], scoreA: null, scoreB: null, serving: 'A', serverNum: 1 };
+  state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id], scoreA: null, scoreB: null, serving: 'A', serverNum: 1, firstServe: true };
   state.players.forEach(p=>{
     if(p.active){
       if(state.current.teamA.includes(p.id) || state.current.teamB.includes(p.id)){ p.consecutiveSitOuts = 0; }
@@ -1298,7 +1298,7 @@ function _doGenerateRoundRobinGeneration(activeList) {
     id: uid('gm'),
     matchIndex: idx,
     teamA: m.teamA, teamB: m.teamB,
-    scoreA: null, scoreB: null, winner: null, serving: 'A', serverNum: 1,
+    scoreA: null, scoreB: null, winner: null, serving: 'A', serverNum: 1, firstServe: true,
     status: idx < numCourts ? 'active' : 'queued',
     court: idx < numCourts ? idx + 1 : null
   }));
@@ -1425,6 +1425,7 @@ function advanceServerRR(matchId){
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done') return;
+  if(m.firstServe) return; // the very first serve of the game is a single serve — no serve 2 to switch to
   if(m.serverNum !== 1) return; // already on serve 2 — side out is the next move, not this
   m.serverNum = 2;
   saveAll();
@@ -1437,9 +1438,13 @@ function sideOutRR(matchId){
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done') return;
-  if(m.serverNum !== 2) return; // doubles side-out only happens once both servers on the team have served
+  // Standard doubles side-out needs both servers to have served, EXCEPT the
+  // very first serve of the game, which is just one serve before the first
+  // side-out (per official pickleball rules).
+  if(!m.firstServe && m.serverNum !== 2) return;
   m.serving = m.serving === 'A' ? 'B' : 'A';
   m.serverNum = 1;
+  m.firstServe = false;
   saveAll();
   playSideOutSound();
   renderMatchView(document.getElementById('view'));
@@ -1684,6 +1689,7 @@ function adjustRotationScore(team, delta){
 
 function advanceServerRotation(){
   if(!state.current) return;
+  if(state.current.firstServe) return; // the very first serve of the game is a single serve — no serve 2 to switch to
   if(state.current.serverNum !== 1) return;
   state.current.serverNum = 2;
   saveAll();
@@ -1693,9 +1699,10 @@ function advanceServerRotation(){
 
 function sideOutRotation(){
   if(!state.current) return;
-  if(state.current.serverNum !== 2) return;
+  if(!state.current.firstServe && state.current.serverNum !== 2) return;
   state.current.serving = state.current.serving === 'A' ? 'B' : 'A';
   state.current.serverNum = 1;
+  state.current.firstServe = false;
   saveAll();
   playSideOutSound();
   renderMatchView(document.getElementById('view'));
@@ -2047,7 +2054,9 @@ function renderMatchView(el){
       const activeA = m.winner === 'A', activeB = m.winner === 'B';
       if(m.serving === undefined) m.serving = 'A';
       if(m.serverNum === undefined) m.serverNum = 1;
+      if(m.firstServe === undefined) m.firstServe = (m.scoreA === null && m.scoreB === null);
       const servingA = m.serving === 'A', servingB = m.serving === 'B';
+      const serveLabel = m.firstServe ? '1st Serve' : `Serve ${m.serverNum}`;
       html += `
         <div class="scoreboard" style="margin-bottom:14px;">
           <div class="sb-head">
@@ -2059,7 +2068,7 @@ function renderMatchView(el){
               <span class="sb-tag">Team A</span>
               <div class="sb-names">${nameTag(m.id,'A',m.teamA[0])}<br>${nameTag(m.id,'A',m.teamA[1])}</div>
               <div class="sb-rating">Avg: ${Math.round(((getPlayer(m.teamA[0])?.rating||1000)+(getPlayer(m.teamA[1])?.rating||1000))/2)}</div>
-              ${servingA ? `<span class="serve-badge">🎾 Serve ${m.serverNum}</span>` : ''}
+              ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : ''}
               <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="A">
                 ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
               </button>
@@ -2071,7 +2080,7 @@ function renderMatchView(el){
               <span class="sb-tag">Team B</span>
               <div class="sb-names">${nameTag(m.id,'B',m.teamB[0])}<br>${nameTag(m.id,'B',m.teamB[1])}</div>
               <div class="sb-rating">Avg: ${Math.round(((getPlayer(m.teamB[0])?.rating||1000)+(getPlayer(m.teamB[1])?.rating||1000))/2)}</div>
-              ${servingB ? `<span class="serve-badge">🎾 Serve ${m.serverNum}</span>` : ''}
+              ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : ''}
               <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="B">
                 ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
               </button>
@@ -2092,8 +2101,8 @@ function renderMatchView(el){
           </div>
           <div style="padding:0 14px 14px;">
             <div style="display:flex; gap:8px; margin-bottom:10px;">
-              <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="rr-advance-server" data-match="${m.id}" ${m.serverNum===2?'disabled':''}>🎾 Switch to Serve 2</button>
-              <button class="btn btn-secondary btn-sm sideout-btn" style="flex:1;" data-action="rr-side-out" data-match="${m.id}" ${m.serverNum===1?'disabled':''}>🔁 Side Out</button>
+              <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="rr-advance-server" data-match="${m.id}" ${(m.firstServe || m.serverNum===2)?'disabled':''}>🎾 Switch to Serve 2</button>
+              <button class="btn btn-secondary btn-sm sideout-btn" style="flex:1;" data-action="rr-side-out" data-match="${m.id}" ${(!m.firstServe && m.serverNum===1)?'disabled':''}>🔁 Side Out</button>
             </div>
             <button class="btn btn-primary btn-block" data-action="confirm-rr-match" data-match="${m.id}">Confirm Result &amp; Pull Next Match</button>
           </div>
@@ -2165,7 +2174,9 @@ function renderMatchView(el){
   const pB1 = getPlayer(c.teamB[0]), pB2 = getPlayer(c.teamB[1]);
   if(c.serving === undefined) c.serving = 'A';
   if(c.serverNum === undefined) c.serverNum = 1;
+  if(c.firstServe === undefined) c.firstServe = (c.scoreA === null && c.scoreB === null);
   const servingA = c.serving === 'A', servingB = c.serving === 'B';
+  const serveLabel = c.firstServe ? '1st Serve' : `Serve ${c.serverNum}`;
 
   el.innerHTML = `
     <div class="section-title">Current Match Dashboard</div>
@@ -2179,7 +2190,7 @@ function renderMatchView(el){
           <span class="sb-tag">Team A</span>
           <div class="sb-names">${esc(pA1?.name || '')}<br>${esc(pA2?.name || '')}</div>
           <div class="sb-rating">Avg: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
-          ${servingA ? `<span class="serve-badge">🎾 Serve ${c.serverNum}</span>` : ''}
+          ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : ''}
         </div>
         
         <div class="sb-divider"></div>
@@ -2188,7 +2199,7 @@ function renderMatchView(el){
           <span class="sb-tag">Team B</span>
           <div class="sb-names">${esc(pB1?.name || '')}<br>${esc(pB2?.name || '')}</div>
           <div class="sb-rating">Avg: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
-          ${servingB ? `<span class="serve-badge">🎾 Serve ${c.serverNum}</span>` : ''}
+          ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : ''}
         </div>
       </div>
     </div>
@@ -2215,8 +2226,8 @@ function renderMatchView(el){
         </div>
       </div>
       <div style="display:flex; gap:8px; margin-top:10px;">
-        <button class="btn btn-secondary" style="flex:1;" data-action="rotation-advance-server" ${c.serverNum===2?'disabled':''}>🎾 Switch to Serve 2</button>
-        <button class="btn btn-secondary sideout-btn" style="flex:1;" data-action="rotation-side-out" ${c.serverNum===1?'disabled':''}>🔁 Side Out</button>
+        <button class="btn btn-secondary" style="flex:1;" data-action="rotation-advance-server" ${(c.firstServe || c.serverNum===2)?'disabled':''}>🎾 Switch to Serve 2</button>
+        <button class="btn btn-secondary sideout-btn" style="flex:1;" data-action="rotation-side-out" ${(!c.firstServe && c.serverNum===1)?'disabled':''}>🔁 Side Out</button>
       </div>
       <button class="btn btn-primary btn-block" style="margin-top:12px;" data-action="save-match-score">Submit Final Score</button>
       <div style="display:flex; gap:8px; margin-top:8px;">
