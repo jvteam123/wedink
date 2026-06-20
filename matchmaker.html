@@ -370,6 +370,14 @@ th{
 }
 td{padding:9px 8px; border-top:1px solid var(--line-soft); white-space:nowrap; font-family:var(--font-mono); font-size:12.5px;}
 td.namecell{font-family:var(--font-ui); font-weight:700; font-size:13px; white-space:normal;}
+.rank-name-btn{
+  background:none; border:none; padding:0; margin:0; cursor:pointer;
+  font:inherit; font-family:var(--font-ui); font-weight:700; font-size:13px;
+  color:var(--text); text-align:left; white-space:normal;
+  text-decoration:underline; text-decoration-color:var(--line); text-decoration-thickness:1px;
+  text-underline-offset:2px;
+}
+.rank-name-btn:active{color:var(--ball); text-decoration-color:var(--ball);}
 tr.rank-1 .rankbadge{color:var(--ball);}
 .rankbadge{font-weight:800;}
 .txt-win{color:var(--win); font-weight:700;}
@@ -780,6 +788,24 @@ function newPlayer(name){
 function winPct(p){
   if(p.gamesPlayed===0) return 0;
   return Math.round((p.wins/p.gamesPlayed)*1000)/10;
+}
+
+// Average points scored/allowed/margin per game, computed straight from
+// match history (so it's accurate regardless of which mode the games came from).
+function playerScoreAverages(id){
+  let scored = 0, allowed = 0, games = 0;
+  state.matches.forEach(m => {
+    if(m.teamA.includes(id)){ scored += m.scoreA; allowed += m.scoreB; games++; }
+    else if(m.teamB.includes(id)){ scored += m.scoreB; allowed += m.scoreA; games++; }
+  });
+  if(!games) return { avgFor: 0, avgAgainst: 0, avgMargin: 0, games: 0 };
+  const avgFor = scored / games, avgAgainst = allowed / games;
+  return {
+    avgFor: Math.round(avgFor * 10) / 10,
+    avgAgainst: Math.round(avgAgainst * 10) / 10,
+    avgMargin: Math.round((avgFor - avgAgainst) * 10) / 10,
+    games
+  };
 }
 
 function pairCount(map, id){ return map[id]||0; }
@@ -1275,16 +1301,19 @@ function updateRRMatchScore(matchId, team, val){
   if(isNaN(num)) return;
   if(team === 'A') m.scoreA = num; else m.scoreB = num;
 
-  // Auto-detect the winner straight from the scores typed in: first team to
-  // 11+ that's also ahead by 2 (standard pickleball win condition) gets
-  // marked as the winner automatically, no button tap required.
+  // Recompute the winner from scratch every time a score changes: first team
+  // to 11+ that's also ahead by 2 (standard pickleball win condition) is the
+  // winner. If neither side currently meets that — including a tie like
+  // 11-11 — the winner is cleared, so a stale selection can't linger once
+  // the scores no longer support it (e.g. typing 11 on the team that just
+  // lost, after the other team already had 11).
   const sA = m.scoreA, sB = m.scoreB;
   const winsIt = (s, o) => s !== null && s >= 11 && s - (o === null ? 0 : o) >= 2;
   let autoWinner = null;
   if(winsIt(sA, sB)) autoWinner = 'A';
   else if(winsIt(sB, sA)) autoWinner = 'B';
 
-  if(autoWinner && m.winner !== autoWinner){
+  if(m.winner !== autoWinner){
     m.winner = autoWinner;
     syncRRWinnerButtons(matchId); // update buttons in place, no full re-render (keeps the score input focused)
   }
@@ -2115,11 +2144,17 @@ function renderPlayersView(el){
 let rankSort = 'rating';
 function renderRankingsView(el){
   let pool = state.players.slice();
-  
+  const avgCache = new Map();
+  const avgOf = p => {
+    if(!avgCache.has(p.id)) avgCache.set(p.id, playerScoreAverages(p.id));
+    return avgCache.get(p.id);
+  };
+
   pool.sort((a,b)=>{
     if(rankSort === 'rating') return b.rating - a.rating;
     if(rankSort === 'winpct') return winPct(b) - winPct(a);
     if(rankSort === 'games') return b.gamesPlayed - a.gamesPlayed;
+    if(rankSort === 'avgscore') return avgOf(b).avgFor - avgOf(a).avgFor;
     return b.rating - a.rating;
   });
 
@@ -2129,7 +2164,9 @@ function renderRankingsView(el){
       <div class="sort-chip ${rankSort==='rating'?'active':''}" data-action="rank-sort" data-sort="rating">By Rating (Elo)</div>
       <div class="sort-chip ${rankSort==='winpct'?'active':''}" data-action="rank-sort" data-sort="winpct">By Win %</div>
       <div class="sort-chip ${rankSort==='games'?'active':''}" data-action="rank-sort" data-sort="games">By Games Played</div>
+      <div class="sort-chip ${rankSort==='avgscore'?'active':''}" data-action="rank-sort" data-sort="avgscore">By Avg Score</div>
     </div>
+    <p class="helper-text" style="margin:-2px 2px 10px;">Tap a player's name for their full profile. "Avg Score" is points scored per game; "Margin" is points scored minus points allowed per game.</p>
 
     <div class="card" style="padding:10px 4px;">
       <div class="table-wrap">
@@ -2142,6 +2179,8 @@ function renderRankingsView(el){
               <th style="text-align:center;">W - L</th>
               <th style="text-align:center;">Win %</th>
               <th style="text-align:center;">Rating</th>
+              <th style="text-align:center;">Avg Score</th>
+              <th style="text-align:center;">Margin</th>
               <th style="text-align:center;">Streak</th>
               <th style="text-align:center; padding-right:12px;">Sit Out</th>
             </tr>
@@ -2153,15 +2192,22 @@ function renderRankingsView(el){
               let streakTxt = '—';
               if(strK > 0) { streakClass = 'streak-w'; streakTxt = `W${strK}`; }
               else if(strK < 0) { streakClass = 'streak-l'; streakTxt = `L${Math.abs(strK)}`; }
+              const avg = avgOf(p);
+              const marginColor = avg.avgMargin > 0 ? 'var(--win)' : avg.avgMargin < 0 ? 'var(--loss)' : 'var(--text-faint)';
+              const marginTxt = avg.games ? (avg.avgMargin > 0 ? `+${avg.avgMargin}` : avg.avgMargin) : '—';
 
               return `
                 <tr class="rank-${idx+1}">
                   <td style="padding-left:12px;" class="rankbadge">${idx+1}</td>
-                  <td class="namecell"><strong>${esc(p.name)}</strong></td>
+                  <td class="namecell">
+                    <button class="rank-name-btn" data-action="open-player-profile" data-id="${p.id}" title="View ${esc(p.name)}'s full profile">${esc(p.name)}</button>
+                  </td>
                   <td style="text-align:center;">${p.gamesPlayed}</td>
                   <td style="text-align:center; font-size:11.5px; color:var(--text-dim);">${p.wins} - ${p.losses}</td>
                   <td style="text-align:center;" class="txt-win">${winPct(p)}%</td>
                   <td style="text-align:center; font-weight:700; color:var(--ball);">${p.rating}</td>
+                  <td style="text-align:center; color:var(--court);">${avg.games ? avg.avgFor : '—'}</td>
+                  <td style="text-align:center; font-weight:700; color:${marginColor};">${marginTxt}</td>
                   <td style="text-align:center;"><span class="streak-chip ${streakClass}">${streakTxt}</span></td>
                   <td style="text-align:center; padding-right:12px; color:var(--text-faint);">${p.sitOuts || 0}</td>
                 </tr>
@@ -2598,6 +2644,7 @@ function openPlayerProfile(id){
   if(!p) return;
 
   const wp = winPct(p);
+  const avg = playerScoreAverages(p.id);
   const tmPairs = Object.entries(p.teammates||{}).map(([tid,c])=>({name:playerName(tid),count:c})).sort((a,b)=>b.count-a.count).slice(0,3);
   const opPairs = Object.entries(p.opponents||{}).map(([oid,c])=>({name:playerName(oid),count:c})).sort((a,b)=>b.count-a.count).slice(0,3);
 
@@ -2607,6 +2654,9 @@ function openPlayerProfile(id){
   else if(strK<0) streakTxt = `❄️ L${Math.abs(strK)} streak`;
 
   const ratingColor = p.rating>=1100?'var(--win)':p.rating<=900?'var(--loss)':'var(--court)';
+  const marginColor = avg.avgMargin > 0 ? 'var(--win)' : avg.avgMargin < 0 ? 'var(--loss)' : 'var(--text-faint)';
+  const marginTxt = avg.games ? (avg.avgMargin > 0 ? `+${avg.avgMargin}` : avg.avgMargin) : '—';
+  const recentForm = (p.results||[]).slice(-8);
 
   openModal(`
     <div class="profile-header">
@@ -2644,6 +2694,24 @@ function openPlayerProfile(id){
         <div class="psl">Sit-outs</div>
       </div>
     </div>
+    <div class="profile-stat-row">
+      <div class="profile-stat">
+        <div class="psv" style="color:var(--court);">${avg.games ? avg.avgFor : '—'}</div>
+        <div class="psl">Avg Score / Game</div>
+      </div>
+      <div class="profile-stat">
+        <div class="psv" style="color:var(--text-faint);">${avg.games ? avg.avgAgainst : '—'}</div>
+        <div class="psl">Avg Allowed / Game</div>
+      </div>
+      <div class="profile-stat">
+        <div class="psv" style="color:${marginColor};">${marginTxt}</div>
+        <div class="psl">Avg Margin</div>
+      </div>
+    </div>
+    ${recentForm.length ? `
+    <div class="profile-pair-row">
+      <b>📈 Recent form:</b> ${recentForm.map(r => r === 'W' ? `<span style="color:var(--win); font-weight:800;">W</span>` : `<span style="color:var(--loss); font-weight:800;">L</span>`).join(' ')}
+    </div>` : ''}
     ${tmPairs.length ? `
     <div class="profile-pair-row">
       <b>🤝 Best partners:</b> ${tmPairs.map(x=>`${esc(x.name)} (${x.count}x)`).join(', ')}
