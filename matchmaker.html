@@ -498,6 +498,13 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   letter-spacing:.04em; color:var(--ball); background:rgba(215,242,61,0.12);
   border:1px solid var(--ball-dim); border-radius:999px; padding:2px 7px; text-transform:uppercase;
 }
+.serve-set-btn{
+  appearance:none; display:inline-flex; align-items:center; gap:3px; font-size:9.5px; font-weight:800;
+  letter-spacing:.04em; color:var(--text-faint); background:transparent; font-family:inherit;
+  border:1px dashed var(--line); border-radius:999px; padding:2px 7px; text-transform:uppercase;
+  cursor:pointer; transition:color .15s ease, border-color .15s ease;
+}
+.serve-set-btn:active{ color:var(--ball); border-color:var(--ball-dim); transform:scale(0.96); }
 .sideout-btn{ display:flex; align-items:center; justify-content:center; gap:6px; }
 .rr-score-foot{ flex-wrap:nowrap !important; justify-content:center; gap:8px !important; overflow-x:auto; }
 .rr-score-vs-sm{ font-size:13px; font-weight:800; color:var(--text-faint); flex:none; }
@@ -1420,6 +1427,17 @@ function adjustRRScore(matchId, team, delta){
   renderMatchView(document.getElementById('view'));
 }
 
+function setServingTeamRR(matchId, team){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status === 'done') return;
+  if(!m.firstServe) return; // who serves first can only be set before the very first serve of the game
+  m.serving = team;
+  saveAll();
+  renderMatchView(document.getElementById('view'));
+}
+
 function advanceServerRR(matchId){
   const gen = state.currentGeneration;
   if(!gen) return;
@@ -1684,6 +1702,14 @@ function adjustRotationScore(team, delta){
   if(team === 'A') state.current.scoreA = cur; else state.current.scoreB = cur;
   saveAll();
   delta > 0 ? playPointUpSound() : playPointDownSound();
+  renderMatchView(document.getElementById('view'));
+}
+
+function setServingTeamRotation(team){
+  if(!state.current) return;
+  if(!state.current.firstServe) return; // who serves first can only be set before the very first serve of the game
+  state.current.serving = team;
+  saveAll();
   renderMatchView(document.getElementById('view'));
 }
 
@@ -2068,7 +2094,7 @@ function renderMatchView(el){
               <span class="sb-tag">Team A</span>
               <div class="sb-names">${nameTag(m.id,'A',m.teamA[0])}<br>${nameTag(m.id,'A',m.teamA[1])}</div>
               <div class="sb-rating">Avg: ${Math.round(((getPlayer(m.teamA[0])?.rating||1000)+(getPlayer(m.teamA[1])?.rating||1000))/2)}</div>
-              ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : ''}
+              ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rr-set-server" data-match="${m.id}" data-team="A">Make 1st server</button>` : '')}
               <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="A">
                 ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
               </button>
@@ -2080,7 +2106,7 @@ function renderMatchView(el){
               <span class="sb-tag">Team B</span>
               <div class="sb-names">${nameTag(m.id,'B',m.teamB[0])}<br>${nameTag(m.id,'B',m.teamB[1])}</div>
               <div class="sb-rating">Avg: ${Math.round(((getPlayer(m.teamB[0])?.rating||1000)+(getPlayer(m.teamB[1])?.rating||1000))/2)}</div>
-              ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : ''}
+              ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rr-set-server" data-match="${m.id}" data-team="B">Make 1st server</button>` : '')}
               <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="B">
                 ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
               </button>
@@ -2190,7 +2216,7 @@ function renderMatchView(el){
           <span class="sb-tag">Team A</span>
           <div class="sb-names">${esc(pA1?.name || '')}<br>${esc(pA2?.name || '')}</div>
           <div class="sb-rating">Avg: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
-          ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : ''}
+          ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="A">Make 1st server</button>` : '')}
         </div>
         
         <div class="sb-divider"></div>
@@ -2199,7 +2225,7 @@ function renderMatchView(el){
           <span class="sb-tag">Team B</span>
           <div class="sb-names">${esc(pB1?.name || '')}<br>${esc(pB2?.name || '')}</div>
           <div class="sb-rating">Avg: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
-          ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : ''}
+          ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="B">Make 1st server</button>` : '')}
         </div>
       </div>
     </div>
@@ -2677,6 +2703,7 @@ document.addEventListener('click', function(e){
       recordRotationMatch(document.getElementById('scoreA').value, document.getElementById('scoreB').value);
       break;
     case 'rotation-score-adjust': adjustRotationScore(t.dataset.team, parseInt(t.dataset.delta,10)); break;
+    case 'rotation-set-server': setServingTeamRotation(t.dataset.team); break;
     case 'rotation-advance-server': advanceServerRotation(); break;
     case 'rotation-side-out': sideOutRotation(); break;
 
@@ -2687,6 +2714,7 @@ document.addEventListener('click', function(e){
       selectRoundRobinWinner(t.dataset.match, t.dataset.team);
       break;
     case 'rr-score-adjust': adjustRRScore(t.dataset.match, t.dataset.team, parseInt(t.dataset.delta,10)); break;
+    case 'rr-set-server': setServingTeamRR(t.dataset.match, t.dataset.team); break;
     case 'rr-advance-server': advanceServerRR(t.dataset.match); break;
     case 'rr-side-out': sideOutRR(t.dataset.match); break;
     case 'confirm-rr-match': confirmRoundRobinMatch(t.dataset.match); break;
