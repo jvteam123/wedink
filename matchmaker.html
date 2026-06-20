@@ -886,15 +886,21 @@ function scoreCallText(m){
   return `${servingScore} ${otherScore} ${m.serverNum}`;
 }
 
-// Special call for switching to serve 2 while the score is tied at 10-10 —
-// says "All Match" followed by the server number, e.g. "All Match 2".
-// Any other score at this moment just gets the normal call (which already
-// handles ties via the "All" wording above).
+// Special call for switching to serve 2 while the serving team is at 10 —
+// mirrors the same "Match" milestone wording used when scoring up to 10
+// (speakScoreOrMilestone), since switching serve doesn't go through that
+// path. Tied at 10-10 says "All Match [server#]"; otherwise "Match, [other
+// score] [server#]". Any other score just gets the normal score call
+// (which already handles ties via the "All" wording in scoreCallText).
 function speakServeSwitchCall(m){
   const servingScore = m.serving === 'A' ? safeScore(m.scoreA) : safeScore(m.scoreB);
   const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
-  if(servingScore === otherScore && servingScore === 10){
-    speakUtterance(`All Match ${m.serverNum}`, true);
+  if(servingScore === 10){
+    if(otherScore === 10){
+      speakUtterance(`All Match ${m.serverNum}`, true);
+    } else {
+      speakUtterance(`Match, ${otherScore} ${m.serverNum}`, true);
+    }
   } else {
     speakScoreCall(m);
   }
