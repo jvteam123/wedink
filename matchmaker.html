@@ -1540,7 +1540,10 @@ function pushServeUndo(obj){
 // normal score call.
 function speakScoreOrMilestone(m, scoringTeamScore){
   if(scoringTeamScore === 10){
-    speakUtterance('Match, 10', true);
+    // "Match" already means 10 — don't also say the number. Just call the
+    // other side's score and the server number, e.g. "Match, 7 2".
+    const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
+    speakUtterance(`Match, ${otherScore} ${m.serverNum}`, true);
   } else if(scoringTeamScore === 11){
     speakUtterance('Congratulations!', true);
   } else {
