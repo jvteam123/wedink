@@ -447,10 +447,10 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   .sb-names{font-size:14.5px;}
   .sb-rating{font-size:11px;}
   .sb-tag{font-size:10px;}
-  .cb-score-input{width:62px !important; font-size:19px;}
-  .rr-score-input{width:44px !important; font-size:16px; padding:6px 2px;}
+  .cb-score-input{width:62px; font-size:19px;}
+  .rr-score-input{width:48px; font-size:16px; padding:6px 2px;}
   .score-btn{width:32px; height:32px; font-size:17px;}
-  .rr-score-btn{width:24px; height:24px; font-size:13px;}
+  .rr-score-btn{width:26px; height:26px; font-size:13px;}
   .scoreboard .btn-sm{font-size:12px; padding:8px 8px;}
   .dash-strip{gap:10px;}
   .queue-row .qmeta, .queue-row > div{font-size:12.5px;}
@@ -469,20 +469,20 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   max-width:100%; text-align:center;
 }
 .cb-score-input{
-  width:70px !important; background:var(--surface-3); border:1px solid var(--line); color:var(--text);
+  width:70px; background:var(--surface-3); border:1px solid var(--line); color:var(--text);
   padding:8px 6px; border-radius:var(--radius-sm); font-size:22px; font-family:var(--font-mono);
   font-weight:800; text-align:center; outline:none; transition:border-color .15s;
-  -webkit-appearance:none; appearance:none; flex:none; min-width:0;
+  -webkit-appearance:none; appearance:none;
 }
 .cb-score-input:focus{border-color:var(--ball);}
-.rr-score-input{width:48px !important; padding:7px 2px; font-size:16px;}
+.rr-score-input{width:56px; padding:7px 4px; font-size:17px;}
 .cb-score-vs{
   font-size:16px; font-weight:800; color:var(--text-faint); font-family:var(--font-mono);
   flex:none; padding-top:18px;
 }
 
 /* ---------- Live scoring controls: +/- stepper, serve badge, side-out ---------- */
-.score-stepper{ display:flex; align-items:center; gap:6px; flex:none; }
+.score-stepper{ display:flex; align-items:center; gap:6px; }
 .score-btn{
   appearance:none; flex:none; width:36px; height:36px; border-radius:10px;
   border:1px solid var(--line); background:var(--surface-3); color:var(--text);
@@ -492,15 +492,13 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 .score-btn:active{ transform:scale(0.9); }
 .score-btn-plus{ color:var(--win); border-color:var(--win-dim); }
 .score-btn-minus{ color:var(--loss); border-color:var(--loss-dim); }
-.rr-score-btn{ width:26px; height:26px; font-size:14px; border-radius:8px; flex:none; }
+.rr-score-btn{ width:28px; height:28px; font-size:14px; border-radius:8px; }
 .serve-badge{
   display:inline-flex; align-items:center; gap:3px; font-size:9.5px; font-weight:800;
   letter-spacing:.04em; color:var(--ball); background:rgba(215,242,61,0.12);
   border:1px solid var(--ball-dim); border-radius:999px; padding:2px 7px; text-transform:uppercase;
 }
 .sideout-btn{ display:flex; align-items:center; justify-content:center; gap:6px; }
-.rr-score-foot{ flex-wrap:nowrap !important; justify-content:center; gap:8px !important; overflow-x:auto; }
-.rr-score-vs-sm{ font-size:13px; font-weight:800; color:var(--text-faint); flex:none; }
 
 /* ---------- Radio List Buttons ---------- */
 .radio-group-mode {
@@ -1129,7 +1127,7 @@ function nextRotationMatch(){
   const four = selected.slice(0, 4);
   const best = scoreSplit(four, state.settings);
   const [[p1,p2],[p3,p4]] = best.split;
-  state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id], scoreA: null, scoreB: null, serving: 'A' };
+  state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id], scoreA: null, scoreB: null, serving: 'A', serveNum: 1 };
   state.players.forEach(p=>{
     if(p.active){
       if(state.current.teamA.includes(p.id) || state.current.teamB.includes(p.id)){ p.consecutiveSitOuts = 0; }
@@ -1163,7 +1161,7 @@ function buildBalancedMatchups(group){
     const four = group.slice(i, i + 4);
     const best = scoreSplit(four, state.settings);
     const [[a,b],[c,d]] = best.split;
-    matches.push({ teamA:[a.id,b.id], teamB:[c.id,d.id] });
+    matches.push({ teamA:[a.id,b.id], teamB:[c.id,d.id], serving:'A', serveNum:1 });
   }
   return matches;
 }
@@ -1298,7 +1296,7 @@ function _doGenerateRoundRobinGeneration(activeList) {
     id: uid('gm'),
     matchIndex: idx,
     teamA: m.teamA, teamB: m.teamB,
-    scoreA: null, scoreB: null, winner: null, serving: 'A',
+    scoreA: null, scoreB: null, winner: null, serving: 'A', serveNum: 1,
     status: idx < numCourts ? 'active' : 'queued',
     court: idx < numCourts ? idx + 1 : null
   }));
@@ -1410,9 +1408,20 @@ function sideOutRR(matchId){
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done') return;
-  m.serving = m.serving === 'A' ? 'B' : 'A';
+  if(m.serveNum === undefined) m.serveNum = 1;
+  if(m.serveNum === 1){
+    // First server lost serve → switch to serve 2 (same team)
+    m.serveNum = 2;
+    playSideOutSound();
+    speakText('Server 2');
+  } else {
+    // Second server lost serve → real side out, switch team, back to serve 1
+    m.serving = m.serving === 'A' ? 'B' : 'A';
+    m.serveNum = 1;
+    playSideOutSound();
+    speakText('Side out');
+  }
   saveAll();
-  playSideOutSound();
   renderMatchView(document.getElementById('view'));
 }
 
@@ -1655,9 +1664,18 @@ function adjustRotationScore(team, delta){
 
 function sideOutRotation(){
   if(!state.current) return;
-  state.current.serving = state.current.serving === 'A' ? 'B' : 'A';
+  if(state.current.serveNum === undefined) state.current.serveNum = 1;
+  if(state.current.serveNum === 1){
+    state.current.serveNum = 2;
+    playSideOutSound();
+    speakText('Server 2');
+  } else {
+    state.current.serving = state.current.serving === 'A' ? 'B' : 'A';
+    state.current.serveNum = 1;
+    playSideOutSound();
+    speakText('Side out');
+  }
   saveAll();
-  playSideOutSound();
   renderMatchView(document.getElementById('view'));
 }
 
@@ -2036,13 +2054,14 @@ function renderMatchView(el){
               </button>
             </div>
           </div>
-          <div class="sb-foot rr-score-foot">
+          <div class="sb-foot" style="background:var(--surface-2); padding:10px 14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <label style="font-size:11px; color:var(--text-dim); font-weight:700;">SCORES:</label>
             <div class="score-stepper">
               <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="-1" aria-label="Decrease Team A score">−</button>
               <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
               <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score">+</button>
             </div>
-            <span class="rr-score-vs-sm">vs</span>
+            <span style="color:var(--text-faint); font-weight:bold;">vs</span>
             <div class="score-stepper">
               <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="-1" aria-label="Decrease Team B score">−</button>
               <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
