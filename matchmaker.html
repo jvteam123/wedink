@@ -1248,10 +1248,17 @@ function selectRoundRobinWinner(matchId, winningTeam) {
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done') return;
+  const previousWinner = m.winner;
   m.winner = winningTeam;
   if(m.scoreA === null && m.scoreB === null){
     m.scoreA = winningTeam === 'A' ? 11 : 8;
     m.scoreB = winningTeam === 'A' ? 8 : 11;
+  } else if(previousWinner && previousWinner !== winningTeam){
+    // Flipping the winner selection — swap the two scores too, so they stay
+    // attached to the correct team instead of being left on the old winner.
+    const tmp = m.scoreA;
+    m.scoreA = m.scoreB;
+    m.scoreB = tmp;
   }
   saveAll(); renderAll();
 }
