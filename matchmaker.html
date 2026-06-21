@@ -3056,8 +3056,8 @@ function renderMatchView(el){
             </div>
             <button class="btn btn-primary btn-block" data-action="confirm-rr-match" data-match="${m.id}">Confirm Result &amp; Pull Next Match</button>
             <div style="display:flex; gap:8px; margin-top:8px;">
-              <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="rr-skip-match" data-match="${m.id}" title="Move this match to the back of the queue">⏭️ Skip Match</button>
-              <button class="btn btn-ghost btn-sm" style="flex:1; color:var(--loss);" data-action="rr-forfeit-match" data-match="${m.id}" title="Record this match as a forfeit">🚩 Forfeit Match</button>
+              <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="rr-skip-match" data-match="${m.id}" title="Move this match to the back of the queue" ${m.winner ? 'disabled' : ''}>⏭️ Skip Match</button>
+              <button class="btn btn-ghost btn-sm" style="flex:1; color:var(--loss);" data-action="rr-forfeit-match" data-match="${m.id}" title="Record this match as a forfeit" ${m.winner ? 'disabled' : ''}>🚩 Forfeit Match</button>
             </div>
           </div>
         </div>
