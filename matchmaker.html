@@ -1859,10 +1859,16 @@ function _doGenerateRoundRobinGeneration(activeList) {
   }));
 
   // Only players truly left out of every match this generation sit out / earn priority.
+  // IMPORTANT: only players who were actually eligible for this generation's pool
+  // (same filter as activePlayers()) should be touched here. Sub Players and anyone
+  // Tired/Injured/Can't-Play were never in the running for a slot, so they must NOT
+  // accrue sit-out priority while sidelined — otherwise they jump the queue with a
+  // false head start the moment they're cleared back to Active, ahead of whoever
+  // genuinely just sat out due to an odd-numbered headcount.
   const playingIds = new Set();
   matches.forEach(m => { m.teamA.forEach(id=>playingIds.add(id)); m.teamB.forEach(id=>playingIds.add(id)); });
   state.players.forEach(p => {
-    if(!p.active) return;
+    if(!p.active || p.isSub || (p.condition||'ok')!=='ok') return;
     if(playingIds.has(p.id)){
       p.consecutiveSitOuts = 0; p.sitOutPriority = 0; p.waitingRounds = 0;
     } else {
