@@ -1987,6 +1987,16 @@ function getMatchWinTarget(m){
   return (m && m.raceActive) ? 2 : (state.settings.winningScore || 11);
 }
 
+// True once any point has actually been scored on this match — used to lock
+// out Skip/Forfeit so neither one can wipe a match that's already underway.
+// raceActive counts as "started" too: scores reset to 0-0 when a Race to 2
+// begins, but the teams already played a full game to get to 10-10 first.
+function hasMatchStarted(m){
+  if(!m) return false;
+  if(m.raceActive) return true;
+  return safeScore(m.scoreA) > 0 || safeScore(m.scoreB) > 0;
+}
+
 // Voice announcer for score milestones — called only when a point is
 // actually scored (never on a manual correction). Reaching the match's win
 // target calls out a win with congratulations; every other score (including
@@ -3173,8 +3183,8 @@ function renderMatchView(el){
             </div>
             <button class="btn btn-primary btn-block" data-action="confirm-rr-match" data-match="${m.id}">Confirm Result &amp; Pull Next Match</button>
             <div style="display:flex; gap:8px; margin-top:8px;">
-              <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="rr-skip-match" data-match="${m.id}" title="Move this match to the back of the queue" ${m.winner ? 'disabled' : ''}>⏭️ Skip Match</button>
-              <button class="btn btn-ghost btn-sm" style="flex:1; color:var(--loss);" data-action="rr-forfeit-match" data-match="${m.id}" title="Record this match as a forfeit" ${m.winner ? 'disabled' : ''}>🚩 Forfeit Match</button>
+              <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="rr-skip-match" data-match="${m.id}" title="${m.winner ? 'This match already has a winner selected' : hasMatchStarted(m) ? 'Scoring has started — finish or undo the match instead' : 'Move this match to the back of the queue'}" ${(m.winner || hasMatchStarted(m)) ? 'disabled' : ''}>⏭️ Skip Match</button>
+              <button class="btn btn-ghost btn-sm" style="flex:1; color:var(--loss);" data-action="rr-forfeit-match" data-match="${m.id}" title="${m.winner ? 'This match already has a winner selected' : hasMatchStarted(m) ? 'Scoring has started — finish or undo the match instead' : 'Record this match as a forfeit'}" ${(m.winner || hasMatchStarted(m)) ? 'disabled' : ''}>🚩 Forfeit Match</button>
             </div>
           </div>
         </div>
