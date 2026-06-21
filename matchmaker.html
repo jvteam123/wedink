@@ -311,7 +311,23 @@ textarea{resize:vertical; min-height:90px; font-family:var(--font-mono); font-si
 .pill-cond-ok{background:rgba(62,213,152,0.08); color:var(--win); border-color:rgba(62,213,152,0.2);}
 .pill-cond-tired{background:rgba(79,168,255,0.10); color:var(--court); border-color:rgba(79,168,255,0.25);}
 .pill-cond-injured{background:rgba(255,107,107,0.10); color:var(--loss); border-color:rgba(255,107,107,0.25);}
+.pill-cond-cantplay{background:rgba(255,107,107,0.10); color:var(--loss); border-color:rgba(255,107,107,0.25);}
 .row-actions{display:flex; gap:6px; flex:none; align-items:center;}
+
+/* ---------- Player status choice list (modal) ---------- */
+.status-choice-list{display:flex; flex-direction:column; gap:6px; margin-top:10px;}
+.status-choice-btn{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; text-align:left;
+  width:100%; appearance:none; cursor:pointer; padding:11px 13px; border-radius:var(--radius-md);
+  background:var(--surface-2); border:1px solid var(--line-soft); color:var(--text);
+  transition:background .15s ease, border-color .15s ease, transform .08s ease;
+}
+.status-choice-btn:active{transform:scale(0.98);}
+.status-choice-btn.is-current{border-color:rgba(215,242,61,0.4); background:rgba(215,242,61,0.08);}
+.status-choice-btn .scb-text{display:flex; flex-direction:column; gap:2px; min-width:0;}
+.status-choice-btn .scb-label{font-weight:700; font-size:13.5px;}
+.status-choice-btn .scb-desc{font-size:11.5px; color:var(--text-faint); font-weight:500;}
+.status-choice-btn .scb-check{flex:none; color:var(--ball); font-weight:800; font-size:15px;}
 
 /* ---------- Player section headers ---------- */
 .players-section-header{
@@ -537,141 +553,6 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   .scoreboard .btn-sm{font-size:12px; padding:8px 8px;}
   .dash-strip{gap:10px;}
   .queue-row .qmeta, .queue-row > div{font-size:12.5px;}
-}
-
-/* ============================================================
-   TABLET LANDSCAPE LAYOUT
-   Triggers at ≥768px width in landscape orientation.
-   Switches to a fixed left sidebar + scrollable main content.
-   ============================================================ */
-@media (min-width:768px) and (orientation:landscape){
-
-  body{
-    overflow:hidden; /* sidebar handles its own scroll */
-  }
-
-  #app{
-    max-width:100%;
-    flex-direction:row;
-    min-height:100vh; min-height:100dvh;
-    padding-bottom:0;
-  }
-
-  /* ---- Sidebar (topbar + tabs stacked vertically) ---- */
-  .topbar{
-    position:fixed; top:0; left:0; bottom:0;
-    width:220px; z-index:30;
-    border-bottom:none; border-right:1px solid var(--line-soft);
-    background:linear-gradient(180deg, var(--surface) 0%, rgba(24,30,37,0.98) 100%);
-    backdrop-filter:blur(12px);
-    padding:20px 14px 20px;
-    display:flex; flex-direction:column; gap:0;
-    overflow-y:auto; overflow-x:hidden;
-  }
-
-  .brand-row{
-    flex-direction:column; align-items:flex-start; gap:10px;
-    margin-bottom:16px; padding-bottom:16px;
-    border-bottom:1px solid var(--line-soft);
-  }
-
-  /* Brand mark + name in a row inside sidebar */
-  .brand-row > button:first-child{ display:none; } /* hide hamburger — tabs are always visible */
-
-  .brand-mark{ width:38px; height:38px; border-radius:12px; }
-
-  /* Topbar icon buttons: arrange in a row at the bottom of brand-row */
-  .topbar-icon-btn{
-    width:32px; height:32px;
-  }
-
-  /* Dash strip becomes vertical list */
-  .dash-strip{
-    flex-direction:column; gap:6px; overflow-x:visible;
-    padding-bottom:0; margin-top:0;
-    border-bottom:1px solid var(--line-soft);
-    padding-bottom:16px; margin-bottom:4px;
-  }
-  .dash-strip .d-item{
-    font-size:11.5px;
-  }
-  .dash-strip .d-item .v{
-    font-size:14px;
-  }
-
-  /* Tabs row becomes part of sidebar */
-  .tabs-row{
-    position:fixed; left:0; top:0; bottom:0; width:220px;
-    z-index:28; pointer-events:none; /* topbar sits above it */
-  }
-
-  .tabs{
-    position:absolute; left:0; right:0;
-    top:0; bottom:0;
-    flex-direction:column; gap:4px;
-    overflow-x:visible; overflow-y:auto;
-    padding:0; border-bottom:none;
-    background:transparent; pointer-events:all;
-    /* Will be positioned by JS nudge below */
-    padding-top:var(--sidebar-tabs-top, 220px);
-    padding-bottom:16px; padding-left:14px; padding-right:14px;
-  }
-
-  .tab-btn{
-    width:100%; justify-content:flex-start;
-    border-radius:var(--radius-md) !important;
-    padding:10px 12px;
-    font-size:13px;
-  }
-  .tab-btn.active{
-    background:rgba(215,242,61,0.10);
-    border-color:rgba(215,242,61,0.3);
-  }
-  .tabs-fade{ display:none; }
-
-  /* Onboarding banner in sidebar */
-  #onboardingBanner .nav-hint{
-    margin-top:8px; font-size:11.5px;
-  }
-
-  /* ---- Main content panel ---- */
-  .view{
-    margin-left:220px;
-    flex:1; min-height:100vh; min-height:100dvh;
-    overflow-y:auto; overflow-x:hidden;
-    padding:20px 28px 40px;
-    max-width:none;
-  }
-
-  /* Wider content: two-column scoreboard for RR multi-court */
-  .scoreboard + .scoreboard{
-    margin-top:16px;
-  }
-
-  /* Wider table wrap */
-  .table-wrap{
-    overflow-x:auto;
-  }
-
-  /* Modal sheet wider on tablet */
-  .modal-sheet{
-    max-width:520px;
-  }
-
-  /* Toast anchored top-right of the content panel */
-  #toast-root{
-    right:24px; top:20px;
-  }
-
-  /* Summary grid can go 4-col */
-  .summary-grid{
-    grid-template-columns:1fr 1fr 1fr 1fr;
-  }
-
-  /* Profile stat row can spread wider */
-  .profile-stat-row{
-    grid-template-columns:repeat(6,1fr);
-  }
 }
 
 /* ---------- Control bar score input ---------- */
@@ -1589,25 +1470,99 @@ function findLivePlayerSlot(id){
   return null;
 }
 
-function setPlayerCondition(id, condition){
+/* ============================================================
+   PLAYER STATUS — unified picker
+   ------------------------------------------------------------
+   Replaces the old pair of "Active/Paused" + "OK/Tired/Injured"
+   tap-to-cycle pills with a single status pill that opens a
+   choice list. Internally it still drives the same two flags
+   (p.active, p.condition) so the matchmaking pool logic below
+   doesn't need to change — only the player-facing control does.
+   ============================================================ */
+const STATUS_DEFS = {
+  ok:         { label:'🟢 Active',     desc:'Ready to play, in the rotation.',          pillClass:'pill-cond-ok' },
+  tired:      { label:'😴 Tired',       desc:'Sits out of new matches until cleared.',   pillClass:'pill-cond-tired' },
+  injured:    { label:'🤕 Injured',     desc:'Sits out of new matches until cleared.',   pillClass:'pill-cond-injured' },
+  cant_play:  { label:'🙅 Can\u2019t Play', desc:'Sits out of new matches until cleared.', pillClass:'pill-cond-cantplay' },
+  not_coming: { label:'🚫 Not Coming',  desc:'Removed from today\u2019s rotation entirely.', pillClass:'pill-paused' },
+};
+
+function playerStatusKey(p){
+  if(!p.active) return 'not_coming';
+  const c = p.condition || 'ok';
+  if(c === 'tired' || c === 'injured' || c === 'cant_play') return c;
+  return 'ok';
+}
+
+function openPlayerStatusModal(id){
   const p = getPlayer(id);
   if(!p) return;
-  const prev = p.condition || 'ok';
-  if(prev === condition) return;
-  p.condition = condition;
-  saveAll(); renderAll();
+  const current = playerStatusKey(p);
+  openModal(`
+    <div class="modal-title">Set Status</div>
+    <div class="modal-sub">${esc(p.name)} — choose what's going on with them right now.</div>
+    <div class="status-choice-list">
+      ${Object.keys(STATUS_DEFS).map(key => {
+        const d = STATUS_DEFS[key];
+        return `
+        <button class="status-choice-btn ${key===current?'is-current':''}" data-action="set-player-status" data-id="${p.id}" data-status="${key}">
+          <span class="scb-text">
+            <span class="scb-label">${d.label}</span>
+            <span class="scb-desc">${d.desc}</span>
+          </span>
+          ${key===current ? '<span class="scb-check">✓</span>' : ''}
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
+    </div>
+  `);
+}
 
-  if(condition === 'ok'){
+function setPlayerStatus(id, status){
+  const p = getPlayer(id);
+  if(!p || !STATUS_DEFS[status]) return;
+  const prevKey = playerStatusKey(p);
+  if(prevKey === status){ closeModal(); return; }
+
+  const inLiveMatch = (state.current && (state.current.teamA.includes(id) || state.current.teamB.includes(id)))
+    || (state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(id) || m.teamB.includes(id))));
+
+  if(status === 'not_coming'){
+    if(p.active && inLiveMatch){
+      closeModal();
+      toast(`${p.name} is in an unfinished match — finish, skip, or replace them first.`);
+      return;
+    }
+    p.active = false;
+    p.condition = 'ok';
+    p.consecutiveSitOuts = 0; p.sitOutPriority = 0; p.waitingRounds = 0;
+    saveAll(); renderAll(); closeModal();
+    toast(`${p.name} marked Not Coming.`);
+    return;
+  }
+
+  if(status === 'ok'){
+    p.active = true;
+    p.condition = 'ok';
+    saveAll(); renderAll(); closeModal();
     toast(`${p.name} is back to OK.`);
     return;
   }
 
-  const label = condition === 'tired' ? '😴 Tired' : '🤕 Injured';
+  // tired / injured / cant_play — stays active (may return later this session),
+  // just excluded from the rotation pool until cleared back to OK.
+  p.active = true;
+  p.condition = status;
+  saveAll(); renderAll();
+
+  const label = STATUS_DEFS[status].label;
   const slot = findLivePlayerSlot(id);
   if(slot){
     openModal(`
       <div class="modal-title">${label}</div>
-      <div class="modal-sub">${esc(p.name)} is marked ${condition === 'tired' ? 'tired' : 'injured'} and currently playing on ${esc(slot.label)}. Want to sub them out now?</div>
+      <div class="modal-sub">${esc(p.name)} is marked ${label.replace(/^\S+\s/, '').toLowerCase()} and currently playing on ${esc(slot.label)}. Want to sub them out now?</div>
       <div class="modal-actions">
         <button class="btn btn-ghost" data-action="modal-close">Not yet</button>
         ${slot.mode === 'rr'
@@ -1616,6 +1571,7 @@ function setPlayerCondition(id, condition){
       </div>
     `);
   } else {
+    closeModal();
     toast(`${p.name} marked ${label} — they'll sit out of new matches until cleared.`);
   }
 }
@@ -2529,7 +2485,7 @@ function openReplacePlayerModal(matchId, team, playerId){
 
   openModal(`
     <div class="modal-title">Replace ${esc(p ? p.name : 'Player')}</div>
-    <div class="modal-sub">${(condition === 'tired' || condition === 'injured') ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : '🤕 injured'}. ` : ''}Not around? Pick a player to sub in for this match — sitting-out players are shown first, Sub Players are listed below.</div>
+    <div class="modal-sub">${(condition === 'tired' || condition === 'injured' || condition === 'cant_play') ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : condition === 'injured' ? '🤕 injured' : '🙅 unable to play'}. ` : ''}Not around? Pick a player to sub in for this match — sitting-out players are shown first, Sub Players are listed below.</div>
     <button class="btn btn-danger btn-block" data-action="do-replace-absent" data-match="${matchId}" data-team="${team}" data-player="${playerId}">Mark Absent &amp; Auto-Sub Best Available</button>
     <div class="divider-thin"></div>
     ${benchHtml}
@@ -2578,9 +2534,9 @@ function markPlayerAbsentAndAutoReplace(matchId, team, oldId){
   if(!gen) return;
   const oldPlayer = getPlayer(oldId);
   const condition = oldPlayer ? (oldPlayer.condition || 'ok') : 'ok';
-  const slotNeedsSub = condition === 'tired' || condition === 'injured';
+  const slotNeedsSub = condition === 'tired' || condition === 'injured' || condition === 'cant_play';
   // Generic absence pauses their profile so they're not scheduled again.
-  // Tired/Injured players stay active — they may be back next generation.
+  // Tired/Injured/Can't Play players stay active — they may be back next generation.
   if(oldPlayer && !slotNeedsSub) oldPlayer.active = false;
   gen.sittingOut = (gen.sittingOut || []).filter(id => id !== oldId);
 
@@ -2665,7 +2621,7 @@ function openReplaceCurrentPlayerModal(team, playerId){
 
   openModal(`
     <div class="modal-title">Replace ${esc(p ? p.name : 'Player')}</div>
-    <div class="modal-sub">${(condition === 'tired' || condition === 'injured') ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : '🤕 injured'}. ` : ''}Not around? Pick a player to sub in for this match — Sub Players are listed below.</div>
+    <div class="modal-sub">${(condition === 'tired' || condition === 'injured' || condition === 'cant_play') ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : condition === 'injured' ? '🤕 injured' : '🙅 unable to play'}. ` : ''}Not around? Pick a player to sub in for this match — Sub Players are listed below.</div>
     ${benchHtml}
     ${subsHtml}
     ${noneHtml}
@@ -3148,7 +3104,7 @@ function renderMatchView(el){
       const p = getPlayer(playerId);
       const justify = team === 'A' ? 'flex-end' : 'flex-start';
       const cond = p ? (p.condition || 'ok') : 'ok';
-      const condBadge = cond === 'tired' ? ' 😴' : cond === 'injured' ? ' 🤕' : '';
+      const condBadge = cond === 'tired' ? ' 😴' : cond === 'injured' ? ' 🤕' : cond === 'cant_play' ? ' 🙅' : '';
       return `<span style="display:inline-flex; align-items:center; flex-wrap:wrap; justify-content:${justify}; gap:4px; max-width:100%;">${esc(p?.name || '—')}${condBadge}<button class="icon-btn-tiny" data-action="open-replace-player" data-match="${matchId}" data-team="${team}" data-player="${playerId}" aria-label="Replace player" title="Replace this player">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
       </button></span>`;
@@ -3229,7 +3185,7 @@ function renderMatchView(el){
       queuedMatches.forEach((m, i) => {
         const pA1 = getPlayer(m.teamA[0]), pA2 = getPlayer(m.teamA[1]);
         const pB1 = getPlayer(m.teamB[0]), pB2 = getPlayer(m.teamB[1]);
-        const condFlag = pl => pl && pl.condition === 'tired' ? ' 😴' : pl && pl.condition === 'injured' ? ' 🤕' : '';
+        const condFlag = pl => pl && pl.condition === 'tired' ? ' 😴' : pl && pl.condition === 'injured' ? ' 🤕' : pl && pl.condition === 'cant_play' ? ' 🙅' : '';
         html += `
           <div class="queue-row">
             <span class="qrank">${i+1}</span>
@@ -3297,7 +3253,7 @@ function renderMatchView(el){
     const p = getPlayer(playerId);
     const justify = team === 'A' ? 'flex-end' : 'flex-start';
     const cond = p ? (p.condition || 'ok') : 'ok';
-    const condBadge = cond === 'tired' ? ' 😴' : cond === 'injured' ? ' 🤕' : '';
+    const condBadge = cond === 'tired' ? ' 😴' : cond === 'injured' ? ' 🤕' : cond === 'cant_play' ? ' 🙅' : '';
     return `<span style="display:inline-flex; align-items:center; flex-wrap:wrap; justify-content:${justify}; gap:4px; max-width:100%;">${esc(p?.name || '')}${condBadge}<button class="icon-btn-tiny" data-action="open-replace-current-player" data-team="${team}" data-player="${playerId}" aria-label="Replace player" title="Replace this player">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
     </button></span>`;
@@ -3452,12 +3408,10 @@ function renderPlayersView(el){
     return;
   }
 
-  function conditionPill(p){
-    const cond = p.condition || 'ok';
-    const labelMap = { ok: '🟢 OK', tired: '😴 Tired', injured: '🤕 Injured' };
-    const classMap = { ok: 'pill-cond-ok', tired: 'pill-cond-tired', injured: 'pill-cond-injured' };
-    const nextMap = { ok: 'tired', tired: 'injured', injured: 'ok' };
-    return `<button class="pill ${classMap[cond]}" data-action="set-player-condition" data-id="${p.id}" data-condition="${nextMap[cond]}" title="Tap to cycle: OK → Tired → Injured">${labelMap[cond]}</button>`;
+  function statusPill(p){
+    const key = playerStatusKey(p);
+    const d = STATUS_DEFS[key];
+    return `<button class="pill ${d.pillClass}" data-action="open-player-status" data-id="${p.id}" title="Tap to set status">${d.label}</button>`;
   }
 
   function playerRow(p){
@@ -3483,10 +3437,7 @@ function renderPlayersView(el){
             <span>${winRate}</span>
           </div>
           <div style="margin-top:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            ${conditionPill(p)}
-            <button class="pill ${p.active?'pill-active':'pill-paused'}" data-action="toggle-active" data-id="${p.id}">
-              ${p.active?'Active':'Paused'}
-            </button>
+            ${statusPill(p)}
           </div>
         </div>
         <div class="row-actions">
@@ -3938,7 +3889,8 @@ document.addEventListener('click', function(e){
     case 'open-replace-current-player-picker': openReplaceCurrentPlayerPickerModal(); break;
     case 'open-replace-current-player': openReplaceCurrentPlayerModal(t.dataset.team, t.dataset.player); break;
     case 'do-replace-current-manual': replaceCurrentPlayer(t.dataset.team, t.dataset.player, t.dataset.sub); break;
-    case 'set-player-condition': setPlayerCondition(t.dataset.id, t.dataset.condition); break;
+    case 'open-player-status': openPlayerStatusModal(t.dataset.id); break;
+    case 'set-player-status': setPlayerStatus(t.dataset.id, t.dataset.status); break;
 
     // Standard shared management commands
     case 'skip-match':
@@ -3967,7 +3919,6 @@ document.addEventListener('click', function(e){
       if(subChk) subChk.checked = false;
       break;
     }
-    case 'toggle-active': togglePlayerActive(t.dataset.id); break;
     case 'open-bulk-import':
       openModal(`
         <div class="modal-title">Bulk Import Players</div>
