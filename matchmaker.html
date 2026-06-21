@@ -1848,6 +1848,18 @@ function generateRoundRobinGeneration() {
   const activeList = activePlayers().slice();
   if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.', 'warning'); return; }
 
+  const plan = state.settings.sessionPlan;
+  // A plan that already hit its match target (e.g. the organizer picked
+  // "Stay Here" on the Session Complete prompt instead of choosing a new
+  // session) must NOT be silently reused — generating again would build a
+  // generation that's instantly "complete" again. Treat it the same as
+  // having no plan and walk through setup again.
+  const planIsFinished = plan && (state.matches.length - plan.matchesAtStart) >= plan.totalMatches;
+  if(planIsFinished){
+    state.settings.sessionPlan = null;
+    saveAll();
+  }
+
   // No session length chosen yet for this run — walk through court/scoring
   // setup first, then the length picker. Once a plan is confirmed,
   // confirmSessionPlanAndGenerate() re-invokes the generate flow and we
@@ -4117,15 +4129,24 @@ function renderHistoryView(el){
 
 function renderSettingsView(el){
   const plan = state.settings.sessionPlan;
+  const planPlayedSoFar = plan ? (state.matches.length - plan.matchesAtStart) : 0;
+  const planIsFinished = plan && planPlayedSoFar >= plan.totalMatches;
   const sessionFieldHtml = state.settings.matchMode === 'RoundRobin' ? `
       <div class="field">
         <label>Session Length</label>
-        ${plan ? `
+        ${plan && !planIsFinished ? `
           <div class="card" style="margin:0; padding:10px 14px; background:var(--surface-2);">
             <div class="session-confirm-row"><span class="k">Active Plan</span><span class="v" style="font-family:inherit;">${esc(plan.label)}</span></div>
-            <div class="session-confirm-row"><span class="k">Progress</span><span class="v">${clamp(state.matches.length - plan.matchesAtStart, 0, plan.totalMatches)}/${plan.totalMatches} matches</span></div>
+            <div class="session-confirm-row"><span class="k">Progress</span><span class="v">${clamp(planPlayedSoFar, 0, plan.totalMatches)}/${plan.totalMatches} matches</span></div>
           </div>
           <button class="btn btn-ghost" style="margin-top:8px; width:100%;" data-action="change-session-plan">Change Session Length</button>
+        ` : plan && planIsFinished ? `
+          <div class="card" style="margin:0; padding:10px 14px; background:var(--surface-2);">
+            <div class="session-confirm-row"><span class="k">Last Plan</span><span class="v" style="font-family:inherit;">${esc(plan.label)}</span></div>
+            <div class="session-confirm-row"><span class="k">Result</span><span class="v" style="color:var(--win);">Complete · ${plan.totalMatches}/${plan.totalMatches}</span></div>
+          </div>
+          <p class="helper-text" style="margin:8px 0;">That session finished — you'll be asked to pick a new one the next time you generate matches.</p>
+          <button class="btn btn-ghost" style="width:100%;" data-action="change-session-plan">Choose New Session Length</button>
         ` : `
           <p class="helper-text" style="margin:0 0 8px;">No session length chosen yet — you'll be asked to pick one the next time you generate matches.</p>
           <button class="btn btn-ghost" style="width:100%;" data-action="change-session-plan">Choose Session Length</button>
