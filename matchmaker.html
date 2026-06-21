@@ -524,6 +524,11 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   letter-spacing:.04em; color:var(--ball); background:rgba(215,242,61,0.12);
   border:1px solid var(--ball-dim); border-radius:999px; padding:2px 7px; text-transform:uppercase;
 }
+.race-badge{
+  display:inline-flex; align-items:center; gap:3px; font-size:9.5px; font-weight:800;
+  letter-spacing:.04em; color:var(--win); background:rgba(62,213,152,0.12);
+  border:1px solid var(--win-dim); border-radius:999px; padding:2px 7px; text-transform:uppercase;
+}
 .serve-set-btn{
   appearance:none; display:inline-flex; align-items:center; gap:3px; font-size:9.5px; font-weight:800;
   letter-spacing:.04em; color:var(--text-faint); background:transparent; font-family:inherit;
@@ -710,7 +715,9 @@ const DEFAULT_SETTINGS = {
   maxRepeatTeammates: 2,
   maxRepeatOpponents: 3,
   audioScoring: true,    // play sound cues for +/- points, side-outs, and game wins
-  voiceAnnounce: true    // speak the score call (server's score first) and side-out announcements out loud
+  voiceAnnounce: true,   // speak the score call (server's score first) and side-out announcements out loud
+  winningScore: 11,      // first team to reach this score (win by 2) takes the match
+  raceToTwo: false        // when both teams reach 10-10 ("Love-Love"), offer a sudden-death Race to 2
 };
 
 /* ============================================================
@@ -904,27 +911,55 @@ function speakUtterance(text, interrupt){
   }catch(e){ /* speech not available — fail silently */ }
 }
 
+// Spells out numbers as words for the speech engine. Browser TTS reliably
+// reads single digits (0-9) and "ten" on its own, but multi-digit numbers
+// sitting next to another number in a score call (e.g. "12 1") are
+// frequently misread digit-by-digit (e.g. "One Two One" instead of
+// "Twelve One"). Spelling the number out ourselves sidesteps the engine's
+// number-parsing entirely, so it's used for every score of 11 and above —
+// covering custom winning scores well past the default of 11.
+const NUMBER_WORDS_ONES = ['Zero','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+const NUMBER_WORDS_TENS = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+function numberToWords(n){
+  n = Math.max(0, Math.round(n));
+  if(n < 20) return NUMBER_WORDS_ONES[n];
+  if(n < 100){
+    const tens = Math.floor(n / 10), ones = n % 10;
+    return NUMBER_WORDS_TENS[tens] + (ones ? ' ' + NUMBER_WORDS_ONES[ones] : '');
+  }
+  return String(n); // beyond realistic pickleball scores — fall back to digits
+}
+
+// Converts a single score value into its spoken form: bare digits for 0-9
+// (these are read correctly by every speech engine), spelled-out words for
+// 11+ (see numberToWords above), and the literal word "Love" for exactly 10.
+function speakScoreNumber(n){
+  if(n === 10) return 'Love';
+  if(n >= 11) return numberToWords(n);
+  return String(n);
+}
+
 function scoreCallText(m){
   const servingScore = m.serving === 'A' ? safeScore(m.scoreA) : safeScore(m.scoreB);
   const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
 
-  // 10 is match point — always call it "Match" instead of the bare digits,
-  // on EITHER side of the score (the server's own score, the other team's
-  // score, or both if tied at 10-10). Some speech engines misread a literal
-  // "10" sitting next to another number as one merged digit string (e.g.
-  // "one zero" instead of "ten"), so we never let a literal 10 reach the
-  // speech engine — no matter how the score got there: scoring up, backing
-  // down via a correction, a side-out (where the team that just lost serve
-  // can be the one sitting at 10), or coming back up to 10 again.
-  if(servingScore === 10 && otherScore === 10) return `All Match ${m.serverNum}`;
-  if(servingScore === 10) return `Match, ${otherScore} ${m.serverNum}`;
-  if(otherScore === 10) return `${servingScore} Match ${m.serverNum}`;
+  // 10 is always called "Love" instead of the bare digits, on EITHER side of
+  // the score (the server's own score, the other team's score, or both if
+  // tied at 10-10). Some speech engines misread a literal "10" sitting next
+  // to another number as one merged digit string (e.g. "one zero" instead of
+  // "ten"), so we never let a literal 10 reach the speech engine — no matter
+  // how the score got there: scoring up, backing down via a correction, a
+  // side-out (where the team that just lost serve can be the one sitting at
+  // 10), or coming back up to 10 again.
+  if(servingScore === 10 && otherScore === 10) return `All Love ${speakScoreNumber(m.serverNum)}`;
+  if(servingScore === 10) return `Love, ${speakScoreNumber(otherScore)} ${speakScoreNumber(m.serverNum)}`;
+  if(otherScore === 10) return `${speakScoreNumber(servingScore)} Love ${speakScoreNumber(m.serverNum)}`;
 
   // Tied scores (not at 10) get the standard pickleball "All" call instead of
   // saying the same number twice — e.g. "All 3 1" rather than "3 3 1".
-  if(servingScore === otherScore) return `All ${servingScore} ${m.serverNum}`;
+  if(servingScore === otherScore) return `All ${speakScoreNumber(servingScore)} ${speakScoreNumber(m.serverNum)}`;
 
-  return `${servingScore} ${otherScore} ${m.serverNum}`;
+  return `${speakScoreNumber(servingScore)} ${speakScoreNumber(otherScore)} ${speakScoreNumber(m.serverNum)}`;
 }
 
 // Special call for switching to serve 2 while the serving team is at 10 —
@@ -1615,15 +1650,17 @@ function selectRoundRobinWinner(matchId, winningTeam) {
     // Make sure the scoreline actually reflects the team just marked as the
     // winner. Covers both: no score entered yet (both null), AND marking a
     // winner directly while the score is still in progress and hasn't
-    // reached 11 (e.g. stepping to 5-3 with the +/- buttons, then tapping
-    // "Team A Wins" directly instead of playing it out) — previously the
-    // scores were left untouched in that case, even when they didn't
-    // actually support the team that was just selected as the winner.
+    // reached the winning score (e.g. stepping to 5-3 with the +/- buttons,
+    // then tapping "Team A Wins" directly instead of playing it out) —
+    // previously the scores were left untouched in that case, even when they
+    // didn't actually support the team that was just selected as the winner.
     let winScore = winningTeam === 'A' ? m.scoreA : m.scoreB;
     let loseScore = winningTeam === 'A' ? m.scoreB : m.scoreA;
-    if(loseScore === null || isNaN(loseScore)) loseScore = 8;
-    if(winScore === null || isNaN(winScore) || winScore < 11 || winScore - loseScore < 2){
-      winScore = Math.max(11, loseScore + 2);
+    const target = getMatchWinTarget(m);
+    const requireMargin = !m.raceActive; // Race to 2 is sudden-death — no win-by-2 margin
+    if(loseScore === null || isNaN(loseScore)) loseScore = Math.max(0, target - 3);
+    if(winScore === null || isNaN(winScore) || winScore < target || (requireMargin && winScore - loseScore < 2)){
+      winScore = requireMargin ? Math.max(target, loseScore + 2) : target;
     }
     if(winningTeam === 'A'){ m.scoreA = winScore; m.scoreB = loseScore; }
     else { m.scoreB = winScore; m.scoreA = loseScore; }
@@ -1642,13 +1679,17 @@ function updateRRMatchScore(matchId, team, val){
   if(team === 'A') m.scoreA = num; else m.scoreB = num;
 
   // Recompute the winner from scratch every time a score changes: first team
-  // to 11+ that's also ahead by 2 (standard pickleball win condition) is the
-  // winner. If neither side currently meets that — including a tie like
-  // 11-11 — the winner is cleared, so a stale selection can't linger once
-  // the scores no longer support it (e.g. typing 11 on the team that just
-  // lost, after the other team already had 11).
+  // to reach the winning score (with a 2-point margin) is the winner — or,
+  // once a Race to 2 is active, simply the first team to reach 2, no margin
+  // required. If neither side currently meets that — including a tie at the
+  // winning score — the winner is cleared, so a stale selection can't linger
+  // once the scores no longer support it (e.g. typing the winning score on
+  // the team that just lost, after the other team already had it).
   const sA = m.scoreA, sB = m.scoreB;
-  const winsIt = (s, o) => s !== null && s >= 11 && s - (o === null ? 0 : o) >= 2;
+  const target = getMatchWinTarget(m);
+  const winsIt = m.raceActive
+    ? (s) => s !== null && s >= target
+    : (s, o) => s !== null && s >= target && s - (o === null ? 0 : o) >= 2;
   let autoWinner = null;
   if(winsIt(sA, sB)) autoWinner = 'A';
   else if(winsIt(sB, sA)) autoWinner = 'B';
@@ -1659,6 +1700,7 @@ function updateRRMatchScore(matchId, team, val){
   }
 
   saveAll();
+  maybeOfferRaceToTwo(m, 'rr', matchId);
 }
 
 // ============================================================
@@ -1685,17 +1727,74 @@ function pushServeUndo(obj){
   obj._serveUndoStack.push(snapshotServe(obj));
 }
 
+// Determines the score a match needs to reach to win: 2 (sudden-death, no
+// margin required) once a Race to 2 has been accepted for this match, or
+// the configured winning score (default 11) otherwise.
+function getMatchWinTarget(m){
+  return (m && m.raceActive) ? 2 : (state.settings.winningScore || 11);
+}
+
 // Voice announcer for score milestones — called only when a point is
-// actually scored (never on a manual correction). 11 calls out a win with
-// congratulations; every other score (including 10, "Match") gets the
-// normal score call, since scoreCallText already handles the "Match"
-// wording for any score of 10.
+// actually scored (never on a manual correction). Reaching the match's win
+// target calls out a win with congratulations; every other score (including
+// 10, "Love") gets the normal score call, since scoreCallText already
+// handles the "Love" wording for any score of 10.
 function speakScoreOrMilestone(m, scoringTeamScore){
-  if(scoringTeamScore === 11){
+  if(scoringTeamScore === getMatchWinTarget(m)){
     speakUtterance('Congratulations!', true);
   } else {
     speakScoreCall(m);
   }
+}
+
+// ============================================================
+// OPTIONAL "RACE TO 2" — when both teams reach 10-10 ("Love-Love"), and the
+// feature is enabled in Settings, offer to settle the match with a sudden-
+// death race to 2 instead of continuing to the configured winning score.
+// Works for both Round Robin matches and the Rotation-mode current match —
+// both share the same { scoreA, scoreB, raceOffered, raceActive } shape.
+// Only ever offered once per match (raceOffered latches true on the first
+// 10-10), regardless of which answer is given.
+// ============================================================
+function maybeOfferRaceToTwo(m, mode, matchId){
+  if(!m || !state.settings.raceToTwo) return;
+  if(m.raceOffered || m.raceActive) return;
+  if(safeScore(m.scoreA) === 10 && safeScore(m.scoreB) === 10){
+    m.raceOffered = true;
+    saveAll();
+    openModal(`
+      <div class="modal-title">Race to 2?</div>
+      <div class="modal-sub">Both teams have reached 10–10 (Love–Love). Would you like to play a Race to 2?</div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn btn-ghost" data-action="decline-race-to-two">No, Keep Playing</button>
+        <button class="btn btn-primary" data-action="accept-race-to-two" data-mode="${mode}" data-match="${matchId || ''}">Yes, Race to 2</button>
+      </div>
+    `);
+  }
+}
+
+function acceptRaceToTwo(mode, matchId){
+  let m;
+  if(mode === 'rr'){
+    const gen = state.currentGeneration;
+    m = gen && gen.matches.find(x => x.id === matchId);
+  } else {
+    m = state.current;
+  }
+  if(!m){ closeModal(); return; }
+  m.scoreA = 0;
+  m.scoreB = 0;
+  m.raceActive = true;
+  m.winner = null; // clear any auto-detected winner from the 10-10 score
+  saveAll();
+  closeModal();
+  toast('Race to 2 started — first to 2 wins!');
+  if(mode === 'rr') syncRRWinnerButtons(matchId);
+  renderMatchView(document.getElementById('view'));
+}
+
+function declineRaceToTwo(){
+  closeModal();
 }
 
 function adjustRRScore(matchId, team, delta){
@@ -2037,6 +2136,7 @@ function updateRotationScoreInput(team, val){
   if(team === 'A') state.current.scoreA = (num === null || isNaN(num)) ? null : num;
   else state.current.scoreB = (num === null || isNaN(num)) ? null : num;
   saveAll();
+  maybeOfferRaceToTwo(state.current, 'rotation', null);
 }
 
 function adjustRotationScore(team, delta){
@@ -2059,6 +2159,7 @@ function adjustRotationScore(team, delta){
     playPointDownSound();
     speakScoreCall(state.current);
   }
+  maybeOfferRaceToTwo(state.current, 'rotation', null);
   renderMatchView(document.getElementById('view'));
 }
 
@@ -2487,6 +2588,7 @@ function renderMatchView(el){
         <div class="scoreboard" style="margin-bottom:14px;">
           <div class="sb-head">
             <span class="sb-round">COURT <b>${m.court}</b></span>
+            ${m.raceActive ? `<span class="race-badge">🏁 Race to 2</span>` : ''}
             <div class="live-dot"><div class="d"></div>Live</div>
           </div>
           <div class="sb-body">
@@ -2610,6 +2712,7 @@ function renderMatchView(el){
     <div class="scoreboard">
       <div class="sb-head">
         <span class="sb-round">MATCH <b>#${c.round}</b></span>
+        ${c.raceActive ? `<span class="race-badge">🏁 Race to 2</span>` : ''}
         <div class="live-dot"><div class="d"></div>Live</div>
       </div>
       <div class="sb-body">
@@ -2975,6 +3078,12 @@ function renderSettingsView(el){
         <p class="helper-text">Every active player is still scheduled each generation — courts just control how many matches play at once. With 1 court, the rest queue up as "Up Next" so you always know who's playing next.</p>
       </div>
 
+      <div class="field">
+        <label>Winning Score</label>
+        <input type="number" id="winningScoreInput" min="1" max="99" value="${state.settings.winningScore || 11}">
+        <p class="helper-text">First team to reach this score (win by 2) takes the match. Default is 11.</p>
+      </div>
+
       <div class="toggle-row">
         <div>
           <div class="t-label">Winner vs Winner / Loser vs Loser</div>
@@ -3031,6 +3140,17 @@ function renderSettingsView(el){
         </label>
       </div>
 
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">🏁 Race to 2</div>
+          <div class="t-hint">When both teams reach 10–10 (Love–Love), offer a sudden-death Race to 2 — first team to 2 points wins — instead of continuing to the winning score above.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="raceToTwoToggle" ${state.settings.raceToTwo ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+
       <button class="btn btn-primary btn-block" style="margin-top:18px;" data-action="save-settings">Save Configurations</button>
     </div>
 
@@ -3072,6 +3192,8 @@ function saveSettingsFromForm(){
   const smartBalanceVal = document.getElementById('smartBalanceToggle') ? document.getElementById('smartBalanceToggle').checked : true;
   const audioScoringVal = document.getElementById('audioScoringToggle') ? document.getElementById('audioScoringToggle').checked : true;
   const voiceAnnounceVal = document.getElementById('voiceAnnounceToggle') ? document.getElementById('voiceAnnounceToggle').checked : true;
+  const winningScoreRaw = document.getElementById('winningScoreInput') ? parseInt(document.getElementById('winningScoreInput').value, 10) : 11;
+  const raceToTwoVal = document.getElementById('raceToTwoToggle') ? document.getElementById('raceToTwoToggle').checked : false;
 
   state.settings.numCourts = numCourtsVal;
   state.settings.winnerVsWinner = winnerVsWinnerVal;
@@ -3079,6 +3201,8 @@ function saveSettingsFromForm(){
   state.settings.smartBalance = smartBalanceVal;
   state.settings.audioScoring = audioScoringVal;
   state.settings.voiceAnnounce = voiceAnnounceVal;
+  state.settings.winningScore = (isNaN(winningScoreRaw) || winningScoreRaw < 1) ? 11 : winningScoreRaw;
+  state.settings.raceToTwo = raceToTwoVal;
 
   if(state.currentGeneration) advanceRRQueue(); // pick up newly-freed courts right away if the count went up
 
@@ -3143,6 +3267,8 @@ document.addEventListener('click', function(e){
     case 'rr-undo-serve': confirmUndoServeRR(t.dataset.match); break;
     case 'do-rr-undo-serve': undoServeRR(t.dataset.match); break;
     case 'confirm-rr-match': confirmRoundRobinMatch(t.dataset.match); break;
+    case 'accept-race-to-two': acceptRaceToTwo(t.dataset.mode, t.dataset.match); break;
+    case 'decline-race-to-two': declineRaceToTwo(); break;
     case 'open-replace-player': openReplacePlayerModal(t.dataset.match, t.dataset.team, t.dataset.player); break;
     case 'open-replace-picker': openReplacePlayerPickerModal(t.dataset.match); break;
     case 'do-replace-absent': markPlayerAbsentAndAutoReplace(t.dataset.match, t.dataset.team, t.dataset.player); break;
