@@ -2278,21 +2278,12 @@ function openReplacePlayerModal(matchId, team, playerId){
   if(!m || m.status === 'done'){ toast('That match is already finished.'); return; }
   const p = getPlayer(playerId);
   const condition = p ? (p.condition || 'ok') : 'ok';
-  const slotNeedsSub = condition === 'tired' || condition === 'injured';
 
   // All players in the current match (to exclude from picker)
   const inMatchIds = new Set([...m.teamA, ...m.teamB]);
   const sittingOutIds = new Set(gen.sittingOut || []);
 
-  // Sub Players are only eligible to step in here when the slot's regular
-  // owner is Tired/Injured — they sit out of the picker otherwise.
-  const subCandidates = slotNeedsSub
-    ? state.players
-        .filter(pl => pl.isSub && pl.active && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
-        .sort((a, b) => a.gamesPlayed - b.gamesPlayed)
-    : [];
-
-  // Regular bench/active players — never Sub Players, never someone else who's unfit.
+  // Regular bench/active players — listed first.
   const benchCandidates = state.players
     .filter(pl => pl.active && !pl.isSub && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
     .sort((a, b) => {
@@ -2302,20 +2293,25 @@ function openReplacePlayerModal(matchId, team, playerId){
       return a.gamesPlayed - b.gamesPlayed;
     });
 
+  // Sub Players — always listed too, below the regular bench.
+  const subCandidates = state.players
+    .filter(pl => pl.isSub && pl.active && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
+    .sort((a, b) => a.gamesPlayed - b.gamesPlayed);
+
   const rowBtn = (b, badge) => `
     <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;" data-action="do-replace-manual" data-match="${matchId}" data-team="${team}" data-player="${playerId}" data-sub="${b.id}">
       <span>${esc(b.name)}</span>
       <span class="mono" style="color:var(--text-faint); font-size:11px;">${badge} · ${b.gamesPlayed} gms</span>
     </button>`;
 
-  const subsHtml = subCandidates.length
-    ? `<div class="helper-text" style="margin:10px 2px 4px; color:var(--court);">🔁 Sub Players — eligible while ${esc(p.name)} is ${condition === 'tired' ? '😴 tired' : '🤕 injured'}</div>
-       ${subCandidates.map(b => rowBtn(b, '🔁 Sub')).join('')}`
+  const benchHtml = benchCandidates.length
+    ? `<div class="helper-text" style="margin-bottom:4px;">Or choose manually:</div>
+       ${benchCandidates.map(b => rowBtn(b, sittingOutIds.has(b.id) ? '🪑 Sitting out' : '🎮 In queue')).join('')}`
     : '';
 
-  const benchHtml = benchCandidates.length
-    ? `${subsHtml ? `<div class="helper-text" style="margin:14px 2px 4px;">Or pick another active player:</div>` : `<div class="helper-text" style="margin-bottom:4px;">Or choose manually:</div>`}
-       ${benchCandidates.map(b => rowBtn(b, sittingOutIds.has(b.id) ? '🪑 Sitting out' : '🎮 In queue')).join('')}`
+  const subsHtml = subCandidates.length
+    ? `<div class="helper-text" style="margin:14px 2px 4px; color:var(--court);">🔁 Sub Players</div>
+       ${subCandidates.map(b => rowBtn(b, '🔁 Sub')).join('')}`
     : '';
 
   const noneHtml = (!subCandidates.length && !benchCandidates.length)
@@ -2323,11 +2319,11 @@ function openReplacePlayerModal(matchId, team, playerId){
 
   openModal(`
     <div class="modal-title">Replace ${esc(p ? p.name : 'Player')}</div>
-    <div class="modal-sub">${slotNeedsSub ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : '🤕 injured'} — registered Sub Players can step in for this slot.` : `Not around? Pick a player to sub in for this match — sitting-out players are shown first.`}</div>
+    <div class="modal-sub">${(condition === 'tired' || condition === 'injured') ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : '🤕 injured'}. ` : ''}Not around? Pick a player to sub in for this match — sitting-out players are shown first, Sub Players are listed below.</div>
     <button class="btn btn-danger btn-block" data-action="do-replace-absent" data-match="${matchId}" data-team="${team}" data-player="${playerId}">Mark Absent &amp; Auto-Sub Best Available</button>
     <div class="divider-thin"></div>
-    ${subsHtml}
     ${benchHtml}
+    ${subsHtml}
     ${noneHtml}
     <div class="modal-actions">
       <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
@@ -2369,16 +2365,15 @@ function markPlayerAbsentAndAutoReplace(matchId, team, oldId){
   const m = gen.matches.find(x => x.id === matchId);
   const inMatchIds = m ? new Set([...m.teamA, ...m.teamB]) : new Set();
 
-  let candidates = [];
-  if(slotNeedsSub){
+  // Prefer a regular bench player first, then fall back to Sub Players.
+  let candidates = (gen.sittingOut || [])
+    .map(id => getPlayer(id))
+    .filter(pl => pl && !pl.isSub && (pl.condition||'ok')==='ok')
+    .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+
+  if(!candidates.length){
     candidates = state.players
       .filter(pl => pl.isSub && pl.active && (pl.condition||'ok')==='ok' && !inMatchIds.has(pl.id))
-      .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
-  }
-  if(!candidates.length){
-    candidates = (gen.sittingOut || [])
-      .map(id => getPlayer(id))
-      .filter(pl => pl && !pl.isSub && (pl.condition||'ok')==='ok')
       .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
   }
   if(!candidates.length){
@@ -2416,17 +2411,15 @@ function openReplaceCurrentPlayerModal(team, playerId){
   const c = state.current;
   const p = getPlayer(playerId);
   const condition = p ? (p.condition || 'ok') : 'ok';
-  const slotNeedsSub = condition === 'tired' || condition === 'injured';
   const inMatchIds = new Set([...c.teamA, ...c.teamB]);
-
-  const subCandidates = slotNeedsSub
-    ? state.players
-        .filter(pl => pl.isSub && pl.active && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
-        .sort((a,b) => a.gamesPlayed - b.gamesPlayed)
-    : [];
 
   const benchCandidates = state.players
     .filter(pl => pl.active && !pl.isSub && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
+    .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+
+  // Sub Players are always listed too, below the regular candidates.
+  const subCandidates = state.players
+    .filter(pl => pl.isSub && pl.active && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
     .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
 
   const rowBtn = (b, badge) => `
@@ -2435,14 +2428,14 @@ function openReplaceCurrentPlayerModal(team, playerId){
       <span class="mono" style="color:var(--text-faint); font-size:11px;">${badge} · ${b.gamesPlayed} gms</span>
     </button>`;
 
-  const subsHtml = subCandidates.length
-    ? `<div class="helper-text" style="margin:10px 2px 4px; color:var(--court);">🔁 Sub Players — eligible while ${esc(p.name)} is ${condition === 'tired' ? '😴 tired' : '🤕 injured'}</div>
-       ${subCandidates.map(b => rowBtn(b, '🔁 Sub')).join('')}`
+  const benchHtml = benchCandidates.length
+    ? `<div class="helper-text" style="margin-bottom:4px;">Pick a player to sub in:</div>
+       ${benchCandidates.map(b => rowBtn(b, '🎮 Available')).join('')}`
     : '';
 
-  const benchHtml = benchCandidates.length
-    ? `${subsHtml ? `<div class="helper-text" style="margin:14px 2px 4px;">Or pick another active player:</div>` : `<div class="helper-text" style="margin-bottom:4px;">Pick a player to sub in:</div>`}
-       ${benchCandidates.map(b => rowBtn(b, '🎮 Available')).join('')}`
+  const subsHtml = subCandidates.length
+    ? `<div class="helper-text" style="margin:14px 2px 4px; color:var(--court);">🔁 Sub Players</div>
+       ${subCandidates.map(b => rowBtn(b, '🔁 Sub')).join('')}`
     : '';
 
   const noneHtml = (!subCandidates.length && !benchCandidates.length)
@@ -2450,9 +2443,9 @@ function openReplaceCurrentPlayerModal(team, playerId){
 
   openModal(`
     <div class="modal-title">Replace ${esc(p ? p.name : 'Player')}</div>
-    <div class="modal-sub">${slotNeedsSub ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : '🤕 injured'} — registered Sub Players can step in for this slot.` : `Not around? Pick a player to sub in for this match.`}</div>
-    ${subsHtml}
+    <div class="modal-sub">${(condition === 'tired' || condition === 'injured') ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : '🤕 injured'}. ` : ''}Not around? Pick a player to sub in for this match — Sub Players are listed below.</div>
     ${benchHtml}
+    ${subsHtml}
     ${noneHtml}
     <div class="modal-actions">
       <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
@@ -3208,7 +3201,7 @@ function renderPlayersView(el){
         <input type="checkbox" id="newPlayerIsSub" style="width:16px; height:16px; accent-color:var(--court);">
         Register as a Sub Player
       </label>
-      <p class="helper-text" style="margin:4px 2px 0;">Sub Players sit on the bench out of the normal rotation — they're only eligible to step in for a slot whose regular player is marked 😴 Tired or 🤕 Injured.</p>
+      <p class="helper-text" style="margin:4px 2px 0;">Sub Players sit on the bench out of the normal rotation — they only show up as options in the "Replace Player" picker, listed below the regular bench players.</p>
       <div style="margin-top:12px;">
         <button class="btn btn-ghost btn-sm btn-block" data-action="open-bulk-import">Bulk Import Names</button>
       </div>
@@ -3266,7 +3259,7 @@ function renderPlayersView(el){
     : `<div class="empty-state" style="margin-bottom:16px;"><p>No regular players yet.</p></div>`;
 
   html += `<div class="section-title">🔁 Sub Players (${subRoster.length})</div>`;
-  html += `<p class="helper-text" style="margin:-4px 2px 10px;">Bench reserves. They sit out of normal matchmaking and only show up in the "Replace" picker when a regular player on a slot is Tired or Injured.</p>`;
+  html += `<p class="helper-text" style="margin:-4px 2px 10px;">Bench reserves. They sit out of normal matchmaking, but always show up as options in the "Replace Player" picker, listed below the regular bench players.</p>`;
   html += subRoster.length
     ? `<div class="card" style="padding:6px 12px;">${subRoster.map(playerRow).join('')}</div>`
     : `<div class="empty-state"><p>No Sub Players registered yet. Check "Register as a Sub Player" above to add one.</p></div>`;
@@ -3724,7 +3717,7 @@ document.addEventListener('click', function(e){
             <input type="checkbox" id="editIsSub" ${p.isSub ? 'checked' : ''} style="width:16px; height:16px; accent-color:var(--court);">
             Sub Player (bench reserve)
           </label>
-          <p class="helper-text" style="margin:4px 2px 0;">Subs sit out of normal rotation and only become eligible to fill a slot when its regular player is marked Tired or Injured.</p>
+          <p class="helper-text" style="margin:4px 2px 0;">Subs sit out of normal rotation, but always appear as options in the "Replace Player" picker, listed below the regular bench players.</p>
           <div class="modal-actions">
             <button class="btn btn-danger" data-action="do-delete-player" data-id="${p.id}">Remove Player</button>
             <button class="btn btn-primary" data-action="do-save-player" data-id="${p.id}">Save Changes</button>
