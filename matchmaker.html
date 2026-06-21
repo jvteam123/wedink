@@ -283,26 +283,69 @@ textarea{resize:vertical; min-height:90px; font-family:var(--font-mono); font-si
 
 /* ---------- Player list ---------- */
 .player-row{
-  display:flex; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px solid var(--line-soft);
+  display:flex; align-items:center; gap:12px; padding:12px 8px; border-bottom:1px solid var(--line-soft);
+  transition:background .12s ease;
 }
 .player-row:last-child{border-bottom:none;}
+.player-row:hover{background:rgba(255,255,255,0.02); border-radius:var(--radius-sm);}
 .avatar{
-  width:36px;height:36px;border-radius:10px; background:var(--surface-3); color:var(--ball);
-  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex:none;
+  width:40px;height:40px;border-radius:12px; background:var(--surface-3); color:var(--ball);
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex:none;
+  border:1px solid rgba(215,242,61,0.12);
+}
+.avatar.sub-avatar{
+  background:rgba(79,168,255,0.10); color:var(--court); border-color:rgba(79,168,255,0.20);
 }
 .player-row .pinfo{flex:1; min-width:0;}
-.player-row .pname{font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.player-row .pmeta{font-size:11.5px; color:var(--text-faint); font-family:var(--font-mono); margin-top:2px;}
+.player-row .pname{font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+.player-row .pmeta{font-size:11.5px; color:var(--text-faint); font-family:var(--font-mono); margin-top:3px; display:flex; align-items:center; gap:8px;}
+.player-row .pmeta .dot-sep{color:var(--line);}
 .pill{
-  display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:11px;
-  font-weight:700; font-family:var(--font-mono);
+  display:inline-flex; align-items:center; padding:3px 8px; border-radius:999px; font-size:11px;
+  font-weight:700; font-family:var(--font-mono); cursor:pointer; border:1px solid transparent;
+  transition:filter .12s ease, transform .08s ease;
 }
-.pill-paused{background:var(--surface-3); color:var(--text-faint);}
-.pill-active{background:rgba(215,242,61,0.12); color:var(--ball);}
-.pill-cond-ok{background:var(--surface-3); color:var(--text-faint);}
-.pill-cond-tired{background:rgba(79,168,255,0.14); color:var(--court);}
-.pill-cond-injured{background:rgba(255,107,107,0.14); color:var(--loss);}
-.row-actions{display:flex; gap:6px; flex:none;}
+.pill:active{transform:scale(0.95);}
+.pill-paused{background:var(--surface-3); color:var(--text-faint); border-color:var(--line-soft);}
+.pill-active{background:rgba(215,242,61,0.12); color:var(--ball); border-color:rgba(215,242,61,0.25);}
+.pill-cond-ok{background:rgba(62,213,152,0.08); color:var(--win); border-color:rgba(62,213,152,0.2);}
+.pill-cond-tired{background:rgba(79,168,255,0.10); color:var(--court); border-color:rgba(79,168,255,0.25);}
+.pill-cond-injured{background:rgba(255,107,107,0.10); color:var(--loss); border-color:rgba(255,107,107,0.25);}
+.row-actions{display:flex; gap:6px; flex:none; align-items:center;}
+
+/* ---------- Player section headers ---------- */
+.players-section-header{
+  display:flex; align-items:center; justify-content:space-between; margin:18px 2px 8px;
+}
+.players-section-header .psh-title{
+  font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-dim);
+}
+.players-section-header .psh-badge{
+  font-size:11px; font-weight:700; font-family:var(--font-mono); color:var(--text-faint);
+  background:var(--surface-2); border:1px solid var(--line-soft); border-radius:999px; padding:2px 8px;
+}
+
+/* ---------- Add player form (improved) ---------- */
+.add-player-card{
+  background:var(--surface); border:1px solid var(--line-soft); border-radius:var(--radius-lg);
+  padding:16px; box-shadow:var(--shadow-1); margin-bottom:4px;
+}
+.add-player-row{display:flex; gap:8px; align-items:flex-end;}
+.add-player-row input{flex:1;}
+.sub-toggle-row{
+  display:flex; align-items:center; gap:10px; margin-top:12px; padding:10px 12px;
+  background:var(--surface-2); border-radius:var(--radius-sm); border:1px solid var(--line-soft);
+  cursor:pointer;
+}
+.sub-toggle-row input[type=checkbox]{width:16px; height:16px; accent-color:var(--court); flex:none; cursor:pointer;}
+.sub-toggle-label{flex:1; font-size:13px; color:var(--text-dim); font-weight:600;}
+.sub-toggle-hint{font-size:11.5px; color:var(--text-faint); line-height:1.4; margin-top:6px;}
+
+/* ---------- Sub note in history ---------- */
+.hist-sub-note{
+  font-size:11px; color:var(--court); margin-top:4px; font-style:italic;
+  display:flex; align-items:center; gap:4px;
+}
 
 /* ---------- Scoreboard (signature element) ---------- */
 .scoreboard{
@@ -2034,21 +2077,29 @@ function confirmRoundRobinMatch(matchId){
   const sB = parseInt(m.scoreB, 10) || 0;
   const tA_win = m.winner === 'A';
 
+  // Resolve original player IDs: if a substitution happened, the match record
+  // and all stats go to the ORIGINAL player, not the sub.
+  const subs = m.substitutions || {};
+  function resolveOriginal(id){ return Object.keys(subs).find(orig => subs[orig] === id) || id; }
+  const recordTeamA = m.teamA.map(resolveOriginal);
+  const recordTeamB = m.teamB.map(resolveOriginal);
+
   const matchRecord = {
     id: uid('m'),
     round: gen.generation,
     generation: gen.generation,
     court: m.court || 0,
-    teamA: m.teamA, teamB: m.teamB,
+    teamA: recordTeamA, teamB: recordTeamB,
     scoreA: sA, scoreB: sB,
-    winners: tA_win ? m.teamA : m.teamB,
-    losers: tA_win ? m.teamB : m.teamA,
-    forfeit: m.forfeit || null, // 'A' or 'B' when the recorded result came from a forfeit, not real play
+    winners: tA_win ? recordTeamA : recordTeamB,
+    losers: tA_win ? recordTeamB : recordTeamA,
+    forfeit: m.forfeit || null,
+    substitutions: Object.keys(subs).length ? subs : undefined, // store sub notes for history
     date: new Date().toISOString()
   };
   state.matches.push(matchRecord);
 
-  [...m.teamA, ...m.teamB].forEach(id => {
+  [...recordTeamA, ...recordTeamB].forEach(id => {
     const p = getPlayer(id);
     if(!p) return;
     p.gamesPlayed++;
@@ -2060,23 +2111,23 @@ function confirmRoundRobinMatch(matchId){
     if(Math.abs(p.currentStreak) > p.longestStreak) p.longestStreak = Math.abs(p.currentStreak);
   });
 
-  [[m.teamA[0], m.teamA[1]], [m.teamB[0], m.teamB[1]]].forEach(([p1, p2]) => {
+  [[recordTeamA[0], recordTeamA[1]], [recordTeamB[0], recordTeamB[1]]].forEach(([p1, p2]) => {
     const pl1 = getPlayer(p1), pl2 = getPlayer(p2);
     if(pl1 && pl2){ bumpPair(pl1.teammates, p2); bumpPair(pl2.teammates, p1); }
   });
-  m.teamA.forEach(idA => {
-    m.teamB.forEach(idB => {
+  recordTeamA.forEach(idA => {
+    recordTeamB.forEach(idB => {
       const plA = getPlayer(idA), plB = getPlayer(idB);
       if(plA && plB){ bumpPair(plA.opponents, idB); bumpPair(plB.opponents, idA); }
     });
   });
 
-  const rA = (getPlayer(m.teamA[0])?.rating || 1000) + (getPlayer(m.teamA[1])?.rating || 1000);
-  const rB = (getPlayer(m.teamB[0])?.rating || 1000) + (getPlayer(m.teamB[1])?.rating || 1000);
+  const rA = (getPlayer(recordTeamA[0])?.rating || 1000) + (getPlayer(recordTeamA[1])?.rating || 1000);
+  const rB = (getPlayer(recordTeamB[0])?.rating || 1000) + (getPlayer(recordTeamB[1])?.rating || 1000);
   const expA = 1 / (1 + Math.pow(10, (rB - rA) / 400));
   const ratingChange = Math.round(32 * ((tA_win ? 1 : 0) - expA));
-  m.teamA.forEach(id => { const p = getPlayer(id); if(p) p.rating += ratingChange; });
-  m.teamB.forEach(id => { const p = getPlayer(id); if(p) p.rating -= ratingChange; });
+  recordTeamA.forEach(id => { const p = getPlayer(id); if(p) p.rating += ratingChange; });
+  recordTeamB.forEach(id => { const p = getPlayer(id); if(p) p.rating -= ratingChange; });
 
   m.status = 'done';
   m.court = null;
@@ -2341,14 +2392,26 @@ function replacePlayerInMatch(matchId, team, oldId, newId){
   const idx = teamArr.indexOf(oldId);
   if(idx === -1) return;
 
+  // Track substitution: substitutions[originalPlayerId] = subPlayerId
+  // The match record & stats stay attributed to the original player;
+  // we just note who physically stepped in.
+  if(!m.substitutions) m.substitutions = {};
+  // If oldId is itself already a sub, find the real original
+  const realOriginalId = Object.keys(m.substitutions).find(origId => m.substitutions[origId] === oldId) || oldId;
+  m.substitutions[realOriginalId] = newId;
+
+  // Physically swap the active playing slot
   teamArr[idx] = newId;
+
   gen.sittingOut = (gen.sittingOut || []).filter(id => id !== newId);
   const oldPlayer = getPlayer(oldId);
   if(oldPlayer && oldPlayer.active && !gen.sittingOut.includes(oldId)){
     gen.sittingOut.push(oldId);
   }
+  const origPlayer = getPlayer(realOriginalId);
+  const subPlayer = getPlayer(newId);
   saveAll(); renderAll(); closeModal();
-  toast(`${oldPlayer ? oldPlayer.name : 'Player'} swapped out for ${playerName(newId)}.`);
+  toast(`${origPlayer ? origPlayer.name : playerName(oldId)} subbed out — ${subPlayer ? subPlayer.name : playerName(newId)} steps in.`);
 }
 
 function markPlayerAbsentAndAutoReplace(matchId, team, oldId){
@@ -2459,9 +2522,17 @@ function replaceCurrentPlayer(team, oldId, newId){
   const teamArr = team === 'A' ? state.current.teamA : state.current.teamB;
   const idx = teamArr.indexOf(oldId);
   if(idx === -1) return;
+
+  // Track substitution so stats go to the original player
+  if(!state.current.substitutions) state.current.substitutions = {};
+  const realOriginalId = Object.keys(state.current.substitutions).find(orig => state.current.substitutions[orig] === oldId) || oldId;
+  state.current.substitutions[realOriginalId] = newId;
+
   teamArr[idx] = newId;
+  const origPlayer = getPlayer(realOriginalId);
+  const subPlayer = getPlayer(newId);
   saveAll(); renderAll(); closeModal();
-  toast(`${playerName(oldId)} swapped out for ${playerName(newId)}.`);
+  toast(`${origPlayer ? origPlayer.name : playerName(oldId)} subbed out — ${subPlayer ? subPlayer.name : playerName(newId)} steps in.`);
 }
 
 /* ============================================================
@@ -2576,21 +2647,28 @@ function recordRotationMatch(scoreA, scoreB) {
   const curr = state.current;
   state.round = curr.round;
 
+  // Resolve original player IDs for stat attribution
+  const subs = curr.substitutions || {};
+  function resolveOriginalRot(id){ return Object.keys(subs).find(orig => subs[orig] === id) || id; }
+  const recordTeamA = curr.teamA.map(resolveOriginalRot);
+  const recordTeamB = curr.teamB.map(resolveOriginalRot);
+
   const matchRecord = {
     id: uid('m'),
     round: curr.round,
-    teamA: curr.teamA,
-    teamB: curr.teamB,
+    teamA: recordTeamA,
+    teamB: recordTeamB,
     scoreA: sA,
     scoreB: sB,
-    winners: sA > sB ? curr.teamA : curr.teamB,
-    losers: sA > sB ? curr.teamB : curr.teamA,
+    winners: sA > sB ? recordTeamA : recordTeamB,
+    losers: sA > sB ? recordTeamB : recordTeamA,
+    substitutions: Object.keys(subs).length ? subs : undefined,
     date: new Date().toISOString()
   };
 
   state.matches.push(matchRecord);
 
-  const allFour = [...curr.teamA, ...curr.teamB];
+  const allFour = [...recordTeamA, ...recordTeamB];
   allFour.forEach(id => {
     const p = getPlayer(id);
     if(!p) return;
@@ -2605,27 +2683,27 @@ function recordRotationMatch(scoreA, scoreB) {
     if(Math.abs(p.currentStreak) > p.longestStreak) p.longestStreak = Math.abs(p.currentStreak);
   });
 
-  const pairs = [[curr.teamA[0], curr.teamA[1]], [curr.teamB[0], curr.teamB[1]]];
+  const pairs = [[recordTeamA[0], recordTeamA[1]], [recordTeamB[0], recordTeamB[1]]];
   pairs.forEach(([p1, p2]) => {
     const pl1 = getPlayer(p1), pl2 = getPlayer(p2);
     if(pl1 && pl2) { bumpPair(pl1.teammates, p2); bumpPair(pl2.teammates, p1); }
   });
 
-  curr.teamA.forEach(idA => {
-    curr.teamB.forEach(idB => {
+  recordTeamA.forEach(idA => {
+    recordTeamB.forEach(idB => {
       const plA = getPlayer(idA), plB = getPlayer(idB);
       if(plA && plB) { bumpPair(plA.opponents, idB); bumpPair(plB.opponents, idA); }
     });
   });
 
-  const rA = (getPlayer(curr.teamA[0])?.rating || 1000) + (getPlayer(curr.teamA[1])?.rating || 1000);
-  const rB = (getPlayer(curr.teamB[0])?.rating || 1000) + (getPlayer(curr.teamB[1])?.rating || 1000);
+  const rA = (getPlayer(recordTeamA[0])?.rating || 1000) + (getPlayer(recordTeamA[1])?.rating || 1000);
+  const rB = (getPlayer(recordTeamB[0])?.rating || 1000) + (getPlayer(recordTeamB[1])?.rating || 1000);
   const expA = 1 / (1 + Math.pow(10, (rB - rA) / 400));
   const actualA = sA > sB ? 1 : 0;
   const ratingChange = Math.round(32 * (actualA - expA));
 
-  curr.teamA.forEach(id => { const p = getPlayer(id); if(p) p.rating += ratingChange; });
-  curr.teamB.forEach(id => { const p = getPlayer(id); if(p) p.rating -= ratingChange; });
+  recordTeamA.forEach(id => { const p = getPlayer(id); if(p) p.rating += ratingChange; });
+  recordTeamB.forEach(id => { const p = getPlayer(id); if(p) p.rating -= ratingChange; });
 
   state.current = null;
   saveAll(); renderAll();
@@ -3189,27 +3267,27 @@ function renderQueueView(el){
 function renderPlayersView(el){
   const total = state.players.length;
   let html = `
-    <div class="card" style="margin-bottom:16px;">
-      <div class="field">
-        <label>Add New Player</label>
-        <div class="input-row">
+    <div class="add-player-card">
+      <div class="field" style="margin-bottom:8px;">
+        <label>Add Player</label>
+        <div class="add-player-row">
           <input type="text" id="newPlayerName" placeholder="Enter name…">
           <button class="btn btn-primary" data-action="do-add-player">Add</button>
         </div>
       </div>
-      <label style="margin-top:10px; display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-dim); cursor:pointer;">
-        <input type="checkbox" id="newPlayerIsSub" style="width:16px; height:16px; accent-color:var(--court);">
-        Register as a Sub Player
+      <label class="sub-toggle-row">
+        <input type="checkbox" id="newPlayerIsSub">
+        <span class="sub-toggle-label">🔁 Register as Sub Player</span>
       </label>
-      <p class="helper-text" style="margin:4px 2px 0;">Sub Players sit on the bench out of the normal rotation — they only show up as options in the "Replace Player" picker, listed below the regular bench players.</p>
-      <div style="margin-top:12px;">
+      <p class="sub-toggle-hint">Sub Players sit on the bench out of normal rotation — they only appear in the "Replace Player" picker when someone needs to be swapped out.</p>
+      <div style="margin-top:10px;">
         <button class="btn btn-ghost btn-sm btn-block" data-action="open-bulk-import">Bulk Import Names</button>
       </div>
     </div>
   `;
 
   if(!total){
-    html += `<div class="empty-state"><div class="big">🗂️</div><p>No players available. Add some above to get going!</p></div>`;
+    html += `<div class="empty-state"><div class="big">🗂️</div><p>No players yet. Add one above to get going!</p></div>`;
     el.innerHTML = html;
     return;
   }
@@ -3224,21 +3302,33 @@ function renderPlayersView(el){
 
   function playerRow(p){
     const duoPartner = getFixedDuoPartner(p.id);
-    const duoLabel = duoPartner ? ` <span style="color:var(--ball); font-size:11px; font-weight:700;">🔗 ${esc(playerName(duoPartner))}</span>` : '';
-    const subLabel = p.isSub ? ` <span style="color:var(--court); font-size:11px; font-weight:800;">🔁 SUB</span>` : '';
+    const duoLabel = duoPartner ? `<span style="color:var(--ball); font-size:11px; font-weight:700; background:rgba(215,242,61,0.08); border:1px solid rgba(215,242,61,0.2); border-radius:999px; padding:2px 7px;">🔗 ${esc(playerName(duoPartner))}</span>` : '';
+    const avatarClass = p.isSub ? 'avatar sub-avatar' : 'avatar';
+    const avatarIcon = p.isSub ? '🔁' : initials(p.name);
+    const winRate = p.gamesPlayed > 0 ? `${winPct(p)}% WR` : 'No games';
+    const ratingColor = p.rating >= 1100 ? 'var(--win)' : p.rating >= 950 ? 'var(--ball)' : 'var(--text-faint)';
     return `
       <div class="player-row">
-        <div class="avatar">${initials(p.name)}</div>
+        <div class="${avatarClass}">${avatarIcon}</div>
         <div class="pinfo">
-          <div class="pname">${esc(p.name)}${subLabel}${duoLabel}</div>
-          <div class="pmeta">${p.gamesPlayed} Games · Rating: ${p.rating}</div>
+          <div class="pname">
+            ${esc(p.name)}
+            ${duoLabel}
+          </div>
+          <div class="pmeta">
+            <span>${p.gamesPlayed} gms</span>
+            <span class="dot-sep">·</span>
+            <span style="color:${ratingColor};">ELO ${p.rating}</span>
+            <span class="dot-sep">·</span>
+            <span>${winRate}</span>
+          </div>
         </div>
-        <div class="row-actions" style="flex-wrap:wrap; justify-content:flex-end; max-width:50%;">
+        <div class="row-actions">
           ${conditionPill(p)}
           <button class="pill ${p.active?'pill-active':'pill-paused'}" data-action="toggle-active" data-id="${p.id}">
             ${p.active?'Active':'Paused'}
           </button>
-          <button class="icon-btn" data-action="open-edit-player" data-id="${p.id}">
+          <button class="icon-btn" data-action="open-edit-player" data-id="${p.id}" title="Edit player">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           </button>
         </div>
@@ -3246,23 +3336,36 @@ function renderPlayersView(el){
     `;
   }
 
-  // Sort by active status, then alphabetically
+  // Sort: active first, then alphabetically
   const mainRoster = state.players.filter(p => !p.isSub).sort((a,b)=>{
     if(a.active !== b.active) return b.active ? 1 : -1;
     return a.name.localeCompare(b.name);
   });
   const subRoster = state.players.filter(p => p.isSub).sort((a,b)=> a.name.localeCompare(b.name));
 
-  html += `<div class="section-title">Main Roster (${mainRoster.length})</div>`;
+  const activeCount = mainRoster.filter(p=>p.active).length;
+  const pausedCount = mainRoster.filter(p=>!p.active).length;
+
+  html += `
+    <div class="players-section-header">
+      <span class="psh-title">Main Roster</span>
+      <span class="psh-badge">${activeCount} active${pausedCount ? ` · ${pausedCount} paused` : ''}</span>
+    </div>
+  `;
   html += mainRoster.length
-    ? `<div class="card" style="padding:6px 12px; margin-bottom:16px;">${mainRoster.map(playerRow).join('')}</div>`
+    ? `<div class="card" style="padding:4px 12px; margin-bottom:8px;">${mainRoster.map(playerRow).join('')}</div>`
     : `<div class="empty-state" style="margin-bottom:16px;"><p>No regular players yet.</p></div>`;
 
-  html += `<div class="section-title">🔁 Sub Players (${subRoster.length})</div>`;
-  html += `<p class="helper-text" style="margin:-4px 2px 10px;">Bench reserves. They sit out of normal matchmaking, but always show up as options in the "Replace Player" picker, listed below the regular bench players.</p>`;
+  html += `
+    <div class="players-section-header">
+      <span class="psh-title">🔁 Sub Players</span>
+      <span class="psh-badge">${subRoster.length} registered</span>
+    </div>
+    <p class="helper-text" style="margin:-4px 2px 10px; font-size:12px;">Bench reserves. Not scheduled in normal matchmaking — only appear in the "Replace Player" picker when someone needs to be swapped out mid-match.</p>
+  `;
   html += subRoster.length
-    ? `<div class="card" style="padding:6px 12px;">${subRoster.map(playerRow).join('')}</div>`
-    : `<div class="empty-state"><p>No Sub Players registered yet. Check "Register as a Sub Player" above to add one.</p></div>`;
+    ? `<div class="card" style="padding:4px 12px;">${subRoster.map(playerRow).join('')}</div>`
+    : `<div class="empty-state"><div style="font-size:22px;margin-bottom:6px;">🪑</div><p style="font-size:13px;">No Sub Players yet.<br>Check "Register as Sub Player" above to add one.</p></div>`;
 
   el.innerHTML = html;
 }
@@ -3411,6 +3514,15 @@ function renderHistoryView(el){
     const pB1 = playerName(m.teamB[0]), pB2 = playerName(m.teamB[1]);
     const isGen = m.generation !== undefined;
 
+    // Build substitution notes
+    let subNotes = '';
+    if(m.substitutions && Object.keys(m.substitutions).length){
+      const notes = Object.entries(m.substitutions).map(([origId, subId]) => {
+        return `<span>${esc(playerName(origId))} subbed out for <strong style="color:var(--ball);">${esc(playerName(subId))}</strong></span>`;
+      });
+      subNotes = `<div class="hist-sub-note">🔁 ${notes.join(' · ')}</div>`;
+    }
+
     html += `
       <div class="hist-item" data-search-string="${esc(pA1.toLowerCase())} ${esc(pA2.toLowerCase())} ${esc(pB1.toLowerCase())} ${esc(pB2.toLowerCase())}">
         <div class="hist-top">
@@ -3422,6 +3534,7 @@ function renderHistoryView(el){
           <div class="hist-vs mono">${m.scoreA}-${m.scoreB}</div>
           <div class="hist-team ${m.scoreB > m.scoreA ? 'winner' : 'loser'}">${esc(pB1)} / ${esc(pB2)}</div>
         </div>
+        ${subNotes}
       </div>
     `;
   });
