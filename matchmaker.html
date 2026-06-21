@@ -4630,7 +4630,18 @@ document.addEventListener('click', function(e){
       }
       break;
     case 'do-skip-match': skipCurrentMatch(); closeModal(); break;
-    case 'undo-match': undoLastMatch(); break;
+    case 'undo-match':
+      if(!state.undo){ toast('Nothing to undo.', 'info'); break; }
+      openModal(`
+        <div class="modal-title" style="color:var(--loss);">⚠️ Undo Last Match?</div>
+        <div class="modal-sub" style="line-height:1.6;">This will revert scores, stats, and game counts back to right before the last match was recorded. This cannot be redone.</div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-danger" data-action="do-undo-match">Yes, Undo Match</button>
+        </div>
+      `);
+      break;
+    case 'do-undo-match': undoLastMatch(); closeModal(); break;
 
     // Player operations logic
     case 'do-add-player': {
