@@ -907,20 +907,23 @@ function speakUtterance(text, interrupt){
 function scoreCallText(m){
   const servingScore = m.serving === 'A' ? safeScore(m.scoreA) : safeScore(m.scoreB);
   const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
-  // 10 is match point — always call it "Match" (never just the bare digits).
-  // Some speech engines misread "10" run together with the next number as
-  // one long digit string ("one zero seven" instead of "ten, seven"), so we
-  // sidestep that entirely by never speaking "10" as a number. This applies
-  // no matter how the score reached 10 — scoring up, backing down via a
-  // correction, or coming back up to 10 a second time.
-  if(servingScore === 10){
-    return otherScore === 10 ? `All Match ${m.serverNum}` : `Match, ${otherScore} ${m.serverNum}`;
-  }
-  // Tied scores get the standard pickleball "All" call instead of saying
-  // the same number twice — e.g. "All 3 1" rather than "3 3 1".
-  if(servingScore === otherScore){
-    return `All ${servingScore} ${m.serverNum}`;
-  }
+
+  // 10 is match point — always call it "Match" instead of the bare digits,
+  // on EITHER side of the score (the server's own score, the other team's
+  // score, or both if tied at 10-10). Some speech engines misread a literal
+  // "10" sitting next to another number as one merged digit string (e.g.
+  // "one zero" instead of "ten"), so we never let a literal 10 reach the
+  // speech engine — no matter how the score got there: scoring up, backing
+  // down via a correction, a side-out (where the team that just lost serve
+  // can be the one sitting at 10), or coming back up to 10 again.
+  if(servingScore === 10 && otherScore === 10) return `All Match ${m.serverNum}`;
+  if(servingScore === 10) return `Match, ${otherScore} ${m.serverNum}`;
+  if(otherScore === 10) return `${servingScore} Match ${m.serverNum}`;
+
+  // Tied scores (not at 10) get the standard pickleball "All" call instead of
+  // saying the same number twice — e.g. "All 3 1" rather than "3 3 1".
+  if(servingScore === otherScore) return `All ${servingScore} ${m.serverNum}`;
+
   return `${servingScore} ${otherScore} ${m.serverNum}`;
 }
 
@@ -1220,30 +1223,39 @@ function toggleCheckIn(id){
 }
 
 function confirmCheckInResetAll(){
+  const hasLiveMatch = !!state.current || !!state.currentGeneration;
   openModal(`
-    <div class="modal-title">Start New Session?</div>
-    <div class="modal-sub" style="line-height:1.6;">This marks every player as "not arrived" so you can check people in fresh as they walk in. Stats and match history are kept — this only resets who's in the pool. Anyone currently mid-match is left as-is.</div>
+    <div class="modal-title">⚠️ Start New Session?</div>
+    <div class="modal-sub" style="line-height:1.6;">
+      This marks every player as "not arrived" so you can check people in fresh as they walk in.
+      ${hasLiveMatch ? `<strong style="color:var(--loss);">It will also end the match/generation currently in progress — any unsaved score on it will be lost.</strong>` : `There's no match in progress right now, so nothing live will be affected.`}
+      Completed match history and player stats are kept.
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" data-action="checkin-open">Cancel</button>
-      <button class="btn btn-primary" data-action="do-checkin-reset-all">Yes, Reset All</button>
+      <button class="btn btn-primary" data-action="do-checkin-reset-all">Yes, Start New Session</button>
     </div>
   `);
 }
 
 function checkInResetAll(){
-  let reset = 0, skipped = 0;
+  const hadLiveMatch = !!state.current || !!state.currentGeneration;
+  // Wipe whatever's currently in progress — a new session means a clean slate,
+  // not a half-finished match hanging around from before everyone reset.
+  state.current = null;
+  state.currentGeneration = null;
+  state.undo = null;
+
+  let reset = 0;
   state.players.forEach(p=>{
-    if(!p.active) return;
-    const inCurrent = state.current && (state.current.teamA.includes(p.id) || state.current.teamB.includes(p.id));
-    const inGenMatch = state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(p.id) || m.teamB.includes(p.id)));
-    if(inCurrent || inGenMatch){ skipped++; return; }
+    if(p.active) reset++;
     p.active = false;
     p.consecutiveSitOuts = 0; p.sitOutPriority = 0; p.waitingRounds = 0;
-    reset++;
   });
+
   saveAll(); renderAll();
   openCheckInModal();
-  toast(`${reset} player${reset!==1?'s':''} marked not-arrived${skipped ? ` · ${skipped} mid-match left as-is` : ''}.`);
+  toast(`${reset} player${reset!==1?'s':''} marked not-arrived${hadLiveMatch ? ' · in-progress match cleared' : ''}.`);
 }
 
 function removePlayer(id){
@@ -1878,15 +1890,30 @@ function confirmRoundRobinMatch(matchId){
 
   const allDone = gen.matches.every(x => x.status === 'done');
   if(allDone){
-    state.round = gen.generation;
+    const finishedGen = gen.generation;
+    state.round = finishedGen;
     state.currentGeneration = null;
-    saveAll();
-    toast(`Generation ${gen.generation} complete — building the next generation…`);
-    _doGenerateRoundRobinGeneration(null); // auto-advance skips court-count warning
+    saveAll(); renderAll();
+    promptNextGeneration(finishedGen);
   } else {
     saveAll(); renderAll();
     toast('Match recorded — next match is up.');
   }
+}
+
+// Shown once every match in a generation has been played. Hands control
+// back to the organizer instead of silently auto-building the next
+// generation — they may want to let more players check in, swap settings,
+// or just take a breather between rounds first.
+function promptNextGeneration(finishedGen){
+  openModal(`
+    <div class="modal-title">🎉 Generation ${finishedGen} Complete!</div>
+    <div class="modal-sub" style="line-height:1.6;">Every match in this round robin generation has been played. Ready to build Generation ${finishedGen + 1}?</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="modal-close">Not Yet</button>
+      <button class="btn btn-primary" data-action="confirm-next-generation">Generate Generation ${finishedGen + 1}</button>
+    </div>
+  `);
 }
 
 /* ---------- Replace / substitute a player mid-generation ---------- */
@@ -2446,7 +2473,7 @@ function renderMatchView(el){
     }
 
     if(!activeMatches.length){
-      html += `<div class="empty-state"><div class="big">🎉</div><div class="et">Generation ${gen.generation} complete</div><p>Building the next generation…</p></div>`;
+      html += `<div class="empty-state"><div class="big">🎉</div><div class="et">Generation ${gen.generation} complete</div><p>Head to the next generation when you're ready.</p></div>`;
     }
 
     activeMatches.forEach(m => {
@@ -3104,6 +3131,7 @@ document.addEventListener('click', function(e){
 
     // Round robin workflow
     case 'generate-roundrobin': generateRoundRobinGeneration(); break;
+    case 'confirm-next-generation': closeModal(); generateRoundRobinGeneration(); break;
     case 'do-generate-rr': closeModal(); _doGenerateRoundRobinGeneration(null); break;
     case 'set-rr-winner':
       selectRoundRobinWinner(t.dataset.match, t.dataset.team);
