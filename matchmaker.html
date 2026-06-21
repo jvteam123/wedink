@@ -861,55 +861,182 @@ let state = {
   fixedDuos: []          // array of [id1, id2] pairs that must always be on the same team
 };
 
-function loadState(){
+/* ============================================================
+   INDEXEDDB PERSISTENCE LAYER
+   ------------------------------------------------------------
+   All core app data (players, matches, current/currentGeneration,
+   settings, round, undo, tab, fixedDuos) lives in a single IndexedDB
+   object store, keyed the same way the old localStorage keys were.
+   IndexedDB is asynchronous, so loadState() now returns a Promise —
+   the boot sequence at the bottom of this file awaits it before the
+   first renderAll(). saveAll() stays a fire-and-forget call at every
+   existing call site (it kicks off the IndexedDB write but nothing
+   in the app waits on it, since every caller already works purely
+   off the in-memory `state` object afterward).
+   ============================================================ */
+const IDB_DB_NAME = 'kl_db';
+const IDB_DB_VERSION = 1;
+const IDB_STORE_NAME = 'kv';
+const IDB_MIGRATION_FLAG_KEY = '_kl_legacy_migrated_v1';
+
+let _idbConnectionPromise = null;
+function openIDB(){
+  if(_idbConnectionPromise) return _idbConnectionPromise;
+  _idbConnectionPromise = new Promise((resolve, reject) => {
+    if(!('indexedDB' in window)){ reject(new Error('IndexedDB is not available in this browser.')); return; }
+    let req;
+    try{ req = indexedDB.open(IDB_DB_NAME, IDB_DB_VERSION); }
+    catch(e){ reject(e); return; }
+    req.onupgradeneeded = function(e){
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(IDB_STORE_NAME)){
+        db.createObjectStore(IDB_STORE_NAME);
+      }
+    };
+    req.onsuccess = function(e){ resolve(e.target.result); };
+    req.onerror = function(e){ reject(e.target.error || new Error('Failed to open IndexedDB.')); };
+    req.onblocked = function(){ reject(new Error('IndexedDB open request was blocked.')); };
+  });
+  return _idbConnectionPromise;
+}
+
+function idbGet(key){
+  return openIDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE_NAME, 'readonly');
+    const store = tx.objectStore(IDB_STORE_NAME);
+    const req = store.get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  }));
+}
+
+// Fetches every key in one shared transaction (cheaper than N separate ones)
+// and returns a plain { key: value } map. Missing keys simply come back as
+// `undefined` in the map, same as a single idbGet() miss would.
+function idbGetMany(keys){
+  return openIDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE_NAME, 'readonly');
+    const store = tx.objectStore(IDB_STORE_NAME);
+    const out = {};
+    let pending = keys.length;
+    if(!pending){ resolve(out); return; }
+    keys.forEach(key => {
+      const req = store.get(key);
+      req.onsuccess = () => { out[key] = req.result; pending--; if(pending===0) resolve(out); };
+      req.onerror = () => reject(req.error);
+    });
+  }));
+}
+
+function idbSet(key, value){
+  return openIDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(IDB_STORE_NAME);
+    store.put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+// Writes every [key, value] pair in `entries` inside a single readwrite
+// transaction — this is what saveAll() uses so one user action only costs
+// one IndexedDB transaction no matter how many top-level keys changed.
+function idbSetMany(entries){
+  return openIDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(IDB_STORE_NAME);
+    entries.forEach(([key, value]) => store.put(value, key));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+// One-time import of any data left over from a previous version of this app
+// that used localStorage (kl_players, kl_matches, etc). Runs before the first
+// loadState() call; once it's copied data over (or confirmed there's nothing
+// to copy), it sets a flag in IndexedDB itself so it never runs again — and
+// it removes the old localStorage keys so a stale copy can never shadow
+// fresher IndexedDB writes on some future load.
+async function migrateLegacyLocalStorageIfNeeded(){
   try{
-    const p = localStorage.getItem(KEYS.players);
-    const m = localStorage.getItem(KEYS.matches);
-    const c = localStorage.getItem(KEYS.current);
-    const s = localStorage.getItem(KEYS.settings);
-    const r = localStorage.getItem(KEYS.round);
-    const u = localStorage.getItem(KEYS.undo);
-    const t = localStorage.getItem(KEYS.tab);
+    const already = await idbGet(IDB_MIGRATION_FLAG_KEY);
+    if(already) return;
+    const entries = [];
+    let foundAny = false;
+    Object.values(KEYS).forEach(key => {
+      let raw;
+      try{ raw = localStorage.getItem(key); }catch(e){ raw = null; }
+      if(raw === null || raw === undefined) return;
+      foundAny = true;
+      if(key === KEYS.tab){ entries.push([key, raw]); return; } // plain string, not JSON
+      if(key === KEYS.round){ entries.push([key, parseInt(raw,10)||0]); return; } // plain numeric string
+      try{ entries.push([key, JSON.parse(raw)]); }
+      catch(e){ entries.push([key, raw]); }
+    });
+    if(foundAny) await idbSetMany(entries);
+    await idbSet(IDB_MIGRATION_FLAG_KEY, true);
+    if(foundAny){
+      Object.values(KEYS).forEach(key => { try{ localStorage.removeItem(key); }catch(e){} });
+    }
+  }catch(e){
+    // Non-fatal — worst case an old localStorage snapshot just doesn't get
+    // imported, the app still boots fine on an empty/fresh IndexedDB store.
+    console.error('Legacy localStorage migration skipped due to an error.', e);
+  }
+}
+
+async function loadState(){
+  try{
+    await migrateLegacyLocalStorageIfNeeded();
+    const data = await idbGetMany(Object.values(KEYS));
+    const p = data[KEYS.players];
     if(p) {
-      state.players = JSON.parse(p);
+      state.players = p;
       state.players.forEach(pl => {
         if(typeof pl.isSub !== 'boolean') pl.isSub = false;
         if(!pl.condition) pl.condition = 'ok';
       });
     }
-    if(m) state.matches = JSON.parse(m);
-    if(c) {
-      const parsedC = JSON.parse(c);
-      if (parsedC && parsedC.matches) {
-        state.currentGeneration = parsedC;
-        state.current = null;
-      } else {
-        state.current = parsedC;
-        state.currentGeneration = null;
-      }
+    const m = data[KEYS.matches];
+    if(m) state.matches = m;
+    const c = data[KEYS.current];
+    if(c !== undefined && c !== null) {
+      if(c && c.matches) { state.currentGeneration = c; state.current = null; }
+      else { state.current = c; state.currentGeneration = null; }
     }
-    if(s) state.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(s) };
-    if(r) state.round = parseInt(r,10)||0;
-    if(u) state.undo = JSON.parse(u);
+    const s = data[KEYS.settings];
+    if(s) state.settings = { ...DEFAULT_SETTINGS, ...s };
+    const r = data[KEYS.round];
+    if(r !== undefined && r !== null) state.round = parseInt(r,10)||0;
+    const u = data[KEYS.undo];
+    if(u !== undefined) state.undo = u;
+    const t = data[KEYS.tab];
     if(t) state.tab = t;
-    const fd = localStorage.getItem(KEYS.fixedDuos);
-    if(fd) state.fixedDuos = JSON.parse(fd);
+    const fd = data[KEYS.fixedDuos];
+    if(fd) state.fixedDuos = fd;
   }catch(e){
-    console.error('Failed to load saved data, starting fresh.', e);
+    console.error('Failed to load saved data from IndexedDB, starting fresh.', e);
+    toast("Couldn't open local storage — starting with a blank session. Your browser may be blocking IndexedDB (private/incognito mode, or storage disabled).", 'error');
   }
 }
 
 function saveAll(){
   try{
-    localStorage.setItem(KEYS.players, JSON.stringify(state.players));
-    localStorage.setItem(KEYS.matches, JSON.stringify(state.matches));
     const currentSnapshot = state.settings.matchMode === 'RoundRobin' ? state.currentGeneration : state.current;
-    localStorage.setItem(KEYS.current, JSON.stringify(currentSnapshot));
-    localStorage.setItem(KEYS.settings, JSON.stringify(state.settings));
-    localStorage.setItem(KEYS.round, String(state.round));
-    localStorage.setItem(KEYS.undo, JSON.stringify(state.undo));
-    localStorage.setItem(KEYS.tab, state.tab);
-    localStorage.setItem(KEYS.fixedDuos, JSON.stringify(state.fixedDuos || []));
+    const entries = [
+      [KEYS.players, state.players],
+      [KEYS.matches, state.matches],
+      [KEYS.current, currentSnapshot],
+      [KEYS.settings, state.settings],
+      [KEYS.round, state.round],
+      [KEYS.undo, state.undo],
+      [KEYS.tab, state.tab],
+      [KEYS.fixedDuos, state.fixedDuos || []]
+    ];
+    idbSetMany(entries).catch(e => {
+      console.error('IndexedDB save failed.', e);
+      toast("Couldn't save your changes — storage may be full or unavailable.", 'error');
+    });
   }catch(e){
     toast("Couldn't save your changes — storage may be full or unavailable.", 'error');
     console.error(e);
@@ -1171,7 +1298,13 @@ function speakSideOut(m){
     const synth = window.speechSynthesis;
     const text = scoreCallText(m);
     synth.cancel();
-    setTimeout(function(){ speakNow('Side out'); speakNow(text); }, 50);
+    // Two back-to-back speakNow() calls queue two separate utterances, and
+    // several mobile browsers (notably iOS Safari and some Android WebViews)
+    // drop or truncate whichever one is still pending when the next speak()
+    // call fires — so "Side out" or the score call would intermittently go
+    // silent. Combining both into a single utterance guarantees one speech
+    // request, which mobile engines handle reliably.
+    setTimeout(function(){ speakNow('Side out. ' + text); }, 50);
   }catch(e){ /* speech not available — fail silently */ }
 }
 
@@ -1769,32 +1902,115 @@ function scoreSplit(four, settings){
   return best;
 }
 
+// Builds the eligible "fairness tier" for the next match: every active
+// player tied at the lowest gamesPlayed count in `pool`. Nobody outside this
+// tier may enter a match while tier members are still waiting — that's what
+// guarantees an exact game-count match across the whole group instead of
+// letting the queue heuristic drift.
+function fairnessTierFrom(pool, startIdx){
+  if(startIdx >= pool.length) return pool.slice(pool.length);
+  const gp = pool[startIdx].gamesPlayed;
+  let end = startIdx;
+  while(end < pool.length && pool[end].gamesPlayed === gp) end++;
+  return pool.slice(startIdx, end);
+}
+
+// Resolves Fixed Duo eligibility against a tier-aware id set: a duo may only
+// be used in this match if BOTH partners are already inside `eligibleIds`.
+// If only one partner is due to play, the whole pair sits out together —
+// pulling the not-yet-due partner in early would hand them an extra game
+// ahead of someone else who has played strictly fewer games, which is
+// exactly the imbalance this rewrite exists to prevent.
+function partitionDuoBlocked(tierPlayers, eligibleIds){
+  const blocked = new Set();
+  tierPlayers.forEach(p => {
+    const partnerId = getFixedDuoPartner(p.id);
+    if(partnerId && !eligibleIds.has(partnerId)) blocked.add(p.id);
+  });
+  return blocked;
+}
+
 function nextRotationMatch(){
   const pool = selectionPool();
   if(pool.length < 4){ toast('Need at least 4 active players.', 'warning'); return; }
 
-  // Build a foursome that honors fixed duos:
-  // Pick players from the top of the fairness pool but pull in their fixed duo partner
-  // if they're not already in the next 4 slots.
-  const selected = [];
-  const remaining = pool.slice();
-  while(selected.length < 4 && remaining.length){
-    const p = remaining.shift();
-    if(selected.some(s => s.id === p.id)) continue;
-    selected.push(p);
-    // If this player has a fixed duo partner, pull them in next
-    const partnerId = getFixedDuoPartner(p.id);
-    if(partnerId && selected.length < 4){
-      const partnerIdx = remaining.findIndex(r => r.id === partnerId);
-      if(partnerIdx !== -1){
-        const partner = remaining.splice(partnerIdx, 1)[0];
-        selected.push(partner);
-      }
-    }
+  // --- STEP 1: strict fairness tier --------------------------------------
+  // Start with everyone tied at the minimum gamesPlayed. Resolve fixed-duo
+  // blocking against that tier; if too few usable players remain, widen by
+  // pulling in the next-lowest tier WHOLESALE (never a partial slice of a
+  // tier) so the sit-out remainder stays as mathematically uniform as the
+  // group size allows.
+  const eligibleIds = new Set();
+  let usable = [];
+  let cursor = 0;
+  while(usable.length < 4 && cursor < pool.length){
+    const tier = fairnessTierFrom(pool, cursor);
+    if(!tier.length) break;
+    tier.forEach(p => eligibleIds.add(p.id));
+    const blocked = partitionDuoBlocked(tier, eligibleIds);
+    usable = usable.concat(tier.filter(p => !blocked.has(p.id)));
+    cursor += tier.length;
   }
 
-  const four = selected.slice(0, 4);
-  const best = scoreSplit(four, state.settings);
+  if(usable.length < 4){
+    toast('Not enough players available — some are waiting on a fixed-duo partner who isn\'t due yet.', 'warning');
+    return;
+  }
+
+  // --- STEP 2: look-ahead candidate window -------------------------------
+  // `usable` is already ordered fairness-first (gamesPlayed asc, then
+  // consecutiveSitOuts/sitOuts desc, then jitter), so taking its first 6-8
+  // entries gives the most-due players without ever reaching past someone
+  // who deserves to play sooner.
+  const windowSize = Math.min(8, usable.length);
+  const candidates = usable.slice(0, windowSize);
+
+  // Fixed duos fully inside the window must stay paired — collapse each duo
+  // into a single 2-player "unit" so the combination search below can never
+  // split them apart.
+  const units = [];
+  const claimed = new Set();
+  candidates.forEach(p => {
+    if(claimed.has(p.id)) return;
+    const partnerId = getFixedDuoPartner(p.id);
+    const partner = partnerId ? candidates.find(c => c.id === partnerId) : null;
+    if(partner){
+      units.push([p, partner]);
+      claimed.add(p.id); claimed.add(partner.id);
+    } else {
+      units.push([p]);
+      claimed.add(p.id);
+    }
+  });
+
+  // --- STEP 3: evaluate every foursome + team-split combination ----------
+  // Instead of locking in a rigid top-4 and only arranging teams afterward,
+  // walk every combination of units that sums to exactly 4 players, run each
+  // through scoreSplit() (teammate/opponent penalty matrix + rematch
+  // prevention + skill balance), and keep the global minimum. This is what
+  // stops the engine from being forced into an immediate rematch whenever
+  // the literal next 4 in queue order just played each other.
+  let best = null;
+  (function explore(startIdx, chosen, count){
+    if(count === 4){
+      const four = chosen.flat();
+      const result = scoreSplit(four, state.settings);
+      if(result && (!best || result.score < best.score)){
+        best = { four, split: result.split, score: result.score };
+      }
+      return;
+    }
+    if(count > 4) return;
+    for(let i = startIdx; i < units.length; i++){
+      explore(i + 1, chosen.concat([units[i]]), count + units[i].length);
+    }
+  })(0, [], 0);
+
+  if(!best){
+    toast('Could not assemble a valid foursome from the active pool.', 'warning');
+    return;
+  }
+
   const [[p1,p2],[p3,p4]] = best.split;
   state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id], scoreA: null, scoreB: null, serving: 'A', serverNum: 1, firstServe: true };
   state.players.forEach(p=>{
@@ -4790,10 +5006,22 @@ function initInstallBanner(){
 /* ============================================================
    SYSTEM BOOT INITIALIZER EXECUTION
    ============================================================ */
-loadState();
-renderAll();
-initInstallBanner();
-maybeShowNavHint();
+/* ============================================================
+   SYSTEM BOOT INITIALIZER EXECUTION
+   ------------------------------------------------------------
+   loadState() is now async (it awaits the IndexedDB connection,
+   the one-time legacy-localStorage migration check, and the
+   actual key reads), so the rest of boot waits on it before the
+   first paint reads real data instead of the empty default state.
+   ============================================================ */
+(async function boot(){
+  const viewEl = document.getElementById('view');
+  if(viewEl) viewEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-faint);font-size:13px;">Loading…</div>';
+  await loadState();
+  renderAll();
+  initInstallBanner();
+  maybeShowNavHint();
+})();
 
 (function initTabsFadeListeners(){
   const nav = document.getElementById('tabNav');
