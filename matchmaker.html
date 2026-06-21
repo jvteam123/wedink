@@ -2143,22 +2143,22 @@ function openSessionSetupModal(){
     <div class="modal-sub" style="line-height:1.6;">First, confirm how many courts you've got and what score wins a match.</div>
     <div class="card" style="margin:0;">
       <div class="field">
-        <label>Number of Available Courts</label>
-        <input type="number" id="setupNumCourtsInput" min="1" max="10" value="${numCourts}">
-        <p class="helper-text">Every active player is still scheduled each generation — courts just control how many matches play at once.</p>
-      </div>
-      <div class="field">
-        <label>Winning Score</label>
-        <input type="number" id="setupWinningScoreInput" min="1" max="99" value="${winningScore}">
-        <p class="helper-text">First team to reach this score (win by 2) takes the match.</p>
-      </div>
-      <div class="field" style="margin-bottom:0;">
         <label>Select Mode</label>
         <div class="radio-group-mode">
           <div class="radio-box-btn ${selectMode === 'smart' ? 'active' : ''}" data-action="setup-select-mode" data-value="smart">⚡ Smart Balance</div>
           <div class="radio-box-btn ${selectMode === 'random' ? 'active' : ''}" data-action="setup-select-mode" data-value="random">🎲 Random</div>
         </div>
         <p class="helper-text">Smart Balance reduces repeat teammates and opponent pairings. Random draws teams without any balancing.</p>
+      </div>
+      <div class="field">
+        <label>Number of Available Courts</label>
+        <input type="number" id="setupNumCourtsInput" min="1" max="10" value="${numCourts}">
+        <p class="helper-text">Every active player is still scheduled each generation — courts just control how many matches play at once.</p>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Winning Score</label>
+        <input type="number" id="setupWinningScoreInput" min="1" max="99" value="${winningScore}">
+        <p class="helper-text">First team to reach this score (win by 2) takes the match.</p>
       </div>
     </div>
     <div class="modal-actions" style="margin-top:16px;">
@@ -4474,6 +4474,15 @@ function renderSettingsView(el){
         </div>
       </div>
 
+      <div class="field">
+        <label>Select Mode</label>
+        <div class="radio-group-mode">
+          <div class="radio-box-btn ${(state.settings.selectMode || 'smart') === 'smart' ? 'active' : ''}" data-action="settings-select-mode" data-value="smart">⚡ Smart Balance</div>
+          <div class="radio-box-btn ${(state.settings.selectMode || 'smart') === 'random' ? 'active' : ''}" data-action="settings-select-mode" data-value="random">🎲 Random</div>
+        </div>
+        <p class="helper-text" style="margin-top:4px;">Smart Balance reduces repeat teammates and opponent pairings. Random draws teams without any balancing.</p>
+      </div>
+
       ${sessionFieldHtml}
 
       <div class="field" id="courts-field-wrapper" style="display: ${state.settings.matchMode === 'RoundRobin' ? 'block' : 'none'};">
@@ -4683,6 +4692,14 @@ document.addEventListener('click', function(e){
       saveAll();
       // Update the active state of the radio buttons in place
       document.querySelectorAll('[data-action="setup-select-mode"]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === t.dataset.value);
+      });
+      break;
+    }
+    case 'settings-select-mode': {
+      state.settings.selectMode = t.dataset.value;
+      saveAll();
+      document.querySelectorAll('[data-action="settings-select-mode"]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.value === t.dataset.value);
       });
       break;
