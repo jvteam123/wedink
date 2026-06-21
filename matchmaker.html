@@ -439,6 +439,31 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   background:var(--ball); color:#10150a; font-size:10px; font-weight:800; border-radius:999px;
   min-width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; padding:0 4px;
 }
+
+/* ---------- Check-in ---------- */
+.icon-badge-wrap{position:relative; flex:none;}
+.icon-badge{
+  position:absolute; top:-3px; right:-3px; background:var(--ball); color:#10150a;
+  font-size:9px; font-weight:800; border-radius:999px; min-width:15px; height:15px;
+  display:flex; align-items:center; justify-content:center; padding:0 3px;
+  border:2px solid var(--bg); pointer-events:none;
+}
+.checkin-summary{
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  margin-bottom:12px; font-size:12.5px; color:var(--text-dim);
+}
+.checkin-summary b{color:var(--text); font-family:var(--font-mono); font-size:14px;}
+.checkin-grid{display:flex; flex-wrap:wrap; gap:8px; max-height:46vh; overflow-y:auto; padding-bottom:2px;}
+.checkin-chip{
+  display:inline-flex; align-items:center; gap:7px; padding:9px 13px; border-radius:999px;
+  border:1px solid var(--line); background:var(--surface-2); color:var(--text-dim);
+  font-size:13.5px; font-weight:700; cursor:pointer; transition:background .15s,border-color .15s,color .15s,transform .08s;
+  flex:none; appearance:none; font-family:inherit;
+}
+.checkin-chip:active{transform:scale(0.95);}
+.checkin-chip .dot{width:7px; height:7px; border-radius:50%; background:var(--text-faint); flex:none; transition:background .15s;}
+.checkin-chip.arrived{background:rgba(62,213,152,0.12); border-color:var(--win-dim); color:var(--win);}
+.checkin-chip.arrived .dot{background:var(--win);}
 @media (min-width:560px){
   .topbar,.tabs,.controlbar-inner{border-radius:0;}
 }
@@ -576,6 +601,10 @@ tr.rank-1 .rankbadge{color:var(--ball);}
         <div class="brand-name">Kitchen <b>Ladder</b></div>
         <div class="brand-sub">Made with ♥️ Lorens Christopher Ebrado</div>
       </div>
+      <button class="topbar-icon-btn icon-badge-wrap" data-action="open-checkin" aria-label="Check-in" title="Check-in">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span class="icon-badge" id="checkinBadge" style="display:none;"></span>
+      </button>
       <button class="topbar-icon-btn" data-action="tab" data-tab="settings" aria-label="Settings" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -878,6 +907,15 @@ function speakUtterance(text, interrupt){
 function scoreCallText(m){
   const servingScore = m.serving === 'A' ? safeScore(m.scoreA) : safeScore(m.scoreB);
   const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
+  // 10 is match point — always call it "Match" (never just the bare digits).
+  // Some speech engines misread "10" run together with the next number as
+  // one long digit string ("one zero seven" instead of "ten, seven"), so we
+  // sidestep that entirely by never speaking "10" as a number. This applies
+  // no matter how the score reached 10 — scoring up, backing down via a
+  // correction, or coming back up to 10 a second time.
+  if(servingScore === 10){
+    return otherScore === 10 ? `All Match ${m.serverNum}` : `Match, ${otherScore} ${m.serverNum}`;
+  }
   // Tied scores get the standard pickleball "All" call instead of saying
   // the same number twice — e.g. "All 3 1" rather than "3 3 1".
   if(servingScore === otherScore){
@@ -887,23 +925,10 @@ function scoreCallText(m){
 }
 
 // Special call for switching to serve 2 while the serving team is at 10 —
-// mirrors the same "Match" milestone wording used when scoring up to 10
-// (speakScoreOrMilestone), since switching serve doesn't go through that
-// path. Tied at 10-10 says "All Match [server#]"; otherwise "Match, [other
-// score] [server#]". Any other score just gets the normal score call
-// (which already handles ties via the "All" wording in scoreCallText).
+// scoreCallText already says "Match" for any 10 score, so this just funnels
+// through the normal score call.
 function speakServeSwitchCall(m){
-  const servingScore = m.serving === 'A' ? safeScore(m.scoreA) : safeScore(m.scoreB);
-  const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
-  if(servingScore === 10){
-    if(otherScore === 10){
-      speakUtterance(`All Match ${m.serverNum}`, true);
-    } else {
-      speakUtterance(`Match, ${otherScore} ${m.serverNum}`, true);
-    }
-  } else {
-    speakScoreCall(m);
-  }
+  speakScoreCall(m);
 }
 
 function speakScoreCall(m){
@@ -1117,6 +1142,108 @@ function togglePlayerActive(id){
     p.waitingRounds = 0;
   }
   saveAll(); renderAll();
+}
+
+/* ============================================================
+   CHECK-IN
+   ------------------------------------------------------------
+   A fast tap-to-arrive checklist over the whole roster. Reuses
+   the existing `active` flag (active = checked-in / in the
+   selection pool, inactive = not arrived / paused). Newly
+   arrived players naturally jump to the front of the next match
+   because the matchmaking pool is sorted by fewest games played
+   first — a player with 0 games always outranks anyone who has
+   already played, so they catch up automatically.
+   ============================================================ */
+function renderCheckInBody(){
+  const total = state.players.length;
+  const arrivedCount = state.players.filter(p=>p.active).length;
+  const sorted = state.players.slice().sort((a,b)=> a.name.localeCompare(b.name));
+  const chips = sorted.map(p => `
+    <button class="checkin-chip ${p.active?'arrived':''}" data-action="toggle-checkin" data-id="${p.id}" data-search-string="${esc(p.name.toLowerCase())}">
+      <span class="dot"></span>${esc(p.name)}
+    </button>
+  `).join('');
+
+  return `
+    <div class="modal-title">🚪 Check-In</div>
+    <div class="modal-sub">Tap a name as they arrive. New arrivals jump to the front of the next match so they catch up on games.</div>
+    <div class="checkin-summary">
+      <span><b>${arrivedCount}</b> / ${total} arrived</span>
+      ${total ? `<button class="btn btn-ghost btn-sm" data-action="checkin-reset-all">Start New Session</button>` : ''}
+    </div>
+    ${total > 8 ? `<input type="text" id="checkinSearch" placeholder="🔍 Search name…" style="font-size:13.5px; padding:7px 10px; margin-bottom:10px;">` : ''}
+    ${total ? `<div class="checkin-grid" id="checkinGrid">${chips}</div>` : `<p class="helper-text">No players yet — add some in the Players tab first.</p>`}
+    <div class="modal-actions">
+      <button class="btn btn-primary btn-block" data-action="modal-close">Done</button>
+    </div>
+  `;
+}
+
+function openCheckInModal(){
+  openModal(renderCheckInBody());
+  bindCheckInSearch();
+}
+
+function bindCheckInSearch(){
+  const input = document.getElementById('checkinSearch');
+  if(!input) return;
+  input.addEventListener('input', function(e){
+    const q = e.target.value.toLowerCase().trim();
+    document.querySelectorAll('#checkinGrid .checkin-chip').forEach(c=>{
+      const str = c.dataset.searchString || '';
+      c.style.display = (!q || str.includes(q)) ? 'inline-flex' : 'none';
+    });
+  });
+}
+
+// Re-renders just the check-in modal body in place (if open) so tapping
+// a chip doesn't lose your scroll position or search text.
+function refreshCheckInModal(){
+  const root = document.getElementById('modal-root');
+  const sheet = root && root.querySelector('.modal-sheet');
+  if(!sheet) return;
+  const isCheckInModalOpen = sheet.querySelector('#checkinGrid, #checkinSearch, .checkin-summary');
+  if(!isCheckInModalOpen) return;
+  const searchVal = document.getElementById('checkinSearch') ? document.getElementById('checkinSearch').value : '';
+  sheet.innerHTML = renderCheckInBody();
+  bindCheckInSearch();
+  if(searchVal){
+    const input = document.getElementById('checkinSearch');
+    if(input){ input.value = searchVal; input.dispatchEvent(new Event('input')); }
+  }
+}
+
+function toggleCheckIn(id){
+  togglePlayerActive(id);
+  refreshCheckInModal();
+}
+
+function confirmCheckInResetAll(){
+  openModal(`
+    <div class="modal-title">Start New Session?</div>
+    <div class="modal-sub" style="line-height:1.6;">This marks every player as "not arrived" so you can check people in fresh as they walk in. Stats and match history are kept — this only resets who's in the pool. Anyone currently mid-match is left as-is.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="checkin-open">Cancel</button>
+      <button class="btn btn-primary" data-action="do-checkin-reset-all">Yes, Reset All</button>
+    </div>
+  `);
+}
+
+function checkInResetAll(){
+  let reset = 0, skipped = 0;
+  state.players.forEach(p=>{
+    if(!p.active) return;
+    const inCurrent = state.current && (state.current.teamA.includes(p.id) || state.current.teamB.includes(p.id));
+    const inGenMatch = state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(p.id) || m.teamB.includes(p.id)));
+    if(inCurrent || inGenMatch){ skipped++; return; }
+    p.active = false;
+    p.consecutiveSitOuts = 0; p.sitOutPriority = 0; p.waitingRounds = 0;
+    reset++;
+  });
+  saveAll(); renderAll();
+  openCheckInModal();
+  toast(`${reset} player${reset!==1?'s':''} marked not-arrived${skipped ? ` · ${skipped} mid-match left as-is` : ''}.`);
 }
 
 function removePlayer(id){
@@ -1547,22 +1674,12 @@ function pushServeUndo(obj){
 }
 
 // Voice announcer for score milestones — called only when a point is
-// actually scored (never on a manual correction). 10 calls "match point",
-// 11 calls out a win with congratulations; every other score gets the
-// normal score call.
+// actually scored (never on a manual correction). 11 calls out a win with
+// congratulations; every other score (including 10, "Match") gets the
+// normal score call, since scoreCallText already handles the "Match"
+// wording for any score of 10.
 function speakScoreOrMilestone(m, scoringTeamScore){
-  if(scoringTeamScore === 10){
-    // "Match" already means 10 — don't also say the number. Just call the
-    // other side's score and the server number, e.g. "Match, 7 2". If the
-    // other side is also at 10, it's tied — say "All Match" instead of
-    // "Match, 10 2".
-    const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
-    if(otherScore === 10){
-      speakUtterance(`All Match ${m.serverNum}`, true);
-    } else {
-      speakUtterance(`Match, ${otherScore} ${m.serverNum}`, true);
-    }
-  } else if(scoringTeamScore === 11){
+  if(scoringTeamScore === 11){
     speakUtterance('Congratulations!', true);
   } else {
     speakScoreCall(m);
@@ -2173,8 +2290,21 @@ window.handleImportFileSelect = function(input){
    ============================================================ */
 function renderAll(){
   updateDashStrip();
+  updateCheckInBadge();
   renderTabsNav();
   renderActiveView();
+}
+
+function updateCheckInBadge(){
+  const badge = document.getElementById('checkinBadge');
+  if(!badge) return;
+  const notArrived = state.players.filter(p=>!p.active).length;
+  if(notArrived > 0){
+    badge.textContent = notArrived > 99 ? '99+' : notArrived;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
 }
 
 function updateDashStrip(){
@@ -2948,6 +3078,11 @@ document.addEventListener('click', function(e){
       state.tab = t.dataset.tab;
       saveAll(); closeModal(); renderAll();
       break;
+    case 'open-checkin': openCheckInModal(); break;
+    case 'toggle-checkin': toggleCheckIn(t.dataset.id); break;
+    case 'checkin-reset-all': confirmCheckInResetAll(); break;
+    case 'checkin-open': openCheckInModal(); break;
+    case 'do-checkin-reset-all': checkInResetAll(); break;
     case 'dismiss-nav-hint': {
       localStorage.setItem('kl_seen_nav_hint', '1');
       const banner = document.getElementById('onboardingBanner');
