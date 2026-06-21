@@ -1966,11 +1966,12 @@ function nextRotationMatch(){
   }
 
   // --- STEP 2: look-ahead candidate window -------------------------------
-  // `usable` is already ordered fairness-first (gamesPlayed asc, then
-  // consecutiveSitOuts/sitOuts desc, then jitter), so taking its first 6-8
-  // entries gives the most-due players without ever reaching past someone
-  // who deserves to play sooner.
-  const windowSize = Math.min(8, usable.length);
+  // Include ALL players tied at the minimum gamesPlayed so nobody gets
+  // skipped just because they happened to sort later within the tier.
+  // Only cap to a window once we've gone past the first tier boundary.
+  const minGames = usable[0] ? usable[0].gamesPlayed : 0;
+  const sameTierCount = usable.filter(p => p.gamesPlayed === minGames).length;
+  const windowSize = Math.max(sameTierCount, Math.min(8, usable.length));
   const candidates = usable.slice(0, windowSize);
 
   // Fixed duos fully inside the window must stay paired — collapse each duo
@@ -2597,8 +2598,13 @@ function updateRRMatchScore(matchId, team, val){
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done') return;
-  const num = parseInt(val, 10);
+  let num = parseInt(val, 10);
   if(isNaN(num)) return;
+  const maxScore = getMatchWinTarget(m);
+  num = Math.min(maxScore, Math.max(0, num));
+  // Reflect clamped value back into the input field
+  const inputEl = document.querySelector(`input[oninput*="'${matchId}', '${team}'"]`);
+  if(inputEl && parseInt(inputEl.value, 10) !== num) inputEl.value = num;
   if(team === 'A') m.scoreA = num; else m.scoreB = num;
 
   // Recompute the winner from scratch every time a score changes: first team
@@ -3384,7 +3390,15 @@ function replaceCurrentPlayer(team, oldId, newId){
    ============================================================ */
 function updateRotationScoreInput(team, val){
   if(!state.current) return;
-  const num = val === '' ? null : parseInt(val, 10);
+  let num = val === '' ? null : parseInt(val, 10);
+  if(num !== null && !isNaN(num)){
+    const maxScore = getMatchWinTarget(state.current);
+    num = Math.min(maxScore, Math.max(0, num));
+    // Reflect the clamped value back into the input field
+    const inputId = team === 'A' ? 'scoreA' : 'scoreB';
+    const el = document.getElementById(inputId);
+    if(el && parseInt(el.value, 10) !== num) el.value = num;
+  }
   if(team === 'A') state.current.scoreA = (num === null || isNaN(num)) ? null : num;
   else state.current.scoreB = (num === null || isNaN(num)) ? null : num;
   saveAll();
@@ -3917,13 +3931,13 @@ function renderMatchView(el){
           <div class="sb-foot rr-score-foot">
             <div class="score-stepper">
               <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>−</button>
-              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
+              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" min="0" max="${getMatchWinTarget(m)}" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
               <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score" ${(!servingA || (m.scoreA !== null && m.scoreA >= getMatchWinTarget(m)))?'disabled title="'+(servingA?'Score is at the maximum':'Team A is receiving — only the serving team scores')+'"':''}>+</button>
             </div>
             <span class="rr-score-vs-sm">vs</span>
             <div class="score-stepper">
               <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>−</button>
-              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
+              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" min="0" max="${getMatchWinTarget(m)}" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
               <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="1" aria-label="Increase Team B score" ${(!servingB || (m.scoreB !== null && m.scoreB >= getMatchWinTarget(m)))?'disabled title="'+(servingB?'Score is at the maximum':'Team B is receiving — only the serving team scores')+'"':''}>+</button>
             </div>
           </div>
@@ -4056,7 +4070,7 @@ function renderMatchView(el){
           <span class="cb-score-label">Team A Score</span>
           <div class="score-stepper">
             <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>−</button>
-            <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreA" placeholder="0" value="${c.scoreA !== null && c.scoreA !== undefined ? c.scoreA : ''}" oninput="window.updateRotationScoreInput('A', this.value)">
+            <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreA" placeholder="0" min="0" max="${getMatchWinTarget(c)}" value="${c.scoreA !== null && c.scoreA !== undefined ? c.scoreA : ''}" oninput="window.updateRotationScoreInput('A', this.value)">
             <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="A" data-delta="1" aria-label="Increase Team A score" ${(!servingA || (c.scoreA !== null && c.scoreA >= getMatchWinTarget(c)))?'disabled title="'+(servingA?'Score is at the maximum':'Team A is receiving — only the serving team scores')+'"':''}>+</button>
           </div>
         </div>
@@ -4065,7 +4079,7 @@ function renderMatchView(el){
           <span class="cb-score-label">Team B Score</span>
           <div class="score-stepper">
             <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>−</button>
-            <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreB" placeholder="0" value="${c.scoreB !== null && c.scoreB !== undefined ? c.scoreB : ''}" oninput="window.updateRotationScoreInput('B', this.value)">
+            <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreB" placeholder="0" min="0" max="${getMatchWinTarget(c)}" value="${c.scoreB !== null && c.scoreB !== undefined ? c.scoreB : ''}" oninput="window.updateRotationScoreInput('B', this.value)">
             <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="B" data-delta="1" aria-label="Increase Team B score" ${(!servingB || (c.scoreB !== null && c.scoreB >= getMatchWinTarget(c)))?'disabled title="'+(servingB?'Score is at the maximum':'Team B is receiving — only the serving team scores')+'"':''}>+</button>
           </div>
         </div>
