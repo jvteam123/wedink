@@ -2143,6 +2143,13 @@ function openSessionSetupModal(){
     <div class="modal-sub" style="line-height:1.6;">First, confirm how many courts you've got and what score wins a match.</div>
     <div class="card" style="margin:0;">
       <div class="field">
+        <label>Match Mode</label>
+        <div class="radio-group-mode">
+          <div class="radio-box-btn ${state.settings.matchMode === 'Rotation' ? 'active' : ''}" data-action="setup-match-mode" data-value="Rotation">Rotation Mode</div>
+          <div class="radio-box-btn ${state.settings.matchMode === 'RoundRobin' ? 'active' : ''}" data-action="setup-match-mode" data-value="RoundRobin">Round Robin Mode</div>
+        </div>
+      </div>
+      <div class="field">
         <label>Select Mode</label>
         <div class="radio-group-mode">
           <div class="radio-box-btn ${selectMode === 'smart' ? 'active' : ''}" data-action="setup-select-mode" data-value="smart">⚡ Smart Balance</div>
@@ -4687,6 +4694,14 @@ document.addEventListener('click', function(e){
     case 'back-to-session-picker': openSessionLengthPicker(); break;
     case 'back-to-session-setup': openSessionSetupModal(); break;
     case 'confirm-session-setup': confirmSessionSetup(); break;
+    case 'setup-match-mode': {
+      state.settings.matchMode = t.dataset.value;
+      saveAll();
+      document.querySelectorAll('[data-action="setup-match-mode"]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === t.dataset.value);
+      });
+      break;
+    }
     case 'setup-select-mode': {
       state.settings.selectMode = t.dataset.value;
       saveAll();
