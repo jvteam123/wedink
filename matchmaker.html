@@ -2131,11 +2131,13 @@ function _doGenerateRoundRobinGeneration(activeList) {
   const sittingPlayers = activeList.slice(playersNeeded);
 
   let matchups = [];
+  let wvwApplied = false; // tracks whether winner/loser bucketing actually ran this build (not just whether the setting is on)
 
   // Winner-vs-winner / Loser-vs-loser bucketing, based on the generation that just finished.
   if(state.settings.winnerVsWinner && state.round > 0){
     const lastGenMatches = state.matches.filter(m => m.generation === state.round);
     if(lastGenMatches.length){
+      wvwApplied = true;
       const lastWinners = new Set(), lastLosers = new Set();
       lastGenMatches.forEach(m => {
         m.winners.forEach(id => lastWinners.add(id));
@@ -2203,7 +2205,8 @@ function _doGenerateRoundRobinGeneration(activeList) {
   state.currentGeneration = {
     generation: genId,
     matches: matches,
-    sittingOut: sittingPlayers.map(p => p.id)
+    sittingOut: sittingPlayers.map(p => p.id),
+    wvwApplied: wvwApplied // true only if winner/loser bucketing actually ran for this generation
   };
   state.current = null;
   saveAll(); renderAll();
@@ -3522,10 +3525,25 @@ function renderMatchView(el){
       `;
     }
 
+    // Winner vs Winner / Loser vs Loser only ever actually takes effect from
+    // Generation 2 onward — it buckets players by how they did in the
+    // generation that just finished, so Generation 1 never has a "last
+    // generation" to bucket from. gen.wvwApplied is set precisely when the
+    // bucketing logic actually ran for this generation (not just whether the
+    // setting happens to be on right now), so the hint stays accurate even
+    // if the toggle was changed after this generation was built.
+    const wvwHintHtml = gen.wvwApplied ? `
+      <div class="helper-text" style="margin:-8px 2px 14px; display:flex; align-items:center; gap:6px; color:var(--court);">
+        <span style="flex:none;">🏆</span>
+        <span>Winner vs Winner / Loser vs Loser is active — this generation pairs Generation ${gen.generation - 1}'s winners together and losers together.</span>
+      </div>
+    ` : '';
+
     let html = `
       <div class="section-title">Round Robin — Generation ${gen.generation}</div>
       <div class="helper-text" style="margin:-4px 2px 14px;">${doneCount} of ${gen.matches.length} match${gen.matches.length===1?'':'es'} played this generation.</div>
       ${sessionProgressHtml}
+      ${wvwHintHtml}
     `;
 
     function nameTag(matchId, team, playerId){
