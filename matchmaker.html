@@ -4298,6 +4298,7 @@ function saveSettingsFromForm(){
   const voiceAnnounceVal = document.getElementById('voiceAnnounceToggle') ? document.getElementById('voiceAnnounceToggle').checked : true;
   const winningScoreRaw = document.getElementById('winningScoreInput') ? parseInt(document.getElementById('winningScoreInput').value, 10) : 11;
   const raceToTwoVal = document.getElementById('raceToTwoToggle') ? document.getElementById('raceToTwoToggle').checked : false;
+  const rematchPreventionVal = document.getElementById('rematchPreventionToggle') ? document.getElementById('rematchPreventionToggle').checked : true;
 
   state.settings.numCourts = numCourtsVal;
   state.settings.winnerVsWinner = winnerVsWinnerVal;
@@ -4307,6 +4308,7 @@ function saveSettingsFromForm(){
   state.settings.voiceAnnounce = voiceAnnounceVal;
   state.settings.winningScore = (isNaN(winningScoreRaw) || winningScoreRaw < 1) ? 11 : winningScoreRaw;
   state.settings.raceToTwo = raceToTwoVal;
+  state.settings.rematchPrevention = rematchPreventionVal;
 
   if(state.currentGeneration) advanceRRQueue(); // pick up newly-freed courts right away if the count went up
 
