@@ -3845,12 +3845,7 @@ function renderMatchView(el){
     // bucketing logic actually ran for this generation (not just whether the
     // setting happens to be on right now), so the hint stays accurate even
     // if the toggle was changed after this generation was built.
-    const wvwHintHtml = gen.wvwApplied ? `
-      <div class="helper-text" style="margin:-8px 2px 14px; display:flex; align-items:center; gap:6px; color:var(--court);">
-        <span style="flex:none;">🏆</span>
-        <span>Winner vs Winner / Loser vs Loser is active — this generation pairs Generation ${gen.generation - 1}'s winners together and losers together.</span>
-      </div>
-    ` : '';
+    const wvwHintHtml = '';
 
     let html = `
       <div class="section-title">Round Robin — Generation ${gen.generation}</div>
