@@ -2782,7 +2782,8 @@ function promptNextGeneration(finishedGen){
   const plan = state.settings.sessionPlan;
 
   if(!plan){
-    // No active plan (legacy / cleared) — fall back to the simple per-generation prompt.
+    // No active plan (legacy / cleared) — fall back to the simple per-generation prompt,
+    // since without a plan there's no "session total" to auto-advance toward.
     openModal(`
       <div class="modal-title">🎉 Generation ${finishedGen} Complete!</div>
       <div class="modal-sub" style="line-height:1.6;">Every match in this round robin generation has been played. Ready to build Generation ${finishedGen + 1}?</div>
@@ -2795,15 +2796,15 @@ function promptNextGeneration(finishedGen){
   }
 
   const playedSoFar = state.matches.length - plan.matchesAtStart;
-  const pct = clamp(Math.round((playedSoFar / plan.totalMatches) * 100), 0, 100);
-  const progressHtml = `
-    <div class="session-progress-wrap">
-      <div class="session-progress-track"><div class="session-progress-fill" style="width:${pct}%;"></div></div>
-      <div class="session-progress-label"><span>${playedSoFar} / ${plan.totalMatches} matches</span><span>${plan.label}</span></div>
-    </div>
-  `;
 
   if(playedSoFar >= plan.totalMatches){
+    const pct = clamp(Math.round((playedSoFar / plan.totalMatches) * 100), 0, 100);
+    const progressHtml = `
+      <div class="session-progress-wrap">
+        <div class="session-progress-track"><div class="session-progress-fill" style="width:${pct}%;"></div></div>
+        <div class="session-progress-label"><span>${playedSoFar} / ${plan.totalMatches} matches</span><span>${plan.label}</span></div>
+      </div>
+    `;
     openModal(`
       <div class="modal-title">🏆 Session Complete!</div>
       <div class="modal-sub" style="line-height:1.6;">${plan.label} finished — all ${plan.totalMatches} matches have been played across ${finishedGen} generation${finishedGen!==1?'s':''}.</div>
@@ -2816,15 +2817,12 @@ function promptNextGeneration(finishedGen){
     return;
   }
 
-  openModal(`
-    <div class="modal-title">🎉 Generation ${finishedGen} Complete!</div>
-    <div class="modal-sub" style="line-height:1.6;">Every match in this round has been played. Ready to build Generation ${finishedGen + 1}?</div>
-    ${progressHtml}
-    <div class="modal-actions" style="margin-top:16px;">
-      <button class="btn btn-ghost" data-action="modal-close">Not Yet</button>
-      <button class="btn btn-primary" data-action="confirm-next-generation">Generate Generation ${finishedGen + 1}</button>
-    </div>
-  `);
+  // Session is still under its match target — keep play moving without an
+  // extra "ready for the next generation?" stop. A toast marks the handoff
+  // so it's still clear a new generation just got built automatically.
+  toast(`Generation ${finishedGen} complete — building Generation ${finishedGen + 1}.`, 'success');
+  const activeList = activePlayers().slice();
+  proceedToGenerateGeneration(activeList);
 }
 
 // Clears the active session plan and re-opens the length picker so the
