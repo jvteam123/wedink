@@ -815,7 +815,7 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 const KEYS = {
   players:'kl_players', matches:'kl_matches', current:'kl_current',
   settings:'kl_settings', round:'kl_round', undo:'kl_undo', tab:'kl_tab',
-  fixedDuos:'kl_fixedDuos'
+  fixedDuos:'kl_fixedDuos', sitOutQueue:'kl_sitOutQueue'
 };
 
 const DEFAULT_SETTINGS = {
@@ -858,7 +858,9 @@ let state = {
   round: 0,
   undo: null,
   tab: 'match',
-  fixedDuos: []          // array of [id1, id2] pairs that must always be on the same team
+  fixedDuos: [],          // array of [id1, id2] pairs that must always be on the same team
+  sitOutQueue: []          // RoundRobin: ordered array of player IDs — front = next due to sit out.
+                            // Persisted so fairness survives a page refresh (see syncSitOutQueue()).
 };
 
 /* ============================================================
@@ -1014,6 +1016,8 @@ async function loadState(){
     if(t) state.tab = t;
     const fd = data[KEYS.fixedDuos];
     if(fd) state.fixedDuos = fd;
+    const soq = data[KEYS.sitOutQueue];
+    if(Array.isArray(soq)) state.sitOutQueue = soq;
   }catch(e){
     console.error('Failed to load saved data from IndexedDB, starting fresh.', e);
     toast("Couldn't open local storage — starting with a blank session. Your browser may be blocking IndexedDB (private/incognito mode, or storage disabled).", 'error');
@@ -1031,7 +1035,8 @@ function saveAll(){
       [KEYS.round, state.round],
       [KEYS.undo, state.undo],
       [KEYS.tab, state.tab],
-      [KEYS.fixedDuos, state.fixedDuos || []]
+      [KEYS.fixedDuos, state.fixedDuos || []],
+      [KEYS.sitOutQueue, state.sitOutQueue || []]
     ];
     idbSetMany(entries).catch(e => {
       console.error('IndexedDB save failed.', e);
@@ -1633,6 +1638,7 @@ function checkInResetAll(){
   state.currentGeneration = null;
   state.undo = null;
   state.settings.sessionPlan = null; // a fresh session means choosing session length again
+  state.sitOutQueue = []; // fresh session — rebuilt from scratch as players check in
 
   let reset = 0;
   state.players.forEach(p=>{
@@ -1656,6 +1662,7 @@ function removePlayer(id){
   const p = getPlayer(id);
   state.players = state.players.filter(pl=>pl.id!==id);
   state.players.forEach(pl=>{ delete pl.teammates[id]; delete pl.opponents[id]; });
+  state.sitOutQueue = (state.sitOutQueue || []).filter(qid => qid !== id);
   // Clean up any fixed duo that referenced this player — otherwise their old
   // partner is left "stuck" thinking they still have a duo partner.
   state.fixedDuos = (state.fixedDuos || []).filter(d => !d.includes(id));
@@ -1673,12 +1680,13 @@ function resetPlayersAndStats(){
   state.round = 0;
   state.undo = null;
   state.settings.sessionPlan = null;
+  state.sitOutQueue = [];
   saveAll(); renderAll(); closeModal();
   toast('Player stats and history have been reset.', 'success');
 }
 
 function resetEverything(){
-  state = { players:[], matches:[], current:null, currentGeneration:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match', fixedDuos:[] };
+  state = { players:[], matches:[], current:null, currentGeneration:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match', fixedDuos:[], sitOutQueue:[] };
   saveAll(); renderAll(); closeModal();
   toast('All data has been cleared.', 'success');
 }
@@ -2060,6 +2068,42 @@ function topUpToMultipleOf4(group, donor){
   return group;
 }
 
+/* ----------------------------------------------------------------
+   ROTATING SIT-OUT QUEUE (Round Robin fairness)
+   ------------------------------------------------------------------
+   state.sitOutQueue is an ordered array of player IDs. The FRONT of
+   the array (index 0) is the player who is most overdue to sit out
+   next; the BACK is whoever just sat out (or just joined/returned),
+   meaning they're last in line to sit again. Every time a generation
+   is built, syncSitOutQueue() keeps membership current — Sub Players
+   and anyone Tired/Injured/Can't-Play/Not-Coming never occupy a slot
+   in this queue, exactly mirroring activePlayers(). Whoever sits out
+   is then rotated to the back so nobody sits twice before everyone
+   else eligible has had a turn. The queue is persisted via saveAll()
+   so refreshing the page never resets the rotation.
+   ---------------------------------------------------------------- */
+function sitOutQueueEligible(p){
+  return !!p && p.active && !p.isSub && (p.condition||'ok')==='ok';
+}
+
+function syncSitOutQueue(){
+  if(!Array.isArray(state.sitOutQueue)) state.sitOutQueue = [];
+  // Drop anyone no longer eligible — left, paused, tired, injured, became a
+  // Sub, or was removed entirely. They simply leave the line; if they come
+  // back later they re-enter at the end, never ahead of where they left off.
+  state.sitOutQueue = state.sitOutQueue.filter(id => sitOutQueueEligible(getPlayer(id)));
+  // Anyone eligible who isn't already queued (brand new, or just returned to
+  // Active/OK) joins at the very END — they play first and only rotate into
+  // a sit-out turn once they've naturally worked their way to the front.
+  const inQueue = new Set(state.sitOutQueue);
+  activePlayers().forEach(p => {
+    if(!inQueue.has(p.id)){
+      state.sitOutQueue.push(p.id);
+      inQueue.add(p.id);
+    }
+  });
+}
+
 function generateRoundRobinGeneration() {
   const activeList = activePlayers().slice();
   if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.', 'warning'); return; }
@@ -2321,20 +2365,12 @@ function _doGenerateRoundRobinGeneration(activeList) {
     if(p.waitingRounds === undefined) p.waitingRounds = 0;
   });
 
-  // Fairness sort: fewest games played first, then longest-waiting sit-outs,
-  // then lowest history of repeat pairings against the rest of the active pool, then a coin-flip.
-  activeList.sort((a,b) => {
-    if(a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
-    if(a.sitOutPriority !== b.sitOutPriority) return b.sitOutPriority - a.sitOutPriority;
-    if(a.waitingRounds !== b.waitingRounds) return b.waitingRounds - a.waitingRounds;
-    let totalRepA = 0, totalRepB = 0;
-    activeList.forEach(other => {
-      if(other.id !== a.id) totalRepA += (a.teammates[other.id]||0) + (a.opponents[other.id]||0);
-      if(other.id !== b.id) totalRepB += (b.teammates[other.id]||0) + (b.opponents[other.id]||0);
-    });
-    if(totalRepA !== totalRepB) return totalRepA - totalRepB;
-    return a._jitter - b._jitter;
-  });
+  // Keep the rotating sit-out queue in sync with who's actually eligible right
+  // now — Sub/Tired/Injured/Can't-Play/Not-Coming players never occupy a queue
+  // slot — before it's used below to help decide who waits this generation.
+  syncSitOutQueue();
+  const queuePos = {};
+  state.sitOutQueue.forEach((id, idx) => { queuePos[id] = idx; });
 
   // If every active player has already partnered or opposed every other active
   // player, the matchup matrix is exhausted — reset it so pairings can repeat fairly
@@ -2355,8 +2391,54 @@ function _doGenerateRoundRobinGeneration(activeList) {
   // Schedule EVERY foursome the active roster supports this generation (not capped by court count).
   const matchCount = Math.floor(activeList.length / 4);
   const playersNeeded = matchCount * 4;
-  const playingPlayers = activeList.slice(0, playersNeeded);
-  const sittingPlayers = activeList.slice(playersNeeded);
+
+  // PASS 1 — decide exactly who plays and who sits this generation. Fewest
+  // games played always plays first (equal games played stays the rule of
+  // the road); when several players are tied on games played and there are
+  // more of them than open slots, the rotating sit-out queue breaks the tie:
+  // whoever is closest to the front of the queue (most overdue to sit) is
+  // the one who waits, like a deli "take a number" line.
+  const splitOrder = activeList.slice().sort((a,b) => {
+    if(a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
+    const qa = queuePos[a.id] !== undefined ? queuePos[a.id] : Infinity;
+    const qb = queuePos[b.id] !== undefined ? queuePos[b.id] : Infinity;
+    if(qa !== qb) return qb - qa; // farther from the queue's front plays; closer to the front waits
+    return a._jitter - b._jitter;
+  });
+  const sittingPlayers = splitOrder.slice(playersNeeded);
+  const playingIdSet = new Set(splitOrder.slice(0, playersNeeded).map(p => p.id));
+
+  // A player who sits out is rotated to the very back of the queue, so nobody
+  // sits twice before every other eligible player has had a turn — and since
+  // their games-played count won't move while they wait, PASS 1 above will
+  // automatically put them right back at the front of the line to PLAY next
+  // generation, giving them top priority and preventing consecutive sit-outs
+  // unless every other eligible player is already tied with them.
+  if(sittingPlayers.length){
+    const sittingIdSet = new Set(sittingPlayers.map(p => p.id));
+    const movedToBack = state.sitOutQueue.filter(id => sittingIdSet.has(id)); // preserve relative order
+    state.sitOutQueue = state.sitOutQueue.filter(id => !sittingIdSet.has(id)).concat(movedToBack);
+  }
+
+  // PASS 2 — among the players who ARE playing, reorder using the original
+  // fairness heuristic (longest-waiting sit-outs, then lowest history of
+  // repeat pairings against the rest of the active pool, then a coin-flip)
+  // purely to decide which 4 players land in the same foursome together.
+  // This keeps teammate/opponent variety exactly as before — only WHO sits
+  // out changed above, not how the playing pool gets grouped into matches.
+  const playingPlayers = activeList.filter(p => playingIdSet.has(p.id));
+  playingPlayers.sort((a,b) => {
+    if(a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
+    if(a.sitOutPriority !== b.sitOutPriority) return b.sitOutPriority - a.sitOutPriority;
+    if(a.waitingRounds !== b.waitingRounds) return b.waitingRounds - a.waitingRounds;
+    let totalRepA = 0, totalRepB = 0;
+    activeList.forEach(other => {
+      if(other.id !== a.id) totalRepA += (a.teammates[other.id]||0) + (a.opponents[other.id]||0);
+      if(other.id !== b.id) totalRepB += (b.teammates[other.id]||0) + (b.opponents[other.id]||0);
+    });
+    if(totalRepA !== totalRepB) return totalRepA - totalRepB;
+    return a._jitter - b._jitter;
+  });
 
   let matchups = [];
   let wvwApplied = false; // tracks whether winner/loser bucketing actually ran this build (not just whether the setting is on)
@@ -2779,7 +2861,8 @@ function confirmRoundRobinMatch(matchId){
     matches: deepClone(state.matches),
     current: null,
     currentGeneration: deepClone(state.currentGeneration),
-    round: state.round
+    round: state.round,
+    sitOutQueue: deepClone(state.sitOutQueue || [])
   };
 
   const sA = parseInt(m.scoreA, 10) || 0;
@@ -2937,7 +3020,8 @@ function forfeitRRMatch(matchId, who){
       matches: deepClone(state.matches),
       current: null,
       currentGeneration: deepClone(state.currentGeneration),
-      round: state.round
+      round: state.round,
+      sitOutQueue: deepClone(state.sitOutQueue || [])
     };
     // No-contest — log it in history for visibility, but don't touch any
     // player's wins/losses/streak/rating since neither team actually played.
@@ -3485,6 +3569,7 @@ function undoLastMatch() {
   state.current = state.undo.current;
   state.currentGeneration = state.undo.currentGeneration;
   state.round = state.undo.round;
+  if(state.undo.sitOutQueue) state.sitOutQueue = state.undo.sitOutQueue;
   state.undo = null;
   saveAll(); renderAll();
   toast('Last match results undone.', 'success');
@@ -3521,6 +3606,7 @@ function exportData(filename){
     current: state.settings.matchMode === 'RoundRobin' ? state.currentGeneration : state.current,
     settings: state.settings,
     round: state.round,
+    sitOutQueue: state.sitOutQueue || [],
     version: '2.0-multi-mode'
   };
   const str = JSON.stringify(dump, null, 2);
@@ -3552,6 +3638,7 @@ function importDataFromText(txt){
     state.matches = dump.matches || [];
     state.settings = { ...DEFAULT_SETTINGS, ...dump.settings };
     state.round = parseInt(dump.round,10)||0;
+    state.sitOutQueue = Array.isArray(dump.sitOutQueue) ? dump.sitOutQueue : [];
     
     const incomingC = dump.current;
     if (incomingC && incomingC.matches) {
