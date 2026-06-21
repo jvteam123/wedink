@@ -2109,21 +2109,12 @@ function generateRoundRobinGeneration() {
   if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.', 'warning'); return; }
 
   const plan = state.settings.sessionPlan;
-  // A plan that already hit its match target (e.g. the organizer picked
-  // "Stay Here" on the Session Complete prompt instead of choosing a new
-  // session) must NOT be silently reused — generating again would build a
-  // generation that's instantly "complete" again. Treat it the same as
-  // having no plan and walk through setup again.
   const planIsFinished = plan && (state.matches.length - plan.matchesAtStart) >= plan.totalMatches;
   if(planIsFinished){
     state.settings.sessionPlan = null;
     saveAll();
   }
 
-  // No session length chosen yet for this run — walk through court/scoring
-  // setup first, then the length picker. Once a plan is confirmed,
-  // confirmSessionPlanAndGenerate() re-invokes the generate flow and we
-  // fall through to the normal court-check + generate path below.
   if(!state.settings.sessionPlan){
     openSessionSetupModal();
     return;
@@ -2137,6 +2128,7 @@ function generateRoundRobinGeneration() {
 function openSessionSetupModal(){
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
   const winningScore = state.settings.winningScore || 11;
+  const isRotation = state.settings.matchMode === 'Rotation';
   openModal(`
     <div class="modal-title">🎾 Session Setup</div>
     <div class="modal-sub" style="line-height:1.6;">First, confirm how many courts you've got and what score wins a match.</div>
@@ -2161,7 +2153,7 @@ function openSessionSetupModal(){
     </div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
-      <button class="btn btn-primary" data-action="confirm-session-setup">Next: Session Length</button>
+      <button class="btn btn-primary" id="sessionSetupNextBtn" data-action="confirm-session-setup">${isRotation ? 'Generate Match' : 'Next: Session Length'}</button>
     </div>
   `, false);
 }
@@ -2177,9 +2169,13 @@ function confirmSessionSetup(){
     const v = parseInt(scoreEl.value, 10);
     state.settings.winningScore = (isNaN(v) || v < 1) ? 11 : v;
   }
-  // selectMode is saved live via data-action="setup-select-mode" clicks, so no element to read here
   saveAll();
-  openSessionLengthPicker();
+  if(state.settings.matchMode === 'Rotation'){
+    closeModal();
+    nextRotationMatch();
+  } else {
+    openSessionLengthPicker();
+  }
 }
 
 // Runs the existing court-count sanity check, then generates. Split out so
@@ -3557,6 +3553,10 @@ function recordRotationMatch(scoreA, scoreB) {
   saveAll(); renderAll();
   playGameWinSound();
   toast('Match score recorded.', 'success');
+  // Auto-generate the next match immediately in Rotation mode
+  if(state.settings.matchMode === 'Rotation'){
+    nextRotationMatch();
+  }
 }
 
 function skipCurrentMatch() {
@@ -4666,7 +4666,13 @@ document.addEventListener('click', function(e){
     case 'do-rotation-undo-serve': undoServeRotation(); break;
 
     // Round robin workflow
-    case 'generate-roundrobin': generateRoundRobinGeneration(); break;
+    case 'generate-roundrobin':
+      if(state.settings.matchMode === 'Rotation'){
+        nextRotationMatch();
+      } else {
+        generateRoundRobinGeneration();
+      }
+      break;
     case 'confirm-next-generation': closeModal(); generateRoundRobinGeneration(); break;
     case 'do-generate-rr': closeModal(); _doGenerateRoundRobinGeneration(null); break;
     case 'pick-session-plan': pickSessionPlan(t.dataset.plan); break;
@@ -4679,6 +4685,8 @@ document.addEventListener('click', function(e){
       document.querySelectorAll('[data-action="setup-match-mode"]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.value === t.dataset.value);
       });
+      const nextBtn = document.getElementById('sessionSetupNextBtn');
+      if(nextBtn) nextBtn.textContent = t.dataset.value === 'Rotation' ? 'Generate Match' : 'Next: Session Length';
       break;
     }
     case 'confirm-session-plan':
