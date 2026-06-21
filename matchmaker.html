@@ -451,14 +451,26 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 .hist-vs{color:var(--text-faint); font-size:11px; font-family:var(--font-mono); flex:none;}
 
 /* ---------- Toast ---------- */
-#toast-root{position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:90; display:flex; flex-direction:column; gap:8px; align-items:center; width:100%; max-width:560px; padding:0 16px; pointer-events:none;}
-.toast{
-  background:var(--surface-3); border:1px solid var(--line); color:var(--text); padding:10px 16px;
-  border-radius:999px; font-size:13px; font-weight:600; box-shadow:0 8px 20px -6px rgba(0,0,0,.5);
-  animation:toastIn .25s ease, toastOut .25s ease 2.2s forwards; max-width:100%;
+#toast-root{
+  position:fixed; top:16px; right:16px; z-index:999;
+  display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+  pointer-events:none; max-width:300px;
 }
-@keyframes toastIn{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:none;}}
-@keyframes toastOut{to{opacity:0; transform:translateY(-8px);}}
+.toast{
+  background:var(--surface-3);
+  border:1px solid var(--line);
+  color:var(--text);
+  padding:10px 14px 10px 12px;
+  border-radius:var(--radius-md);
+  font-size:13px; font-weight:600;
+  box-shadow:0 4px 24px -4px rgba(0,0,0,.7), 0 1px 0 rgba(255,255,255,0.04) inset;
+  animation:toastIn .2s cubic-bezier(0.34,1.56,0.64,1), toastOut .2s ease 2.1s forwards;
+  display:flex; align-items:flex-start; gap:8px;
+  border-left:3px solid var(--ball);
+  line-height:1.4; word-break:break-word;
+}
+@keyframes toastIn{from{opacity:0; transform:translateX(16px) scale(0.95);} to{opacity:1; transform:none;}}
+@keyframes toastOut{to{opacity:0; transform:translateX(16px); pointer-events:none;}}
 
 /* ---------- Modal ---------- */
 .modal-bg{position:fixed; inset:0; background:rgba(8,10,13,.7); z-index:80; display:flex; align-items:flex-end; justify-content:center; animation:fadeIn .15s ease;}
@@ -1040,9 +1052,19 @@ function toast(msg){
   const root = document.getElementById('toast-root');
   const el = document.createElement('div');
   el.className = 'toast';
+
+  // Color-coded left border based on message sentiment
+  const isError = /error|fail|invalid|cannot|can't|unable|not found|no |need |must|already/i.test(msg);
+  const isSuccess = /✅|recorded|saved|added|updated|imported|installed|removed|done|complete|generated|subbed|restored/i.test(msg);
+  const isWarning = /⚠️|warn|skipped|cleared|reset|undone|absent/i.test(msg);
+  if(isError) el.style.borderLeftColor = 'var(--loss)';
+  else if(isWarning) el.style.borderLeftColor = 'var(--court)';
+  else if(isSuccess) el.style.borderLeftColor = 'var(--win)';
+  // default stays var(--ball) from CSS
+
   el.textContent = msg;
   root.appendChild(el);
-  setTimeout(()=>{ el.remove(); }, 2500);
+  setTimeout(()=>{ el.remove(); }, 2600);
 }
 
 function closeModal(){
@@ -1959,6 +1981,7 @@ function adjustRRScore(matchId, team, delta){
     playPointDownSound();
     speakScoreCall(m);
   }
+  // Full re-render so winner-dependent UI (skip/forfeit disabled, + button cap) stays in sync
   renderMatchView(document.getElementById('view'));
 }
 
