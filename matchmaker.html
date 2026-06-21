@@ -654,11 +654,11 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 .session-opt.recommended .session-opt-check{ border-color:var(--ball); }
 .session-confirm-row{
   display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line-soft);
-  font-size:13px;
+  font-size:13px; gap:12px;
 }
 .session-confirm-row:last-of-type{ border-bottom:none; }
-.session-confirm-row .k{ color:var(--text-faint); }
-.session-confirm-row .v{ color:var(--text); font-weight:700; font-family:var(--font-mono); }
+.session-confirm-row .k{ color:var(--text-faint); flex:1; min-width:0; line-height:1.4; }
+.session-confirm-row .v{ color:var(--text); font-weight:700; font-family:var(--font-mono); flex:none; }
 .session-progress-wrap{ margin:10px 0 4px; }
 .session-progress-track{ height:6px; border-radius:999px; background:var(--surface-3); overflow:hidden; }
 .session-progress-fill{ height:100%; background:var(--ball); border-radius:999px; transition:width .25s ease; }
@@ -1928,10 +1928,17 @@ function pickSessionPlan(planId){
 function openSessionConfirmModal(opt, totalMatches, gpp, playerCount){
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
   const modeLabel = state.settings.matchMode === 'RoundRobin' ? 'Round Robin' : 'Rotation';
+
+  function onOffBadge(isOn){
+    return `<span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; font-family:inherit; color:${isOn ? 'var(--win)' : 'var(--text-faint)'};">
+      <span style="width:7px; height:7px; border-radius:50%; background:${isOn ? 'var(--win)' : 'var(--text-faint)'};"></span>${isOn ? 'On' : 'Off'}
+    </span>`;
+  }
+
   openModal(`
     <div class="modal-title">Confirm Session</div>
     <div class="modal-sub" style="line-height:1.6;">Review your settings, then generate the first round.</div>
-    <div class="card" style="margin:0 0 4px; padding:4px 14px;">
+    <div class="card" style="margin:0 0 10px; padding:4px 14px;">
       <div class="session-confirm-row"><span class="k">Plan</span><span class="v" style="font-family:inherit;">${opt.label}</span></div>
       <div class="session-confirm-row"><span class="k">Total Matches</span><span class="v">${totalMatches}</span></div>
       <div class="session-confirm-row"><span class="k">Games / Player</span><span class="v">${gpp}</span></div>
@@ -1939,12 +1946,20 @@ function openSessionConfirmModal(opt, totalMatches, gpp, playerCount){
       <div class="session-confirm-row"><span class="k">Match Mode</span><span class="v" style="font-family:inherit; color:var(--court);">${modeLabel}</span></div>
       <div class="session-confirm-row"><span class="k">Courts</span><span class="v">${numCourts}</span></div>
     </div>
+    <div class="eyebrow" style="margin:0 2px 6px;">Balancing &amp; Fairness</div>
+    <div class="card" style="margin:0; padding:4px 14px;">
+      <div class="session-confirm-row"><span class="k">Winner vs Winner / Loser vs Loser</span>${onOffBadge(!!state.settings.winnerVsWinner)}</div>
+      <div class="session-confirm-row"><span class="k">Equal Play Priority</span>${onOffBadge(!!state.settings.equalPlayPriority)}</div>
+      <div class="session-confirm-row"><span class="k">Smart Balance Engine</span>${onOffBadge(!!state.settings.smartBalance)}</div>
+      <div class="session-confirm-row"><span class="k">Rematch Prevention</span>${onOffBadge(state.settings.rematchPrevention !== false)}</div>
+    </div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn btn-ghost" data-action="back-to-session-picker">Back</button>
       <button class="btn btn-primary" data-action="confirm-session-plan" data-plan="${opt.id}" data-total="${totalMatches}" data-gpp="${gpp}">Confirm &amp; Generate</button>
     </div>
   `);
 }
+
 
 function confirmSessionPlanAndGenerate(planId, totalMatches, gpp){
   const opt = SESSION_PLAN_OPTIONS.find(o => o.id === planId);
