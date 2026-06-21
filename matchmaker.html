@@ -2021,7 +2021,7 @@ function nextRotationMatch(){
   }
 
   const [[p1,p2],[p3,p4]] = best.split;
-  state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id], scoreA: null, scoreB: null, serving: 'A', serverNum: 1, firstServe: true };
+  state.current = { round: state.round + 1, teamA: [p1.id, p2.id], teamB: [p3.id, p4.id], scoreA: null, scoreB: null, winner: null, serving: 'A', serverNum: 1, firstServe: true };
   state.players.forEach(p=>{
     if(p.active){
       if(state.current.teamA.includes(p.id) || state.current.teamB.includes(p.id)){ p.consecutiveSitOuts = 0; }
@@ -3631,6 +3631,7 @@ function recordRotationMatch(scoreA, scoreB) {
   const sA = parseInt(scoreA,10);
   const sB = parseInt(scoreB,10);
   if(isNaN(sA) || isNaN(sB)) { toast('Enter valid scores for both teams.', 'warning'); return; }
+  if(sA === sB) { toast("Scores can't be tied — pickleball is won by 2. Pick the winning team or finish the game.", 'warning'); return; }
 
   state.undo = {
     players: deepClone(state.players),
