@@ -2646,6 +2646,62 @@ function selectRoundRobinWinner(matchId, winningTeam) {
   saveAll(); renderAll();
 }
 
+// Rotation-mode counterpart to selectRoundRobinWinner — same swap/award logic,
+// just operating on state.current (the single live court) instead of a Round
+// Robin match record.
+function selectRotationWinner(winningTeam) {
+  const c = state.current;
+  if(!c) return;
+  const previousWinner = c.winner;
+  c.winner = winningTeam;
+
+  if(previousWinner && previousWinner !== winningTeam){
+    // Flipping the winner selection — swap the two scores too, so they stay
+    // attached to the correct team instead of being left on the old winner.
+    const tmp = c.scoreA;
+    c.scoreA = c.scoreB;
+    c.scoreB = tmp;
+  } else {
+    // Make sure the scoreline actually reflects the team just marked as the
+    // winner — covers both no-score-yet, and marking a winner directly while
+    // the score hasn't reached the winning score.
+    let winScore = winningTeam === 'A' ? c.scoreA : c.scoreB;
+    let loseScore = winningTeam === 'A' ? c.scoreB : c.scoreA;
+    const target = getMatchWinTarget(c);
+    const requireMargin = !c.raceActive; // Race to 2 is sudden-death — no win-by-2 margin
+    if(loseScore === null || isNaN(loseScore)) loseScore = Math.max(0, target - 3);
+    if(winScore === null || isNaN(winScore) || winScore < target){
+      winScore = target;
+      if(requireMargin) loseScore = Math.min(loseScore, target - 2);
+    } else if(requireMargin && winScore - loseScore < 2){
+      winScore = Math.max(winScore, loseScore + 2);
+    }
+    if(winningTeam === 'A'){ c.scoreA = winScore; c.scoreB = loseScore; }
+    else { c.scoreB = winScore; c.scoreA = loseScore; }
+  }
+
+  saveAll();
+  renderMatchView(document.getElementById('view'));
+}
+
+// Updates the rotation-mode "Team A/B Wins" buttons in place after an
+// auto-detected winner, without a full re-render (which would yank focus
+// away from whichever score input the user is still typing in).
+function syncRotationWinnerButtons(){
+  const c = state.current;
+  if(!c) return;
+  const btnA = document.getElementById('rotationWinBtnA');
+  const btnB = document.getElementById('rotationWinBtnB');
+  if(!btnA || !btnB) return;
+  const aWin = c.winner === 'A', bWin = c.winner === 'B';
+  btnA.classList.toggle('btn-primary', aWin);
+  btnA.classList.toggle('btn-secondary', !aWin);
+  btnA.textContent = aWin ? '✓ Winner Selected' : 'Team A Wins';
+  btnB.classList.toggle('btn-primary', bWin);
+  btnB.classList.toggle('btn-secondary', !bWin);
+  btnB.textContent = bWin ? '✓ Winner Selected' : 'Team B Wins';
+}
+
 function updateRRMatchScore(matchId, team, val){
   const gen = state.currentGeneration;
   if(!gen) return;
@@ -3454,6 +3510,23 @@ function updateRotationScoreInput(team, val){
   }
   if(team === 'A') state.current.scoreA = (num === null || isNaN(num)) ? null : num;
   else state.current.scoreB = (num === null || isNaN(num)) ? null : num;
+
+  // Recompute the winner from scratch every time a score changes — same rule
+  // as Round Robin: first team to reach the winning score (with a 2-point
+  // margin) wins, or just the first to 2 once a Race to 2 is active.
+  const sA = state.current.scoreA, sB = state.current.scoreB;
+  const target = getMatchWinTarget(state.current);
+  const winsIt = state.current.raceActive
+    ? (s) => s !== null && s >= target
+    : (s, o) => s !== null && s >= target && s - (o === null ? 0 : o) >= 2;
+  let autoWinner = null;
+  if(winsIt(sA, sB)) autoWinner = 'A';
+  else if(winsIt(sB, sA)) autoWinner = 'B';
+  if(state.current.winner !== autoWinner){
+    state.current.winner = autoWinner;
+    syncRotationWinnerButtons(); // update buttons in place, keeps the score input focused
+  }
+
   saveAll();
   maybeOfferRaceToTwo(state.current, 'rotation', null);
 }
@@ -3471,6 +3544,17 @@ function adjustRotationScore(team, delta){
   const maxScore = getMatchWinTarget(state.current);
   cur = Math.min(maxScore, Math.max(0, cur + delta));
   if(team === 'A') state.current.scoreA = cur; else state.current.scoreB = cur;
+
+  const sA = state.current.scoreA, sB = state.current.scoreB;
+  const target = getMatchWinTarget(state.current);
+  const winsIt = state.current.raceActive
+    ? (s) => s !== null && s >= target
+    : (s, o) => s !== null && s >= target && s - (o === null ? 0 : o) >= 2;
+  let autoWinner = null;
+  if(winsIt(sA, sB)) autoWinner = 'A';
+  else if(winsIt(sB, sA)) autoWinner = 'B';
+  state.current.winner = autoWinner;
+
   saveAll();
   if(delta > 0){
     playPointUpSound();
@@ -4076,8 +4160,10 @@ function renderMatchView(el){
   if(c.serving === undefined) c.serving = 'A';
   if(c.serverNum === undefined) c.serverNum = 1;
   if(c.firstServe === undefined) c.firstServe = (c.scoreA === null && c.scoreB === null);
+  if(c.winner === undefined) c.winner = null;
   const servingA = c.serving === 'A', servingB = c.serving === 'B';
   const serveLabel = c.firstServe ? '1st Serve' : `Serve ${c.serverNum}`;
+  const activeA = c.winner === 'A', activeB = c.winner === 'B';
 
   function curNameTag(team, playerId){
     const p = getPlayer(playerId);
@@ -4103,6 +4189,9 @@ function renderMatchView(el){
           <div class="sb-names">${curNameTag('A', c.teamA[0])}<br>${curNameTag('A', c.teamA[1])}</div>
           <div class="sb-rating">Avg: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
           ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="A">Make 1st server</button>` : '')}
+          <button id="rotationWinBtnA" class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rotation-winner" data-team="A">
+            ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
+          </button>
         </div>
         
         <div class="sb-divider"></div>
@@ -4112,6 +4201,9 @@ function renderMatchView(el){
           <div class="sb-names">${curNameTag('B', c.teamB[0])}<br>${curNameTag('B', c.teamB[1])}</div>
           <div class="sb-rating">Avg: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
           ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="B">Make 1st server</button>` : '')}
+          <button id="rotationWinBtnB" class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rotation-winner" data-team="B">
+            ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
+          </button>
         </div>
       </div>
     </div>
@@ -4727,6 +4819,7 @@ document.addEventListener('click', function(e){
       recordRotationMatch(document.getElementById('scoreA').value, document.getElementById('scoreB').value);
       break;
     case 'rotation-score-adjust': adjustRotationScore(t.dataset.team, parseInt(t.dataset.delta,10)); break;
+    case 'set-rotation-winner': selectRotationWinner(t.dataset.team); break;
     case 'rotation-set-server': setServingTeamRotation(t.dataset.team); break;
     case 'rotation-advance-server': advanceServerRotation(); break;
     case 'rotation-side-out': sideOutRotation(); break;
