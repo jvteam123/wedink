@@ -2137,6 +2137,7 @@ function generateRoundRobinGeneration() {
 function openSessionSetupModal(){
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
   const winningScore = state.settings.winningScore || 11;
+  const selectMode = state.settings.selectMode || 'smart';
   openModal(`
     <div class="modal-title">🎾 Session Setup</div>
     <div class="modal-sub" style="line-height:1.6;">First, confirm how many courts you've got and what score wins a match.</div>
@@ -2146,10 +2147,18 @@ function openSessionSetupModal(){
         <input type="number" id="setupNumCourtsInput" min="1" max="10" value="${numCourts}">
         <p class="helper-text">Every active player is still scheduled each generation — courts just control how many matches play at once.</p>
       </div>
-      <div class="field" style="margin-bottom:0;">
+      <div class="field">
         <label>Winning Score</label>
         <input type="number" id="setupWinningScoreInput" min="1" max="99" value="${winningScore}">
         <p class="helper-text">First team to reach this score (win by 2) takes the match.</p>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Select Mode</label>
+        <div class="radio-group-mode">
+          <div class="radio-box-btn ${selectMode === 'smart' ? 'active' : ''}" data-action="setup-select-mode" data-value="smart">⚡ Smart Balance</div>
+          <div class="radio-box-btn ${selectMode === 'random' ? 'active' : ''}" data-action="setup-select-mode" data-value="random">🎲 Random</div>
+        </div>
+        <p class="helper-text">Smart Balance reduces repeat teammates and opponent pairings. Random draws teams without any balancing.</p>
       </div>
     </div>
     <div class="modal-actions" style="margin-top:16px;">
@@ -2170,6 +2179,7 @@ function confirmSessionSetup(){
     const v = parseInt(scoreEl.value, 10);
     state.settings.winningScore = (isNaN(v) || v < 1) ? 11 : v;
   }
+  // selectMode is saved live via data-action="setup-select-mode" clicks, so no element to read here
   saveAll();
   openSessionLengthPicker();
 }
@@ -2245,6 +2255,8 @@ function openSessionConfirmModal(opt, totalMatches, gpp, playerCount){
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
   const winningScore = state.settings.winningScore || 11;
   const modeLabel = state.settings.matchMode === 'RoundRobin' ? 'Round Robin' : 'Rotation';
+  const selectMode = state.settings.selectMode || 'smart';
+  const selectModeLabel = selectMode === 'random' ? '🎲 Random' : '⚡ Smart Balance';
 
   function toggleRow(id, label, hint, checked){
     return `
@@ -2270,6 +2282,7 @@ function openSessionConfirmModal(opt, totalMatches, gpp, playerCount){
       <div class="session-confirm-row"><span class="k">Games / Player</span><span class="v">${gpp}</span></div>
       <div class="session-confirm-row"><span class="k">Active Players</span><span class="v">${playerCount}</span></div>
       <div class="session-confirm-row"><span class="k">Match Mode</span><span class="v" style="font-family:inherit; color:var(--court);">${modeLabel}</span></div>
+      <div class="session-confirm-row"><span class="k">Select Mode</span><span class="v" style="font-family:inherit;">${selectModeLabel}</span></div>
     </div>
 
     <div class="eyebrow" style="margin:0 2px 6px;">Courts &amp; Scoring</div>
@@ -4665,6 +4678,15 @@ document.addEventListener('click', function(e){
     case 'back-to-session-picker': openSessionLengthPicker(); break;
     case 'back-to-session-setup': openSessionSetupModal(); break;
     case 'confirm-session-setup': confirmSessionSetup(); break;
+    case 'setup-select-mode': {
+      state.settings.selectMode = t.dataset.value;
+      saveAll();
+      // Update the active state of the radio buttons in place
+      document.querySelectorAll('[data-action="setup-select-mode"]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === t.dataset.value);
+      });
+      break;
+    }
     case 'confirm-session-plan':
       confirmSessionPlanAndGenerate(t.dataset.plan, parseInt(t.dataset.total,10), parseFloat(t.dataset.gpp));
       break;
@@ -4708,7 +4730,14 @@ document.addEventListener('click', function(e){
           </div>
         `);
       } else {
-        skipCurrentMatch();
+        openModal(`
+          <div class="modal-title">Clear Match?</div>
+          <div class="modal-sub">This will remove the current match without recording a result. Player stats will not be affected.</div>
+          <div class="modal-actions" style="margin-top:16px;">
+            <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+            <button class="btn btn-secondary" data-action="do-skip-match">Yes, Clear</button>
+          </div>
+        `);
       }
       break;
     case 'do-skip-match': skipCurrentMatch(); closeModal(); break;
