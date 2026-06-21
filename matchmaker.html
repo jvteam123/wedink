@@ -859,7 +859,7 @@ function saveAll(){
     localStorage.setItem(KEYS.tab, state.tab);
     localStorage.setItem(KEYS.fixedDuos, JSON.stringify(state.fixedDuos || []));
   }catch(e){
-    toast('Storage error — data may not have saved.');
+    toast("Couldn't save your changes — storage may be full or unavailable.", 'error');
     console.error(e);
   }
 }
@@ -1064,19 +1064,20 @@ function speakSideOut(m){
   }catch(e){ /* speech not available — fail silently */ }
 }
 
-function toast(msg){
+// `type` is one of 'success' | 'warning' | 'error' | 'info' (default).
+// Every call site now states its own type explicitly rather than relying on
+// keyword-guessing against the message text — the old approach miscategorized
+// near-identical messages (e.g. "No serve decision to undo." read as an error
+// because it contained "no ", while "Nothing to undo." did not) and could
+// misfire on any future wording change.
+function toast(msg, type){
   const root = document.getElementById('toast-root');
   const el = document.createElement('div');
   el.className = 'toast';
 
-  // Color-coded left border based on message sentiment
-  const isError = /error|fail|invalid|cannot|can't|unable|not found|no |need |must|already/i.test(msg);
-  const isSuccess = /✅|recorded|saved|added|updated|imported|installed|removed|done|complete|generated|subbed|restored/i.test(msg);
-  const isWarning = /⚠️|warn|skipped|cleared|reset|undone|absent/i.test(msg);
-  if(isError) el.style.borderLeftColor = 'var(--loss)';
-  else if(isWarning) el.style.borderLeftColor = 'var(--court)';
-  else if(isSuccess) el.style.borderLeftColor = 'var(--win)';
-  // default stays var(--ball) from CSS
+  const colorMap = { error: 'var(--loss)', warning: 'var(--court)', success: 'var(--win)' };
+  if(type && colorMap[type]) el.style.borderLeftColor = colorMap[type];
+  // 'info' and unspecified both keep the default var(--ball) accent from CSS.
 
   el.textContent = msg;
   root.appendChild(el);
@@ -1166,19 +1167,19 @@ function addFixedDuo(id1, id2){
   // Check if either player is already in a duo
   const existing = state.fixedDuos.find(d => d.includes(id1) || d.includes(id2));
   if(existing){
-    toast('One of these players already has a fixed duo. Remove it first.');
+    toast('One of these players already has a fixed duo — remove it first.', 'warning');
     return;
   }
-  if(id1 === id2){ toast('Select two different players.'); return; }
+  if(id1 === id2){ toast('Select two different players.', 'warning'); return; }
   state.fixedDuos.push([id1, id2]);
   saveAll(); renderAll(); closeModal();
-  toast(`Fixed duo: ${playerName(id1)} & ${playerName(id2)}.`);
+  toast(`Fixed duo created: ${playerName(id1)} & ${playerName(id2)}.`, 'success');
 }
 
 function removeFixedDuo(id1, id2){
   state.fixedDuos = (state.fixedDuos || []).filter(d => !(d.includes(id1) && d.includes(id2)));
   saveAll(); renderAll(); closeModal();
-  toast('Fixed duo removed.');
+  toast('Fixed duo removed.', 'success');
 }
 
 function getFixedDuoPartner(playerId){
@@ -1228,18 +1229,18 @@ function honorFixedDuosInFour(four){
    ============================================================ */
 function addPlayer(name, isSub){
   name = (name||'').trim();
-  if(!name){ toast('Enter a name first.'); return; }
+  if(!name){ toast('Enter a name first.', 'warning'); return; }
   if(state.players.some(p=>p.name.toLowerCase()===name.toLowerCase())){
-    toast('A player with that name already exists.'); return;
+    toast('A player with that name already exists.', 'warning'); return;
   }
   state.players.push(newPlayer(name, isSub));
   saveAll(); renderAll();
-  toast(isSub ? `Added ${name} as a Sub Player.` : `Added ${name}.`);
+  toast(isSub ? `Added ${name} as a Sub Player.` : `Added ${name}.`, 'success');
 }
 
 function bulkImport(text){
   const names = text.split(/[\n,]/).map(s=>s.trim()).filter(Boolean);
-  if(!names.length){ toast('Paste at least one name.'); return; }
+  if(!names.length){ toast('Paste at least one name.', 'warning'); return; }
   let added = 0, skipped = 0;
   names.forEach(name=>{
     if(state.players.some(p=>p.name.toLowerCase()===name.toLowerCase())){ skipped++; return; }
@@ -1247,37 +1248,37 @@ function bulkImport(text){
     added++;
   });
   saveAll(); renderAll(); closeModal();
-  toast(`Imported ${added} player${added!==1?'s':''}${skipped?`, skipped ${skipped} duplicate${skipped!==1?'s':''}`:''}.`);
+  toast(`Imported ${added} player${added!==1?'s':''}${skipped?`, skipped ${skipped} duplicate${skipped!==1?'s':''}`:''}.`, 'success');
 }
 
 function editPlayerName(id, name, isSub){
   name = (name||'').trim();
-  if(!name){ toast('Name cannot be empty.'); return; }
+  if(!name){ toast('Name cannot be empty.', 'warning'); return; }
   const p = getPlayer(id);
   if(!p) return;
   if(typeof isSub === 'boolean' && isSub !== p.isSub){
     const inLiveMatch = (state.current && (state.current.teamA.includes(id) || state.current.teamB.includes(id)))
       || (state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(id) || m.teamB.includes(id))));
     if(inLiveMatch){
-      toast(`${p.name} is in an unfinished match — finish or sub them out first, then change their Sub Player status.`);
+      toast(`${p.name} is in an unfinished match — finish or sub them out first, then change their Sub Player status.`, 'warning');
       return;
     }
   }
   p.name = name;
   if(typeof isSub === 'boolean') p.isSub = isSub;
   saveAll(); renderAll(); closeModal();
-  toast('Player updated.');
+  toast('Player updated.', 'success');
 }
 
 function togglePlayerActive(id){
   const p = getPlayer(id);
   if(!p) return;
   if(p.active && state.current && (state.current.teamA.includes(id) || state.current.teamB.includes(id))){
-    toast(`${p.name} is in the current match — finish or skip it first.`);
+    toast(`${p.name} is in the current match — finish or skip it first.`, 'warning');
     return;
   }
   if(p.active && state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(id) || m.teamB.includes(id)))) {
-    toast(`${p.name} is in an unfinished generation match — use "Replace" on that match instead, or finish it first.`);
+    toast(`${p.name} is in an unfinished generation match — use \"Replace\" on that match instead, or finish it first.`, 'warning');
     return;
   }
   p.active = !p.active;
@@ -1397,15 +1398,15 @@ function checkInResetAll(){
 
   saveAll(); renderAll();
   openCheckInModal();
-  toast(`${reset} player${reset!==1?'s':''} marked not-arrived${hadLiveMatch ? ' · in-progress match cleared' : ''}.`);
+  toast(`${reset} player${reset!==1?'s':''} marked not-arrived${hadLiveMatch ? ' · in-progress match cleared' : ''}.`, 'success');
 }
 
 function removePlayer(id){
   if(state.current && (state.current.teamA.includes(id) || state.current.teamB.includes(id))){
-    toast('Cannot remove a player who is in the current match.'); return;
+    toast('Cannot remove a player who is in the current match.', 'warning'); return;
   }
   if(state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(id) || m.teamB.includes(id)))) {
-    toast('Cannot remove a player who is in an unfinished generation match.'); return;
+    toast('Cannot remove a player who is in an unfinished generation match.', 'warning'); return;
   }
   const p = getPlayer(id);
   state.players = state.players.filter(pl=>pl.id!==id);
@@ -1414,7 +1415,7 @@ function removePlayer(id){
   // partner is left "stuck" thinking they still have a duo partner.
   state.fixedDuos = (state.fixedDuos || []).filter(d => !d.includes(id));
   saveAll(); renderAll(); closeModal();
-  if(p) toast(`Removed ${p.name}.`);
+  if(p) toast(`Removed ${p.name}.`, 'success');
 }
 
 function resetPlayersAndStats(){
@@ -1427,13 +1428,13 @@ function resetPlayersAndStats(){
   state.round = 0;
   state.undo = null;
   saveAll(); renderAll(); closeModal();
-  toast('Player stats and history have been reset.');
+  toast('Player stats and history have been reset.', 'success');
 }
 
 function resetEverything(){
   state = { players:[], matches:[], current:null, currentGeneration:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match', fixedDuos:[] };
   saveAll(); renderAll(); closeModal();
-  toast('All data has been cleared.');
+  toast('All data has been cleared.', 'success');
 }
 
 /* ============================================================
@@ -1532,14 +1533,14 @@ function setPlayerStatus(id, status){
   if(status === 'not_coming'){
     if(p.active && inLiveMatch){
       closeModal();
-      toast(`${p.name} is in an unfinished match — finish, skip, or replace them first.`);
+      toast(`${p.name} is in an unfinished match — finish, skip, or replace them first.`, 'warning');
       return;
     }
     p.active = false;
     p.condition = 'ok';
     p.consecutiveSitOuts = 0; p.sitOutPriority = 0; p.waitingRounds = 0;
     saveAll(); renderAll(); closeModal();
-    toast(`${p.name} marked Not Coming.`);
+    toast(`${p.name} marked Not Coming.`, 'success');
     return;
   }
 
@@ -1547,7 +1548,7 @@ function setPlayerStatus(id, status){
     p.active = true;
     p.condition = 'ok';
     saveAll(); renderAll(); closeModal();
-    toast(`${p.name} is back to OK.`);
+    toast(`${p.name} is back to OK.`, 'success');
     return;
   }
 
@@ -1572,7 +1573,7 @@ function setPlayerStatus(id, status){
     `);
   } else {
     closeModal();
-    toast(`${p.name} marked ${label} — they'll sit out of new matches until cleared.`);
+    toast(`${p.name} marked ${label} — they'll sit out of new matches until cleared.`, 'warning');
   }
 }
 
@@ -1633,7 +1634,7 @@ function scoreSplit(four, settings){
 
 function nextRotationMatch(){
   const pool = selectionPool();
-  if(pool.length < 4){ toast('Need at least 4 active players.'); return; }
+  if(pool.length < 4){ toast('Need at least 4 active players.', 'warning'); return; }
 
   // Build a foursome that honors fixed duos:
   // Pick players from the top of the fairness pool but pull in their fixed duo partner
@@ -1708,7 +1709,7 @@ function topUpToMultipleOf4(group, donor){
 
 function generateRoundRobinGeneration() {
   const activeList = activePlayers().slice();
-  if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.'); return; }
+  if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.', 'warning'); return; }
 
   // Warn if the number of courts exceeds the number of possible matches
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
@@ -1737,7 +1738,7 @@ function generateRoundRobinGeneration() {
 function _doGenerateRoundRobinGeneration(activeList) {
   if(!activeList) {
     activeList = activePlayers().slice();
-    if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.'); return; }
+    if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.', 'warning'); return; }
   }
 
   activeList.forEach(p => {
@@ -1774,7 +1775,7 @@ function _doGenerateRoundRobinGeneration(activeList) {
   }
   if(allExhausted){
     state.players.forEach(p => { p.teammates = {}; p.opponents = {}; });
-    toast('All combinations played at least once — matchup history reset for a fresh rotation.');
+    toast('All combinations played at least once — matchup history reset for a fresh rotation.', 'info');
   }
 
   // Schedule EVERY foursome the active roster supports this generation (not capped by court count).
@@ -1854,7 +1855,7 @@ function _doGenerateRoundRobinGeneration(activeList) {
   };
   state.current = null;
   saveAll(); renderAll();
-  toast(`Generation ${genId}: ${matches.length} match${matches.length===1?'':'es'} scheduled across ${Math.min(numCourts, matches.length)} court${Math.min(numCourts, matches.length)===1?'':'s'}.`);
+  toast(`Generation ${genId}: ${matches.length} match${matches.length===1?'':'es'} scheduled across ${Math.min(numCourts, matches.length)} court${Math.min(numCourts, matches.length)===1?'':'s'}.`, 'success');
 }
 
 // Pulls the next queued match(es) onto any court that just freed up.
@@ -2040,7 +2041,7 @@ function acceptRaceToTwo(mode, matchId){
   m.winner = null; // clear any auto-detected winner from the 10-10 score
   saveAll();
   closeModal();
-  toast('Race to 2 started — first to 2 wins!');
+  toast('Race to 2 started — first to 2 wins!', 'success');
   if(mode === 'rr') syncRRWinnerButtons(matchId);
   renderMatchView(document.getElementById('view'));
 }
@@ -2057,7 +2058,7 @@ function adjustRRScore(matchId, team, delta){
   // Only the serving team can score in pickleball — the receiving team's
   // stepper is disabled in the UI, but this guard covers any stray click too.
   if(m.serving !== team){
-    toast(`Only the serving team can score — Team ${m.serving} is serving.`);
+    toast(`Only the serving team can score — Team ${m.serving} is serving.`, 'warning');
     return;
   }
   let cur = team === 'A' ? m.scoreA : m.scoreB;
@@ -2127,7 +2128,7 @@ function sideOutRR(matchId){
 function confirmUndoServeRR(matchId){
   const gen = state.currentGeneration;
   const m = gen && gen.matches.find(x => x.id === matchId);
-  if(!m || !m._serveUndoStack || !m._serveUndoStack.length){ toast('No serve decision to undo.'); return; }
+  if(!m || !m._serveUndoStack || !m._serveUndoStack.length){ toast('No serve decision to undo.', 'info'); return; }
   openModal(`
     <div class="modal-title">Undo Serve Decision?</div>
     <div class="modal-sub">This reverts the most recent serve action (1st server / serve 2 / side out) on this court. The score is not affected. ${m._serveUndoStack.length > 1 ? `You can undo ${m._serveUndoStack.length} steps in total.` : ''}</div>
@@ -2142,12 +2143,12 @@ function undoServeRR(matchId){
   const gen = state.currentGeneration;
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
-  if(!m || !m._serveUndoStack || !m._serveUndoStack.length){ toast('No serve decision to undo.'); return; }
+  if(!m || !m._serveUndoStack || !m._serveUndoStack.length){ toast('No serve decision to undo.', 'info'); return; }
   const snap = m._serveUndoStack.pop();
   restoreServe(m, snap);
   saveAll();
   closeModal();
-  toast('Serve decision undone.');
+  toast('Serve decision undone.', 'success');
   renderMatchView(document.getElementById('view'));
 }
 
@@ -2178,7 +2179,7 @@ function confirmRoundRobinMatch(matchId){
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done') return;
-  if(m.winner === null){ toast('Select the winning team before confirming.'); return; }
+  if(m.winner === null){ toast('Select the winning team before confirming.', 'warning'); return; }
 
   state.undo = {
     players: deepClone(state.players),
@@ -2259,7 +2260,7 @@ function confirmRoundRobinMatch(matchId){
     promptNextGeneration(finishedGen);
   } else {
     saveAll(); renderAll();
-    toast('Match recorded — next match is up.');
+    toast('Match recorded — next match is up.', 'success');
   }
 }
 
@@ -2302,7 +2303,7 @@ function skipRRMatchToBack(matchId){
 
   advanceRRQueue();
   saveAll(); renderAll(); closeModal();
-  toast(m.status === 'active' ? 'No other matches were queued — this one is still up.' : 'Match moved to the back of the queue.');
+  toast(m.status === 'active' ? 'No other matches were queued — this one is still up.' : 'Match moved to the back of the queue.', m.status === 'active' ? 'info' : 'success');
 }
 
 // ============================================================
@@ -2373,7 +2374,7 @@ function forfeitRRMatch(matchId, who){
       promptNextGeneration(finishedGen);
     } else {
       saveAll(); renderAll();
-      toast('Match recorded as a double forfeit — no winner.');
+      toast('Match recorded as a double forfeit — no winner.', 'success');
     }
     return;
   }
@@ -2392,7 +2393,7 @@ function forfeitRRMatch(matchId, who){
   closeModal();
   confirmRoundRobinMatch(matchId);
   if(!willFinishGeneration){
-    toast(`Team ${who} forfeited — Team ${winningTeam} wins by default.`);
+    toast(`Team ${who} forfeited — Team ${winningTeam} wins by default.`, 'success');
   }
 }
 
@@ -2416,7 +2417,7 @@ function openReplacePlayerPickerModal(matchId){
   const gen = state.currentGeneration;
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
-  if(!m || m.status === 'done'){ toast('That match is already finished.'); return; }
+  if(!m || m.status === 'done'){ toast('That match is already finished.', 'warning'); return; }
 
   const rows = [
     { team:'A', id:m.teamA[0] }, { team:'A', id:m.teamA[1] },
@@ -2441,7 +2442,7 @@ function openReplacePlayerModal(matchId, team, playerId){
   const gen = state.currentGeneration;
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
-  if(!m || m.status === 'done'){ toast('That match is already finished.'); return; }
+  if(!m || m.status === 'done'){ toast('That match is already finished.', 'warning'); return; }
   const p = getPlayer(playerId);
   const condition = p ? (p.condition || 'ok') : 'ok';
 
@@ -2498,11 +2499,11 @@ function openReplacePlayerModal(matchId, team, playerId){
 }
 
 function replacePlayerInMatch(matchId, team, oldId, newId){
-  if(!newId){ toast('No substitute selected.'); return; }
+  if(!newId){ toast('No substitute selected.', 'warning'); return; }
   const gen = state.currentGeneration;
   if(!gen) return;
   const m = gen.matches.find(x => x.id === matchId);
-  if(!m || m.status === 'done'){ toast('That match is already finished.'); return; }
+  if(!m || m.status === 'done'){ toast('That match is already finished.', 'warning'); return; }
   const teamArr = team === 'A' ? m.teamA : m.teamB;
   const idx = teamArr.indexOf(oldId);
   if(idx === -1) return;
@@ -2526,7 +2527,7 @@ function replacePlayerInMatch(matchId, team, oldId, newId){
   const origPlayer = getPlayer(realOriginalId);
   const subPlayer = getPlayer(newId);
   saveAll(); renderAll(); closeModal();
-  toast(`${origPlayer ? origPlayer.name : playerName(oldId)} subbed out — ${subPlayer ? subPlayer.name : playerName(newId)} steps in.`);
+  toast(`${origPlayer ? origPlayer.name : playerName(oldId)} subbed out — ${subPlayer ? subPlayer.name : playerName(newId)} steps in.`, 'success');
 }
 
 function markPlayerAbsentAndAutoReplace(matchId, team, oldId){
@@ -2556,7 +2557,7 @@ function markPlayerAbsentAndAutoReplace(matchId, team, oldId){
   }
   if(!candidates.length){
     saveAll(); renderAll(); closeModal();
-    toast(`${oldPlayer ? oldPlayer.name : 'Player'} marked absent — no bench player available, that slot is open until someone subs in.`);
+    toast(`${oldPlayer ? oldPlayer.name : 'Player'} marked absent — no bench player available, that slot is open until someone subs in.`, 'warning');
     return;
   }
   replacePlayerInMatch(matchId, team, oldId, candidates[0].id);
@@ -2632,7 +2633,7 @@ function openReplaceCurrentPlayerModal(team, playerId){
 }
 
 function replaceCurrentPlayer(team, oldId, newId){
-  if(!newId){ toast('No substitute selected.'); return; }
+  if(!newId){ toast('No substitute selected.', 'warning'); return; }
   if(!state.current) return;
   const teamArr = team === 'A' ? state.current.teamA : state.current.teamB;
   const idx = teamArr.indexOf(oldId);
@@ -2647,7 +2648,7 @@ function replaceCurrentPlayer(team, oldId, newId){
   const origPlayer = getPlayer(realOriginalId);
   const subPlayer = getPlayer(newId);
   saveAll(); renderAll(); closeModal();
-  toast(`${origPlayer ? origPlayer.name : playerName(oldId)} subbed out — ${subPlayer ? subPlayer.name : playerName(newId)} steps in.`);
+  toast(`${origPlayer ? origPlayer.name : playerName(oldId)} subbed out — ${subPlayer ? subPlayer.name : playerName(newId)} steps in.`, 'success');
 }
 
 /* ============================================================
@@ -2667,7 +2668,7 @@ function adjustRotationScore(team, delta){
   // Only the serving team can score in pickleball — the receiving team's
   // stepper is disabled in the UI, but this guard covers any stray click too.
   if(state.current.serving !== team){
-    toast(`Only the serving team can score — Team ${state.current.serving} is serving.`);
+    toast(`Only the serving team can score — Team ${state.current.serving} is serving.`, 'warning');
     return;
   }
   let cur = team === 'A' ? state.current.scoreA : state.current.scoreB;
@@ -2724,7 +2725,7 @@ function sideOutRotation(){
 // Asks for confirmation before unwinding the most recent serve decision —
 // undoing isn't itself undoable, so we make sure that's really what's wanted.
 function confirmUndoServeRotation(){
-  if(!state.current || !state.current._serveUndoStack || !state.current._serveUndoStack.length){ toast('No serve decision to undo.'); return; }
+  if(!state.current || !state.current._serveUndoStack || !state.current._serveUndoStack.length){ toast('No serve decision to undo.', 'info'); return; }
   const n = state.current._serveUndoStack.length;
   openModal(`
     <div class="modal-title">Undo Serve Decision?</div>
@@ -2737,12 +2738,12 @@ function confirmUndoServeRotation(){
 }
 
 function undoServeRotation(){
-  if(!state.current || !state.current._serveUndoStack || !state.current._serveUndoStack.length){ toast('No serve decision to undo.'); return; }
+  if(!state.current || !state.current._serveUndoStack || !state.current._serveUndoStack.length){ toast('No serve decision to undo.', 'info'); return; }
   const snap = state.current._serveUndoStack.pop();
   restoreServe(state.current, snap);
   saveAll();
   closeModal();
-  toast('Serve decision undone.');
+  toast('Serve decision undone.', 'success');
   renderMatchView(document.getElementById('view'));
 }
 
@@ -2750,7 +2751,7 @@ function recordRotationMatch(scoreA, scoreB) {
   if(!state.current) return;
   const sA = parseInt(scoreA,10);
   const sB = parseInt(scoreB,10);
-  if(isNaN(sA) || isNaN(sB)) { toast('Enter valid scores for both teams.'); return; }
+  if(isNaN(sA) || isNaN(sB)) { toast('Enter valid scores for both teams.', 'warning'); return; }
 
   state.undo = {
     players: deepClone(state.players),
@@ -2824,7 +2825,7 @@ function recordRotationMatch(scoreA, scoreB) {
   state.current = null;
   saveAll(); renderAll();
   playGameWinSound();
-  toast('Match score recorded.');
+  toast('Match score recorded.', 'success');
 }
 
 function skipCurrentMatch() {
@@ -2835,11 +2836,11 @@ function skipCurrentMatch() {
     state.current = null;
   }
   saveAll(); renderAll();
-  toast('Current match setup cleared/skipped.');
+  toast('Current match cleared.', 'success');
 }
 
 function undoLastMatch() {
-  if(!state.undo) { toast('Nothing to undo.'); return; }
+  if(!state.undo) { toast('Nothing to undo.', 'info'); return; }
   state.players = state.undo.players;
   state.matches = state.undo.matches;
   state.current = state.undo.current;
@@ -2847,7 +2848,7 @@ function undoLastMatch() {
   state.round = state.undo.round;
   state.undo = null;
   saveAll(); renderAll();
-  toast('Last match results undone.');
+  toast('Last match results undone.', 'success');
 }
 
 /* ============================================================
@@ -2897,13 +2898,13 @@ function exportData(filename){
   a.click();
   URL.revokeObjectURL(url);
   closeModal();
-  toast(`Saved as ${name}`);
+  toast(`Backup saved as "${name}".`, 'success');
 }
 
 function importDataFromText(txt){
   try{
     const dump = JSON.parse(txt);
-    if(!dump || !Array.isArray(dump.players)) { toast('Invalid schema format structure.'); return; }
+    if(!dump || !Array.isArray(dump.players)) { toast("That file isn't a valid Kitchen Ladder backup.", 'error'); return; }
     state.players = dump.players;
     state.players.forEach(pl => {
       if(typeof pl.isSub !== 'boolean') pl.isSub = false;
@@ -2924,9 +2925,9 @@ function importDataFromText(txt){
 
     state.undo = null;
     saveAll(); renderAll(); closeModal();
-    toast('Database restored correctly.');
+    toast('Backup restored successfully.', 'success');
   }catch(e){
-    toast('Parsing failure: verify copied content.');
+    toast("Couldn't read that data — check what you pasted and try again.", 'error');
   }
 }
 
@@ -2939,10 +2940,10 @@ window.handleImportFileSelect = function(input){
   reader.onload = function(){
     const ta = document.getElementById('importText');
     if(ta) ta.value = typeof reader.result === 'string' ? reader.result : '';
-    toast(`Loaded "${file.name}" — tap "Trigger Override Restore" to confirm.`);
+    toast(`Loaded "${file.name}" — tap "Restore Backup" to confirm.`, 'info');
   };
   reader.onerror = function(){
-    toast('Could not read that file.');
+    toast('Could not read that file.', 'error');
   };
   reader.readAsText(file);
   input.value = ''; // reset so picking the same file again still fires onchange
@@ -3568,7 +3569,7 @@ function renderStatsView(el){
     return;
   }
 
-  let html = `<div class="section-title">Advanced Metrics Explorer</div>`;
+  let html = `<div class="section-title">Player Statistics</div>`;
 
   state.players.forEach(p => {
     // Determine highest frequency/common teammates and opponents safely
@@ -3591,7 +3592,7 @@ function renderStatsView(el){
         <div class="stat-grid" style="margin-top:8px;">
           <div class="stat-box"><div class="sv" style="color:var(--text-dim);">${p.sitOuts || 0}</div><div class="sl">Total Sits</div></div>
           <div class="stat-box"><div class="sv" style="color:var(--loss);">${p.consecutiveSitOuts || 0}</div><div class="sl">Con. Sits</div></div>
-          <div class="stat-box"><div class="sv" style="color:var(--text-faint);">${p.rating}</div><div class="sl">Elo Score</div></div>
+          <div class="stat-box"><div class="sv" style="color:var(--text-faint);">${p.rating}</div><div class="sl">ELO Rating</div></div>
         </div>
         <div style="margin-top:10px; font-size:12px; line-height:1.4; color:var(--text-dim); border-top:1px solid var(--line-soft); padding-top:8px;">
           <div><strong>Common Teammates:</strong> ${esc(topTeammates)}</div>
@@ -3609,14 +3610,14 @@ function renderHistoryView(el){
 
   let html = `
     <div class="card" style="margin-bottom:12px; padding:10px 14px;">
-      <input type="text" id="histSearch" placeholder="🔍 Search player name history matches…" style="font-size:14px; padding:8px 12px;">
+      <input type="text" id="histSearch" placeholder="🔍 Search match history…" style="font-size:14px; padding:8px 12px;">
       <button class="btn btn-secondary btn-sm btn-block" style="margin-top:10px;" data-action="show-session-summary">🏆 View Session Summary</button>
     </div>
-    <div class="section-title">Completed Matches Logs (${matches.length})</div>
+    <div class="section-title">Match History (${matches.length})</div>
   `;
 
   if(!matches.length){
-    html += `<div class="empty-state"><div class="big">🗓️</div><p>No historical items recorded yet.</p></div>`;
+    html += `<div class="empty-state"><div class="big">🗓️</div><p>No match history yet.</p></div>`;
     el.innerHTML = html;
     return;
   }
@@ -3671,10 +3672,10 @@ function renderHistoryView(el){
 
 function renderSettingsView(el){
   el.innerHTML = `
-    <div class="section-title">System Execution Configuration</div>
+    <div class="section-title">Match Settings</div>
     <div class="card">
       <div class="field">
-        <label>Matchmaking System Mode</label>
+        <label>Match Mode</label>
         <div class="radio-group-mode">
           <div class="radio-box-btn ${state.settings.matchMode === 'Rotation' ? 'active' : ''}" data-action="toggle-mode-setting" data-value="Rotation">Rotation Mode</div>
           <div class="radio-box-btn ${state.settings.matchMode === 'RoundRobin' ? 'active' : ''}" data-action="toggle-mode-setting" data-value="RoundRobin">Round Robin Mode</div>
@@ -3708,7 +3709,7 @@ function renderSettingsView(el){
       <div class="toggle-row">
         <div>
           <div class="t-label">Equal Play Priority</div>
-          <div class="t-hint">Strictly prioritize athletes with lowest total game counts first.</div>
+          <div class="t-hint">Prioritizes players with the fewest games played so far.</div>
         </div>
         <label class="switch">
           <input type="checkbox" id="equalPlayToggle" ${state.settings.equalPlayPriority ? 'checked' : ''}>
@@ -3719,7 +3720,7 @@ function renderSettingsView(el){
       <div class="toggle-row">
         <div>
           <div class="t-label">Smart Balance Engine</div>
-          <div class="t-hint">Optimize match splitting calculation heuristics to reduce recurrence.</div>
+          <div class="t-hint">Reduces repeat teammate and opponent pairings when forming matches.</div>
         </div>
         <label class="switch">
           <input type="checkbox" id="smartBalanceToggle" ${state.settings.smartBalance !== false ? 'checked' : ''}>
@@ -3760,13 +3761,13 @@ function renderSettingsView(el){
         </label>
       </div>
 
-      <button class="btn btn-primary btn-block" style="margin-top:18px;" data-action="save-settings">Save Configurations</button>
+      <button class="btn btn-primary btn-block" style="margin-top:18px;" data-action="save-settings">Save Settings</button>
     </div>
 
-    <div class="section-title" style="margin-top:20px;">Database Backups Sync</div>
+    <div class="section-title" style="margin-top:20px;">Backup &amp; Restore</div>
     <div class="card" style="display:flex; gap:8px;">
-      <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="export-data">Export JSON File</button>
-      <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="open-import-data">Import Backup Content</button>
+      <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="export-data">Export Backup</button>
+      <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="open-import-data">Import Backup</button>
     </div>
 
     <div class="section-title" style="margin-top:20px;">Session</div>
@@ -3816,7 +3817,7 @@ function saveSettingsFromForm(){
   if(state.currentGeneration) advanceRRQueue(); // pick up newly-freed courts right away if the count went up
 
   saveAll(); renderAll();
-  toast('System parameters saved correctly.');
+  toast('Settings saved.', 'success');
 }
 
 /* ============================================================
@@ -3961,10 +3962,10 @@ document.addEventListener('click', function(e){
 
     case 'open-danger-zone':
       openModal(`
-        <div class="modal-title" style="color:var(--loss);">Factory System Reset Options</div>
-        <div class="modal-sub">Select your desired cleanup parameters method below safely.</div>
-        <button class="btn btn-danger btn-block" data-action="confirm-reset-stats">Reset Scores &amp; Match History logs only</button>
-        <button class="btn btn-danger btn-block" style="margin-top:8px;" data-action="confirm-reset-all">Clear everything completely from scratch</button>
+        <div class="modal-title" style="color:var(--loss);">Reset Options</div>
+        <div class="modal-sub">Choose what you'd like to reset. Both actions are permanent.</div>
+        <button class="btn btn-danger btn-block" data-action="confirm-reset-stats">Reset Scores &amp; Match History</button>
+        <button class="btn btn-danger btn-block" style="margin-top:8px;" data-action="confirm-reset-all">Clear All Data</button>
         <button class="btn btn-ghost btn-block" style="margin-top:12px;" data-action="modal-close">Cancel</button>
       `);
       break;
@@ -4003,11 +4004,11 @@ document.addEventListener('click', function(e){
     case 'save-settings': saveSettingsFromForm(); break;
     case 'open-add-fixed-duo': {
       const activePl = activePlayers();
-      if(activePl.length < 2){ toast('Need at least 2 active players to create a duo.'); break; }
+      if(activePl.length < 2){ toast('Need at least 2 active players to create a duo.', 'warning'); break; }
       // Filter out players already in a duo
       const inDuo = new Set((state.fixedDuos||[]).flat());
       const eligible = activePl.filter(p => !inDuo.has(p.id));
-      if(eligible.length < 2){ toast('All active players are already in fixed duos.'); break; }
+      if(eligible.length < 2){ toast('All active players are already in fixed duos.', 'warning'); break; }
       openModal(`
         <div class="modal-title">Add Fixed Duo 🔗</div>
         <div class="modal-sub">Select two players who should always be on the same team.</div>
@@ -4033,7 +4034,7 @@ document.addEventListener('click', function(e){
     case 'do-add-fixed-duo': {
       const p1 = document.getElementById('duoP1')?.value;
       const p2 = document.getElementById('duoP2')?.value;
-      if(p1 === p2){ toast('Select two different players.'); break; }
+      if(p1 === p2){ toast('Select two different players.', 'warning'); break; }
       addFixedDuo(p1, p2);
       break;
     }
@@ -4047,15 +4048,15 @@ document.addEventListener('click', function(e){
       break;
     case 'open-import-data':
       openModal(`
-        <div class="modal-title">Import Exported Matrix JSON</div>
+        <div class="modal-title">Import Backup</div>
         <div class="modal-sub">Upload a backup .json file, or paste its contents below.</div>
         <button class="btn btn-secondary btn-block" data-action="trigger-import-file">📁 Choose Backup File…</button>
         <input type="file" id="importFileInput" accept=".json,application/json" style="display:none;" onchange="window.handleImportFileSelect(this)">
         <div class="divider-thin"></div>
-        <textarea id="importText" placeholder="…or paste data backup string content here…"></textarea>
+        <textarea id="importText" placeholder="…or paste backup JSON here…"></textarea>
         <div class="modal-actions">
           <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
-          <button class="btn btn-primary" data-action="do-import-data">Trigger Override Restore</button>
+          <button class="btn btn-primary" data-action="do-import-data">Restore Backup</button>
         </div>
       `);
       break;
@@ -4170,7 +4171,7 @@ function openPlayerProfile(id){
    SESSION SUMMARY
    ============================================================ */
 function showSessionSummary(){
-  if(!state.matches.length){ toast('No matches played yet this session.'); return; }
+  if(!state.matches.length){ toast('No matches played yet this session.', 'info'); return; }
 
   // Find MVP (most wins today / highest rating)
   const ratedPlayers = state.players.filter(p=>p.gamesPlayed>0).sort((a,b)=>b.rating-a.rating);
@@ -4240,7 +4241,7 @@ window.addEventListener('appinstalled', function(){
   const topBtn = document.getElementById('topbar-install-btn');
   if(topBtn) topBtn.style.display = 'none';
   _deferredInstallPrompt = null;
-  toast('✅ Kitchen Ladder installed!');
+  toast('Kitchen Ladder installed.', 'success');
 });
 
 function initInstallBanner(){
@@ -4263,7 +4264,7 @@ function initInstallBanner(){
         // Android / Chrome / Edge — native prompt
         _deferredInstallPrompt.prompt();
         const { outcome } = await _deferredInstallPrompt.userChoice;
-        if(outcome === 'accepted') toast('Installing Kitchen Ladder…');
+        if(outcome === 'accepted') toast('Installing Kitchen Ladder…', 'info');
         _deferredInstallPrompt = null;
         topBtn.style.display = 'none';
       } else if(isIOS){
