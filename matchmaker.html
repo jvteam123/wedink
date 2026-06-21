@@ -1848,15 +1848,58 @@ function generateRoundRobinGeneration() {
   const activeList = activePlayers().slice();
   if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.', 'warning'); return; }
 
-  // No session length chosen yet for this run — ask first. Once a plan is
-  // confirmed, openSessionConfirmModal() re-invokes this function and we
-  // fall through to the normal court-check + generate flow below.
+  // No session length chosen yet for this run — walk through court/scoring
+  // setup first, then the length picker. Once a plan is confirmed,
+  // confirmSessionPlanAndGenerate() re-invokes the generate flow and we
+  // fall through to the normal court-check + generate path below.
   if(!state.settings.sessionPlan){
-    openSessionLengthPicker();
+    openSessionSetupModal();
     return;
   }
 
   proceedToGenerateGeneration(activeList);
+}
+
+// Step 1 of starting a new session: courts + winning score, asked up front
+// before the match-count picker so the organizer sets the table once.
+function openSessionSetupModal(){
+  const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
+  const winningScore = state.settings.winningScore || 11;
+  openModal(`
+    <div class="modal-title">🎾 Session Setup</div>
+    <div class="modal-sub" style="line-height:1.6;">First, confirm how many courts you've got and what score wins a match.</div>
+    <div class="card" style="margin:0;">
+      <div class="field">
+        <label>Number of Available Courts</label>
+        <input type="number" id="setupNumCourtsInput" min="1" max="10" value="${numCourts}">
+        <p class="helper-text">Every active player is still scheduled each generation — courts just control how many matches play at once.</p>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Winning Score</label>
+        <input type="number" id="setupWinningScoreInput" min="1" max="99" value="${winningScore}">
+        <p class="helper-text">First team to reach this score (win by 2) takes the match.</p>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-primary" data-action="confirm-session-setup">Next: Session Length</button>
+    </div>
+  `, false);
+}
+
+function confirmSessionSetup(){
+  const courtsEl = document.getElementById('setupNumCourtsInput');
+  const scoreEl = document.getElementById('setupWinningScoreInput');
+  if(courtsEl){
+    const v = parseInt(courtsEl.value, 10);
+    state.settings.numCourts = clamp(isNaN(v) ? 1 : v, 1, 10);
+  }
+  if(scoreEl){
+    const v = parseInt(scoreEl.value, 10);
+    state.settings.winningScore = (isNaN(v) || v < 1) ? 11 : v;
+  }
+  saveAll();
+  openSessionLengthPicker();
 }
 
 // Runs the existing court-count sanity check, then generates. Split out so
@@ -1913,7 +1956,8 @@ function openSessionLengthPicker(){
     <div class="modal-title">🏆 Choose Session Length</div>
     <div class="modal-sub" style="line-height:1.6;">With <b style="color:var(--text);">${playerCount} active player${playerCount!==1?'s':''}</b>, here's how each option breaks down so games stay equally played.</div>
     <div class="session-opt-list">${optsHtml}</div>
-  `);
+    <button class="btn btn-ghost" style="margin-top:10px; width:100%;" data-action="back-to-session-setup">Back to Courts &amp; Scoring</button>
+  `, false);
 }
 
 function pickSessionPlan(planId){
@@ -1927,43 +1971,91 @@ function pickSessionPlan(planId){
 
 function openSessionConfirmModal(opt, totalMatches, gpp, playerCount){
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
+  const winningScore = state.settings.winningScore || 11;
   const modeLabel = state.settings.matchMode === 'RoundRobin' ? 'Round Robin' : 'Rotation';
 
-  function onOffBadge(isOn){
-    return `<span style="display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; font-family:inherit; color:${isOn ? 'var(--win)' : 'var(--text-faint)'};">
-      <span style="width:7px; height:7px; border-radius:50%; background:${isOn ? 'var(--win)' : 'var(--text-faint)'};"></span>${isOn ? 'On' : 'Off'}
-    </span>`;
+  function toggleRow(id, label, hint, checked){
+    return `
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">${label}</div>
+          <div class="t-hint">${hint}</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+    `;
   }
 
   openModal(`
     <div class="modal-title">Confirm Session</div>
-    <div class="modal-sub" style="line-height:1.6;">Review your settings, then generate the first round.</div>
+    <div class="modal-sub" style="line-height:1.6;">Review and adjust before generating the first round.</div>
     <div class="card" style="margin:0 0 10px; padding:4px 14px;">
       <div class="session-confirm-row"><span class="k">Plan</span><span class="v" style="font-family:inherit;">${opt.label}</span></div>
       <div class="session-confirm-row"><span class="k">Total Matches</span><span class="v">${totalMatches}</span></div>
       <div class="session-confirm-row"><span class="k">Games / Player</span><span class="v">${gpp}</span></div>
       <div class="session-confirm-row"><span class="k">Active Players</span><span class="v">${playerCount}</span></div>
       <div class="session-confirm-row"><span class="k">Match Mode</span><span class="v" style="font-family:inherit; color:var(--court);">${modeLabel}</span></div>
-      <div class="session-confirm-row"><span class="k">Courts</span><span class="v">${numCourts}</span></div>
     </div>
+
+    <div class="eyebrow" style="margin:0 2px 6px;">Courts &amp; Scoring</div>
+    <div class="card" style="margin:0 0 10px;">
+      <div class="field">
+        <label>Number of Available Courts</label>
+        <input type="number" id="sessionNumCourtsInput" min="1" max="10" value="${numCourts}">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Winning Score</label>
+        <input type="number" id="sessionWinningScoreInput" min="1" max="99" value="${winningScore}">
+      </div>
+    </div>
+
     <div class="eyebrow" style="margin:0 2px 6px;">Balancing &amp; Fairness</div>
-    <div class="card" style="margin:0; padding:4px 14px;">
-      <div class="session-confirm-row"><span class="k">Winner vs Winner / Loser vs Loser</span>${onOffBadge(!!state.settings.winnerVsWinner)}</div>
-      <div class="session-confirm-row"><span class="k">Equal Play Priority</span>${onOffBadge(!!state.settings.equalPlayPriority)}</div>
-      <div class="session-confirm-row"><span class="k">Smart Balance Engine</span>${onOffBadge(!!state.settings.smartBalance)}</div>
-      <div class="session-confirm-row"><span class="k">Rematch Prevention</span>${onOffBadge(state.settings.rematchPrevention !== false)}</div>
+    <div class="card" style="margin:0;">
+      ${toggleRow('sessionWinnerVsWinnerToggle', 'Winner vs Winner / Loser vs Loser', "Next generation pairs last generation's winners together and losers together.", !!state.settings.winnerVsWinner)}
+      ${toggleRow('sessionEqualPlayToggle', 'Equal Play Priority', 'Prioritizes players with the fewest games played so far.', !!state.settings.equalPlayPriority)}
+      ${toggleRow('sessionSmartBalanceToggle', 'Smart Balance Engine', 'Reduces repeat teammate and opponent pairings.', !!state.settings.smartBalance)}
+      ${toggleRow('sessionRematchPreventionToggle', 'Rematch Prevention', 'Avoids re-pairing players who just faced each other.', state.settings.rematchPrevention !== false)}
     </div>
+
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn btn-ghost" data-action="back-to-session-picker">Back</button>
       <button class="btn btn-primary" data-action="confirm-session-plan" data-plan="${opt.id}" data-total="${totalMatches}" data-gpp="${gpp}">Confirm &amp; Generate</button>
     </div>
-  `);
+  `, false);
 }
+
 
 
 function confirmSessionPlanAndGenerate(planId, totalMatches, gpp){
   const opt = SESSION_PLAN_OPTIONS.find(o => o.id === planId);
   const hadGenerationInProgress = !!state.currentGeneration;
+
+  // Pull the editable values straight out of the confirm form so courts,
+  // winning score, and the balancing toggles all apply before the first
+  // generation is built — not just shown read-only.
+  const courtsEl = document.getElementById('sessionNumCourtsInput');
+  const scoreEl = document.getElementById('sessionWinningScoreInput');
+  const wvwEl = document.getElementById('sessionWinnerVsWinnerToggle');
+  const eqplEl = document.getElementById('sessionEqualPlayToggle');
+  const smartEl = document.getElementById('sessionSmartBalanceToggle');
+  const rematchEl = document.getElementById('sessionRematchPreventionToggle');
+
+  if(courtsEl){
+    const v = parseInt(courtsEl.value, 10);
+    state.settings.numCourts = clamp(isNaN(v) ? 1 : v, 1, 10);
+  }
+  if(scoreEl){
+    const v = parseInt(scoreEl.value, 10);
+    state.settings.winningScore = (isNaN(v) || v < 1) ? 11 : v;
+  }
+  if(wvwEl) state.settings.winnerVsWinner = wvwEl.checked;
+  if(eqplEl) state.settings.equalPlayPriority = eqplEl.checked;
+  if(smartEl) state.settings.smartBalance = smartEl.checked;
+  if(rematchEl) state.settings.rematchPrevention = rematchEl.checked;
+
   state.settings.sessionPlan = {
     id: planId,
     label: opt ? opt.label : 'Session',
@@ -1978,6 +2070,7 @@ function confirmSessionPlanAndGenerate(planId, totalMatches, gpp){
   // mid-session), just swap the tracked plan in — don't regenerate matches
   // that are already underway. Otherwise (fresh start), generate the first round.
   if(hadGenerationInProgress){
+    if(state.currentGeneration) advanceRRQueue(); // pick up newly-freed courts right away if the count went up
     renderAll();
     toast(`Switched to ${opt ? opt.label : 'new session'} — tracking from here.`, 'success');
     return;
@@ -4233,10 +4326,12 @@ document.addEventListener('click', function(e){
     case 'do-generate-rr': closeModal(); _doGenerateRoundRobinGeneration(null); break;
     case 'pick-session-plan': pickSessionPlan(t.dataset.plan); break;
     case 'back-to-session-picker': openSessionLengthPicker(); break;
+    case 'back-to-session-setup': openSessionSetupModal(); break;
+    case 'confirm-session-setup': confirmSessionSetup(); break;
     case 'confirm-session-plan':
       confirmSessionPlanAndGenerate(t.dataset.plan, parseInt(t.dataset.total,10), parseFloat(t.dataset.gpp));
       break;
-    case 'change-session-plan': openSessionLengthPicker(); break;
+    case 'change-session-plan': openSessionSetupModal(); break;
     case 'start-new-session-plan': startNewSessionPlan(); break;
     case 'set-rr-winner':
       selectRoundRobinWinner(t.dataset.match, t.dataset.team);
