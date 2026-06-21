@@ -299,6 +299,9 @@ textarea{resize:vertical; min-height:90px; font-family:var(--font-mono); font-si
 }
 .pill-paused{background:var(--surface-3); color:var(--text-faint);}
 .pill-active{background:rgba(215,242,61,0.12); color:var(--ball);}
+.pill-cond-ok{background:var(--surface-3); color:var(--text-faint);}
+.pill-cond-tired{background:rgba(79,168,255,0.14); color:var(--court);}
+.pill-cond-injured{background:rgba(255,107,107,0.14); color:var(--loss);}
 .row-actions{display:flex; gap:6px; flex:none;}
 
 /* ---------- Scoreboard (signature element) ---------- */
@@ -717,7 +720,7 @@ const DEFAULT_SETTINGS = {
   audioScoring: true,    // play sound cues for +/- points, side-outs, and game wins
   voiceAnnounce: true,   // speak the score call (server's score first) and side-out announcements out loud
   winningScore: 11,      // first team to reach this score (win by 2) takes the match
-  raceToTwo: false        // when both teams reach 10-10 ("Love-Love"), offer a sudden-death Race to 2
+  raceToTwo: true         // when both teams reach 10-10 ("Love-Love"), offer a sudden-death Race to 2
 };
 
 /* ============================================================
@@ -744,7 +747,13 @@ function loadState(){
     const r = localStorage.getItem(KEYS.round);
     const u = localStorage.getItem(KEYS.undo);
     const t = localStorage.getItem(KEYS.tab);
-    if(p) state.players = JSON.parse(p);
+    if(p) {
+      state.players = JSON.parse(p);
+      state.players.forEach(pl => {
+        if(typeof pl.isSub !== 'boolean') pl.isSub = false;
+        if(!pl.condition) pl.condition = 'ok';
+      });
+    }
     if(m) state.matches = JSON.parse(m);
     if(c) {
       const parsedC = JSON.parse(c);
@@ -1017,11 +1026,14 @@ function openModal(html, dismissible){
 /* ============================================================
    PLAYER MODEL HELPERS
    ============================================================ */
-function newPlayer(name){
+function newPlayer(name, isSub){
   return {
     id: uid('p'),
     name: name.trim(),
     active: true,
+    isSub: !!isSub,        // Sub Players sit on the bench out of normal rotation —
+                            // they're only eligible to sub in for a Tired/Injured player's slot.
+    condition: 'ok',        // 'ok' | 'tired' | 'injured'
     gamesPlayed: 0,
     wins: 0,
     losses: 0,
@@ -1133,15 +1145,15 @@ function honorFixedDuosInFour(four){
 /* ============================================================
    PLAYER MANAGEMENT ACTIONS
    ============================================================ */
-function addPlayer(name){
+function addPlayer(name, isSub){
   name = (name||'').trim();
   if(!name){ toast('Enter a name first.'); return; }
   if(state.players.some(p=>p.name.toLowerCase()===name.toLowerCase())){
     toast('A player with that name already exists.'); return;
   }
-  state.players.push(newPlayer(name));
+  state.players.push(newPlayer(name, isSub));
   saveAll(); renderAll();
-  toast(`Added ${name}.`);
+  toast(isSub ? `Added ${name} as a Sub Player.` : `Added ${name}.`);
 }
 
 function bulkImport(text){
@@ -1157,12 +1169,21 @@ function bulkImport(text){
   toast(`Imported ${added} player${added!==1?'s':''}${skipped?`, skipped ${skipped} duplicate${skipped!==1?'s':''}`:''}.`);
 }
 
-function editPlayerName(id, name){
+function editPlayerName(id, name, isSub){
   name = (name||'').trim();
   if(!name){ toast('Name cannot be empty.'); return; }
   const p = getPlayer(id);
   if(!p) return;
+  if(typeof isSub === 'boolean' && isSub !== p.isSub){
+    const inLiveMatch = (state.current && (state.current.teamA.includes(id) || state.current.teamB.includes(id)))
+      || (state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(id) || m.teamB.includes(id))));
+    if(inLiveMatch){
+      toast(`${p.name} is in an unfinished match — finish or sub them out first, then change their Sub Player status.`);
+      return;
+    }
+  }
   p.name = name;
+  if(typeof isSub === 'boolean') p.isSub = isSub;
   saveAll(); renderAll(); closeModal();
   toast('Player updated.');
 }
@@ -1338,7 +1359,65 @@ function resetEverything(){
    MATCHMAKING ALGORITHM
    ============================================================ */
 function activePlayers(){
-  return state.players.filter(p=>p.active);
+  // Sub Players and anyone currently Tired/Injured sit out of the normal
+  // rotation pool. Subs only enter play when manually subbed into a slot
+  // whose regular owner is Tired/Injured (see openReplacePlayerModal).
+  return state.players.filter(p=>p.active && !p.isSub && (p.condition||'ok')==='ok');
+}
+
+// Active Sub Players who are present and fit to play right now.
+function availableSubPlayers(){
+  return state.players.filter(p=>p.isSub && p.active && (p.condition||'ok')==='ok');
+}
+
+// Locates where a player currently has a live (unfinished) slot, across
+// both Rotation mode's single current match and Round Robin generation
+// matches, so the UI can offer a quick "sub them out" shortcut.
+function findLivePlayerSlot(id){
+  const gen = state.currentGeneration;
+  if(gen){
+    const m = gen.matches.find(x => x.status !== 'done' && (x.teamA.includes(id) || x.teamB.includes(id)));
+    if(m){
+      const team = m.teamA.includes(id) ? 'A' : 'B';
+      return { mode:'rr', matchId: m.id, team, label: `Court ${m.court}` };
+    }
+  }
+  if(state.current && (state.current.teamA.includes(id) || state.current.teamB.includes(id))){
+    const team = state.current.teamA.includes(id) ? 'A' : 'B';
+    return { mode:'rotation', matchId: null, team, label: 'the current match' };
+  }
+  return null;
+}
+
+function setPlayerCondition(id, condition){
+  const p = getPlayer(id);
+  if(!p) return;
+  const prev = p.condition || 'ok';
+  if(prev === condition) return;
+  p.condition = condition;
+  saveAll(); renderAll();
+
+  if(condition === 'ok'){
+    toast(`${p.name} is back to OK.`);
+    return;
+  }
+
+  const label = condition === 'tired' ? '😴 Tired' : '🤕 Injured';
+  const slot = findLivePlayerSlot(id);
+  if(slot){
+    openModal(`
+      <div class="modal-title">${label}</div>
+      <div class="modal-sub">${esc(p.name)} is marked ${condition === 'tired' ? 'tired' : 'injured'} and currently playing on ${esc(slot.label)}. Want to sub them out now?</div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-action="modal-close">Not yet</button>
+        ${slot.mode === 'rr'
+          ? `<button class="btn btn-primary" data-action="open-replace-player" data-match="${slot.matchId}" data-team="${slot.team}" data-player="${id}">Sub Out Now</button>`
+          : `<button class="btn btn-primary" data-action="open-replace-current-player" data-team="${slot.team}" data-player="${id}">Sub Out Now</button>`}
+      </div>
+    `);
+  } else {
+    toast(`${p.name} marked ${label} — they'll sit out of new matches until cleared.`);
+  }
 }
 
 function selectionPool(){
@@ -2198,44 +2277,58 @@ function openReplacePlayerModal(matchId, team, playerId){
   const m = gen.matches.find(x => x.id === matchId);
   if(!m || m.status === 'done'){ toast('That match is already finished.'); return; }
   const p = getPlayer(playerId);
+  const condition = p ? (p.condition || 'ok') : 'ok';
+  const slotNeedsSub = condition === 'tired' || condition === 'injured';
 
   // All players in the current match (to exclude from picker)
   const inMatchIds = new Set([...m.teamA, ...m.teamB]);
-
-  // All active players not in this match, sorted: sitting-out players first (they're most available),
-  // then bench/other players, all sorted by fewest games played
   const sittingOutIds = new Set(gen.sittingOut || []);
 
-  const availablePlayers = state.players
-    .filter(pl => pl.active && pl.id !== playerId && !inMatchIds.has(pl.id))
+  // Sub Players are only eligible to step in here when the slot's regular
+  // owner is Tired/Injured — they sit out of the picker otherwise.
+  const subCandidates = slotNeedsSub
+    ? state.players
+        .filter(pl => pl.isSub && pl.active && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
+        .sort((a, b) => a.gamesPlayed - b.gamesPlayed)
+    : [];
+
+  // Regular bench/active players — never Sub Players, never someone else who's unfit.
+  const benchCandidates = state.players
+    .filter(pl => pl.active && !pl.isSub && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
     .sort((a, b) => {
-      // Sitting out this generation comes first
       const aOut = sittingOutIds.has(a.id) ? 0 : 1;
       const bOut = sittingOutIds.has(b.id) ? 0 : 1;
       if(aOut !== bOut) return aOut - bOut;
       return a.gamesPlayed - b.gamesPlayed;
     });
 
-  const playersHtml = availablePlayers.length
-    ? availablePlayers.map(b => {
-        const isSittingOut = sittingOutIds.has(b.id);
-        const statusLabel = isSittingOut ? '🪑 Sitting out' : '🎮 In queue';
-        return `
-          <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;" data-action="do-replace-manual" data-match="${matchId}" data-team="${team}" data-player="${playerId}" data-sub="${b.id}">
-            <span>${esc(b.name)}</span>
-            <span class="mono" style="color:var(--text-faint); font-size:11px;">${statusLabel} · ${b.gamesPlayed} gms</span>
-          </button>
-        `;
-      }).join('')
-    : `<p class="helper-text">No other active players available to sub in.</p>`;
+  const rowBtn = (b, badge) => `
+    <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;" data-action="do-replace-manual" data-match="${matchId}" data-team="${team}" data-player="${playerId}" data-sub="${b.id}">
+      <span>${esc(b.name)}</span>
+      <span class="mono" style="color:var(--text-faint); font-size:11px;">${badge} · ${b.gamesPlayed} gms</span>
+    </button>`;
+
+  const subsHtml = subCandidates.length
+    ? `<div class="helper-text" style="margin:10px 2px 4px; color:var(--court);">🔁 Sub Players — eligible while ${esc(p.name)} is ${condition === 'tired' ? '😴 tired' : '🤕 injured'}</div>
+       ${subCandidates.map(b => rowBtn(b, '🔁 Sub')).join('')}`
+    : '';
+
+  const benchHtml = benchCandidates.length
+    ? `${subsHtml ? `<div class="helper-text" style="margin:14px 2px 4px;">Or pick another active player:</div>` : `<div class="helper-text" style="margin-bottom:4px;">Or choose manually:</div>`}
+       ${benchCandidates.map(b => rowBtn(b, sittingOutIds.has(b.id) ? '🪑 Sitting out' : '🎮 In queue')).join('')}`
+    : '';
+
+  const noneHtml = (!subCandidates.length && !benchCandidates.length)
+    ? `<p class="helper-text">No other active players available to sub in.</p>` : '';
 
   openModal(`
     <div class="modal-title">Replace ${esc(p ? p.name : 'Player')}</div>
-    <div class="modal-sub">Not around? Pick a player to sub in for this match — sitting-out players are shown first.</div>
+    <div class="modal-sub">${slotNeedsSub ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : '🤕 injured'} — registered Sub Players can step in for this slot.` : `Not around? Pick a player to sub in for this match — sitting-out players are shown first.`}</div>
     <button class="btn btn-danger btn-block" data-action="do-replace-absent" data-match="${matchId}" data-team="${team}" data-player="${playerId}">Mark Absent &amp; Auto-Sub Best Available</button>
     <div class="divider-thin"></div>
-    <div class="helper-text" style="margin-bottom:4px;">Or choose manually:</div>
-    ${playersHtml}
+    ${subsHtml}
+    ${benchHtml}
+    ${noneHtml}
     <div class="modal-actions">
       <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
     </div>
@@ -2266,16 +2359,116 @@ function markPlayerAbsentAndAutoReplace(matchId, team, oldId){
   const gen = state.currentGeneration;
   if(!gen) return;
   const oldPlayer = getPlayer(oldId);
-  if(oldPlayer) oldPlayer.active = false; // they're not around — pause their profile so they're not scheduled again
+  const condition = oldPlayer ? (oldPlayer.condition || 'ok') : 'ok';
+  const slotNeedsSub = condition === 'tired' || condition === 'injured';
+  // Generic absence pauses their profile so they're not scheduled again.
+  // Tired/Injured players stay active — they may be back next generation.
+  if(oldPlayer && !slotNeedsSub) oldPlayer.active = false;
   gen.sittingOut = (gen.sittingOut || []).filter(id => id !== oldId);
 
-  const candidates = (gen.sittingOut || []).map(id => getPlayer(id)).filter(Boolean).sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+  const m = gen.matches.find(x => x.id === matchId);
+  const inMatchIds = m ? new Set([...m.teamA, ...m.teamB]) : new Set();
+
+  let candidates = [];
+  if(slotNeedsSub){
+    candidates = state.players
+      .filter(pl => pl.isSub && pl.active && (pl.condition||'ok')==='ok' && !inMatchIds.has(pl.id))
+      .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+  }
+  if(!candidates.length){
+    candidates = (gen.sittingOut || [])
+      .map(id => getPlayer(id))
+      .filter(pl => pl && !pl.isSub && (pl.condition||'ok')==='ok')
+      .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+  }
   if(!candidates.length){
     saveAll(); renderAll(); closeModal();
     toast(`${oldPlayer ? oldPlayer.name : 'Player'} marked absent — no bench player available, that slot is open until someone subs in.`);
     return;
   }
   replacePlayerInMatch(matchId, team, oldId, candidates[0].id);
+}
+
+/* ---------- Replace / substitute a player in Rotation mode's single current match ---------- */
+function openReplaceCurrentPlayerPickerModal(){
+  if(!state.current) return;
+  const c = state.current;
+  const rows = [
+    { team:'A', id:c.teamA[0] }, { team:'A', id:c.teamA[1] },
+    { team:'B', id:c.teamB[0] }, { team:'B', id:c.teamB[1] }
+  ];
+  openModal(`
+    <div class="modal-title">Replace a Player</div>
+    <div class="modal-sub">Tap whoever's not around for this match.</div>
+    ${rows.map(r => `
+      <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;" data-action="open-replace-current-player" data-team="${r.team}" data-player="${r.id}">
+        <span>${esc(playerName(r.id))}</span><span class="mono" style="color:var(--text-faint); font-size:11px;">Team ${r.team}</span>
+      </button>
+    `).join('')}
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
+    </div>
+  `);
+}
+
+function openReplaceCurrentPlayerModal(team, playerId){
+  if(!state.current) return;
+  const c = state.current;
+  const p = getPlayer(playerId);
+  const condition = p ? (p.condition || 'ok') : 'ok';
+  const slotNeedsSub = condition === 'tired' || condition === 'injured';
+  const inMatchIds = new Set([...c.teamA, ...c.teamB]);
+
+  const subCandidates = slotNeedsSub
+    ? state.players
+        .filter(pl => pl.isSub && pl.active && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
+        .sort((a,b) => a.gamesPlayed - b.gamesPlayed)
+    : [];
+
+  const benchCandidates = state.players
+    .filter(pl => pl.active && !pl.isSub && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
+    .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+
+  const rowBtn = (b, badge) => `
+    <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;" data-action="do-replace-current-manual" data-team="${team}" data-player="${playerId}" data-sub="${b.id}">
+      <span>${esc(b.name)}</span>
+      <span class="mono" style="color:var(--text-faint); font-size:11px;">${badge} · ${b.gamesPlayed} gms</span>
+    </button>`;
+
+  const subsHtml = subCandidates.length
+    ? `<div class="helper-text" style="margin:10px 2px 4px; color:var(--court);">🔁 Sub Players — eligible while ${esc(p.name)} is ${condition === 'tired' ? '😴 tired' : '🤕 injured'}</div>
+       ${subCandidates.map(b => rowBtn(b, '🔁 Sub')).join('')}`
+    : '';
+
+  const benchHtml = benchCandidates.length
+    ? `${subsHtml ? `<div class="helper-text" style="margin:14px 2px 4px;">Or pick another active player:</div>` : `<div class="helper-text" style="margin-bottom:4px;">Pick a player to sub in:</div>`}
+       ${benchCandidates.map(b => rowBtn(b, '🎮 Available')).join('')}`
+    : '';
+
+  const noneHtml = (!subCandidates.length && !benchCandidates.length)
+    ? `<p class="helper-text">No other active players available to sub in.</p>` : '';
+
+  openModal(`
+    <div class="modal-title">Replace ${esc(p ? p.name : 'Player')}</div>
+    <div class="modal-sub">${slotNeedsSub ? `${esc(p.name)} is marked ${condition === 'tired' ? '😴 tired' : '🤕 injured'} — registered Sub Players can step in for this slot.` : `Not around? Pick a player to sub in for this match.`}</div>
+    ${subsHtml}
+    ${benchHtml}
+    ${noneHtml}
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
+    </div>
+  `);
+}
+
+function replaceCurrentPlayer(team, oldId, newId){
+  if(!newId){ toast('No substitute selected.'); return; }
+  if(!state.current) return;
+  const teamArr = team === 'A' ? state.current.teamA : state.current.teamB;
+  const idx = teamArr.indexOf(oldId);
+  if(idx === -1) return;
+  teamArr[idx] = newId;
+  saveAll(); renderAll(); closeModal();
+  toast(`${playerName(oldId)} swapped out for ${playerName(newId)}.`);
 }
 
 /* ============================================================
@@ -2525,6 +2718,10 @@ function importDataFromText(txt){
     const dump = JSON.parse(txt);
     if(!dump || !Array.isArray(dump.players)) { toast('Invalid schema format structure.'); return; }
     state.players = dump.players;
+    state.players.forEach(pl => {
+      if(typeof pl.isSub !== 'boolean') pl.isSub = false;
+      if(!pl.condition) pl.condition = 'ok';
+    });
     state.matches = dump.matches || [];
     state.settings = { ...DEFAULT_SETTINGS, ...dump.settings };
     state.round = parseInt(dump.round,10)||0;
@@ -2719,7 +2916,9 @@ function renderMatchView(el){
     function nameTag(matchId, team, playerId){
       const p = getPlayer(playerId);
       const justify = team === 'A' ? 'flex-end' : 'flex-start';
-      return `<span style="display:inline-flex; align-items:center; flex-wrap:wrap; justify-content:${justify}; gap:4px; max-width:100%;">${esc(p?.name || '—')}<button class="icon-btn-tiny" data-action="open-replace-player" data-match="${matchId}" data-team="${team}" data-player="${playerId}" aria-label="Replace player" title="Replace this player">
+      const cond = p ? (p.condition || 'ok') : 'ok';
+      const condBadge = cond === 'tired' ? ' 😴' : cond === 'injured' ? ' 🤕' : '';
+      return `<span style="display:inline-flex; align-items:center; flex-wrap:wrap; justify-content:${justify}; gap:4px; max-width:100%;">${esc(p?.name || '—')}${condBadge}<button class="icon-btn-tiny" data-action="open-replace-player" data-match="${matchId}" data-team="${team}" data-player="${playerId}" aria-label="Replace player" title="Replace this player">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
       </button></span>`;
     }
@@ -2799,13 +2998,14 @@ function renderMatchView(el){
       queuedMatches.forEach((m, i) => {
         const pA1 = getPlayer(m.teamA[0]), pA2 = getPlayer(m.teamA[1]);
         const pB1 = getPlayer(m.teamB[0]), pB2 = getPlayer(m.teamB[1]);
+        const condFlag = pl => pl && pl.condition === 'tired' ? ' 😴' : pl && pl.condition === 'injured' ? ' 🤕' : '';
         html += `
           <div class="queue-row">
             <span class="qrank">${i+1}</span>
             <div style="flex:1; font-size:13px; min-width:0;">
-              <strong>${esc(pA1?.name||'—')} &amp; ${esc(pA2?.name||'—')}</strong>
+              <strong>${esc(pA1?.name||'—')}${condFlag(pA1)} &amp; ${esc(pA2?.name||'—')}${condFlag(pA2)}</strong>
               <span style="color:var(--text-faint);"> vs </span>
-              <strong>${esc(pB1?.name||'—')} &amp; ${esc(pB2?.name||'—')}</strong>
+              <strong>${esc(pB1?.name||'—')}${condFlag(pB1)} &amp; ${esc(pB2?.name||'—')}${condFlag(pB2)}</strong>
             </div>
             <button class="icon-btn-tiny" data-action="open-replace-picker" data-match="${m.id}" aria-label="Replace a player in this upcoming match" title="Swap a player on this upcoming match">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
@@ -2862,6 +3062,16 @@ function renderMatchView(el){
   const servingA = c.serving === 'A', servingB = c.serving === 'B';
   const serveLabel = c.firstServe ? '1st Serve' : `Serve ${c.serverNum}`;
 
+  function curNameTag(team, playerId){
+    const p = getPlayer(playerId);
+    const justify = team === 'A' ? 'flex-end' : 'flex-start';
+    const cond = p ? (p.condition || 'ok') : 'ok';
+    const condBadge = cond === 'tired' ? ' 😴' : cond === 'injured' ? ' 🤕' : '';
+    return `<span style="display:inline-flex; align-items:center; flex-wrap:wrap; justify-content:${justify}; gap:4px; max-width:100%;">${esc(p?.name || '')}${condBadge}<button class="icon-btn-tiny" data-action="open-replace-current-player" data-team="${team}" data-player="${playerId}" aria-label="Replace player" title="Replace this player">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+    </button></span>`;
+  }
+
   el.innerHTML = `
     <div class="section-title">Current Match Dashboard</div>
     <div class="scoreboard">
@@ -2873,7 +3083,7 @@ function renderMatchView(el){
       <div class="sb-body">
         <div class="sb-team team-a">
           <span class="sb-tag">Team A</span>
-          <div class="sb-names">${esc(pA1?.name || '')}<br>${esc(pA2?.name || '')}</div>
+          <div class="sb-names">${curNameTag('A', c.teamA[0])}<br>${curNameTag('A', c.teamA[1])}</div>
           <div class="sb-rating">Avg: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
           ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="A">Make 1st server</button>` : '')}
         </div>
@@ -2882,7 +3092,7 @@ function renderMatchView(el){
         
         <div class="sb-team team-b">
           <span class="sb-tag">Team B</span>
-          <div class="sb-names">${esc(pB1?.name || '')}<br>${esc(pB2?.name || '')}</div>
+          <div class="sb-names">${curNameTag('B', c.teamB[0])}<br>${curNameTag('B', c.teamB[1])}</div>
           <div class="sb-rating">Avg: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
           ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="B">Make 1st server</button>` : '')}
         </div>
@@ -2994,11 +3204,15 @@ function renderPlayersView(el){
           <button class="btn btn-primary" data-action="do-add-player">Add</button>
         </div>
       </div>
+      <label style="margin-top:10px; display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-dim); cursor:pointer;">
+        <input type="checkbox" id="newPlayerIsSub" style="width:16px; height:16px; accent-color:var(--court);">
+        Register as a Sub Player
+      </label>
+      <p class="helper-text" style="margin:4px 2px 0;">Sub Players sit on the bench out of the normal rotation — they're only eligible to step in for a slot whose regular player is marked 😴 Tired or 🤕 Injured.</p>
       <div style="margin-top:12px;">
         <button class="btn btn-ghost btn-sm btn-block" data-action="open-bulk-import">Bulk Import Names</button>
       </div>
     </div>
-    <div class="section-title">All Registered Athletes (${total})</div>
   `;
 
   if(!total){
@@ -3007,24 +3221,27 @@ function renderPlayersView(el){
     return;
   }
 
-  // Sort by active status, then alphabetically
-  const sorted = state.players.slice().sort((a,b)=>{
-    if(a.active !== b.active) return b.active ? 1 : -1;
-    return a.name.localeCompare(b.name);
-  });
+  function conditionPill(p){
+    const cond = p.condition || 'ok';
+    const labelMap = { ok: '🟢 OK', tired: '😴 Tired', injured: '🤕 Injured' };
+    const classMap = { ok: 'pill-cond-ok', tired: 'pill-cond-tired', injured: 'pill-cond-injured' };
+    const nextMap = { ok: 'tired', tired: 'injured', injured: 'ok' };
+    return `<button class="pill ${classMap[cond]}" data-action="set-player-condition" data-id="${p.id}" data-condition="${nextMap[cond]}" title="Tap to cycle: OK → Tired → Injured">${labelMap[cond]}</button>`;
+  }
 
-  html += '<div class="card" style="padding:6px 12px;">';
-  sorted.forEach(p=>{
+  function playerRow(p){
     const duoPartner = getFixedDuoPartner(p.id);
     const duoLabel = duoPartner ? ` <span style="color:var(--ball); font-size:11px; font-weight:700;">🔗 ${esc(playerName(duoPartner))}</span>` : '';
-    html += `
+    const subLabel = p.isSub ? ` <span style="color:var(--court); font-size:11px; font-weight:800;">🔁 SUB</span>` : '';
+    return `
       <div class="player-row">
         <div class="avatar">${initials(p.name)}</div>
         <div class="pinfo">
-          <div class="pname">${esc(p.name)}${duoLabel}</div>
+          <div class="pname">${esc(p.name)}${subLabel}${duoLabel}</div>
           <div class="pmeta">${p.gamesPlayed} Games · Rating: ${p.rating}</div>
         </div>
-        <div class="row-actions">
+        <div class="row-actions" style="flex-wrap:wrap; justify-content:flex-end; max-width:50%;">
+          ${conditionPill(p)}
           <button class="pill ${p.active?'pill-active':'pill-paused'}" data-action="toggle-active" data-id="${p.id}">
             ${p.active?'Active':'Paused'}
           </button>
@@ -3034,8 +3251,26 @@ function renderPlayersView(el){
         </div>
       </div>
     `;
+  }
+
+  // Sort by active status, then alphabetically
+  const mainRoster = state.players.filter(p => !p.isSub).sort((a,b)=>{
+    if(a.active !== b.active) return b.active ? 1 : -1;
+    return a.name.localeCompare(b.name);
   });
-  html += '</div>';
+  const subRoster = state.players.filter(p => p.isSub).sort((a,b)=> a.name.localeCompare(b.name));
+
+  html += `<div class="section-title">Main Roster (${mainRoster.length})</div>`;
+  html += mainRoster.length
+    ? `<div class="card" style="padding:6px 12px; margin-bottom:16px;">${mainRoster.map(playerRow).join('')}</div>`
+    : `<div class="empty-state" style="margin-bottom:16px;"><p>No regular players yet.</p></div>`;
+
+  html += `<div class="section-title">🔁 Sub Players (${subRoster.length})</div>`;
+  html += `<p class="helper-text" style="margin:-4px 2px 10px;">Bench reserves. They sit out of normal matchmaking and only show up in the "Replace" picker when a regular player on a slot is Tired or Injured.</p>`;
+  html += subRoster.length
+    ? `<div class="card" style="padding:6px 12px;">${subRoster.map(playerRow).join('')}</div>`
+    : `<div class="empty-state"><p>No Sub Players registered yet. Check "Register as a Sub Player" above to add one.</p></div>`;
+
   el.innerHTML = html;
 }
 
@@ -3432,6 +3667,10 @@ document.addEventListener('click', function(e){
     case 'open-replace-picker': openReplacePlayerPickerModal(t.dataset.match); break;
     case 'do-replace-absent': markPlayerAbsentAndAutoReplace(t.dataset.match, t.dataset.team, t.dataset.player); break;
     case 'do-replace-manual': replacePlayerInMatch(t.dataset.match, t.dataset.team, t.dataset.player, t.dataset.sub); break;
+    case 'open-replace-current-player-picker': openReplaceCurrentPlayerPickerModal(); break;
+    case 'open-replace-current-player': openReplaceCurrentPlayerModal(t.dataset.team, t.dataset.player); break;
+    case 'do-replace-current-manual': replaceCurrentPlayer(t.dataset.team, t.dataset.player, t.dataset.sub); break;
+    case 'set-player-condition': setPlayerCondition(t.dataset.id, t.dataset.condition); break;
 
     // Standard shared management commands
     case 'skip-match':
@@ -3454,7 +3693,10 @@ document.addEventListener('click', function(e){
     // Player operations logic
     case 'do-add-player': {
       const inp = document.getElementById('newPlayerName');
-      addPlayer(inp.value); inp.value = '';
+      const subChk = document.getElementById('newPlayerIsSub');
+      addPlayer(inp.value, subChk ? subChk.checked : false);
+      inp.value = '';
+      if(subChk) subChk.checked = false;
       break;
     }
     case 'toggle-active': togglePlayerActive(t.dataset.id); break;
@@ -3476,8 +3718,13 @@ document.addEventListener('click', function(e){
       const p = getPlayer(t.dataset.id);
       if(p){
         openModal(`
-          <div class="modal-title">Edit Name Info</div>
+          <div class="modal-title">Edit Player Info</div>
           <input type="text" id="editName" value="${esc(p.name)}" style="margin-top:8px;">
+          <label style="margin-top:12px; display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-dim); cursor:pointer;">
+            <input type="checkbox" id="editIsSub" ${p.isSub ? 'checked' : ''} style="width:16px; height:16px; accent-color:var(--court);">
+            Sub Player (bench reserve)
+          </label>
+          <p class="helper-text" style="margin:4px 2px 0;">Subs sit out of normal rotation and only become eligible to fill a slot when its regular player is marked Tired or Injured.</p>
           <div class="modal-actions">
             <button class="btn btn-danger" data-action="do-delete-player" data-id="${p.id}">Remove Player</button>
             <button class="btn btn-primary" data-action="do-save-player" data-id="${p.id}">Save Changes</button>
@@ -3486,7 +3733,11 @@ document.addEventListener('click', function(e){
       }
       break;
     }
-    case 'do-save-player': editPlayerName(t.dataset.id, document.getElementById('editName').value); break;
+    case 'do-save-player': {
+      const subChk = document.getElementById('editIsSub');
+      editPlayerName(t.dataset.id, document.getElementById('editName').value, subChk ? subChk.checked : undefined);
+      break;
+    }
     case 'do-delete-player': removePlayer(t.dataset.id); break;
 
     case 'open-danger-zone':
