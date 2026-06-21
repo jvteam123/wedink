@@ -2655,9 +2655,9 @@ function updateRRMatchScore(matchId, team, val){
   if(isNaN(num)) return;
   const maxScore = getMatchWinTarget(m);
   num = Math.min(maxScore, Math.max(0, num));
-  // Reflect clamped value back into the input field
+  // Reflect clamped value back and strip leading zeroes
   const inputEl = document.querySelector(`input[oninput*="'${matchId}', '${team}'"]`);
-  if(inputEl && parseInt(inputEl.value, 10) !== num) inputEl.value = num;
+  if(inputEl) inputEl.value = num;
   if(team === 'A') m.scoreA = num; else m.scoreB = num;
 
   // Recompute the winner from scratch every time a score changes: first team
@@ -3447,10 +3447,10 @@ function updateRotationScoreInput(team, val){
   if(num !== null && !isNaN(num)){
     const maxScore = getMatchWinTarget(state.current);
     num = Math.min(maxScore, Math.max(0, num));
-    // Reflect the clamped value back into the input field
+    // Reflect clamped value back and strip leading zeroes
     const inputId = team === 'A' ? 'scoreA' : 'scoreB';
     const el = document.getElementById(inputId);
-    if(el && parseInt(el.value, 10) !== num) el.value = num;
+    if(el) el.value = num;
   }
   if(team === 'A') state.current.scoreA = (num === null || isNaN(num)) ? null : num;
   else state.current.scoreB = (num === null || isNaN(num)) ? null : num;
