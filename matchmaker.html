@@ -2137,7 +2137,6 @@ function generateRoundRobinGeneration() {
 function openSessionSetupModal(){
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
   const winningScore = state.settings.winningScore || 11;
-  const selectMode = state.settings.selectMode || 'smart';
   openModal(`
     <div class="modal-title">🎾 Session Setup</div>
     <div class="modal-sub" style="line-height:1.6;">First, confirm how many courts you've got and what score wins a match.</div>
@@ -2148,14 +2147,6 @@ function openSessionSetupModal(){
           <div class="radio-box-btn ${state.settings.matchMode === 'Rotation' ? 'active' : ''}" data-action="setup-match-mode" data-value="Rotation">Rotation Mode</div>
           <div class="radio-box-btn ${state.settings.matchMode === 'RoundRobin' ? 'active' : ''}" data-action="setup-match-mode" data-value="RoundRobin">Round Robin Mode</div>
         </div>
-      </div>
-      <div class="field">
-        <label>Select Mode</label>
-        <div class="radio-group-mode">
-          <div class="radio-box-btn ${selectMode === 'smart' ? 'active' : ''}" data-action="setup-select-mode" data-value="smart">⚡ Smart Balance</div>
-          <div class="radio-box-btn ${selectMode === 'random' ? 'active' : ''}" data-action="setup-select-mode" data-value="random">🎲 Random</div>
-        </div>
-        <p class="helper-text">Smart Balance reduces repeat teammates and opponent pairings. Random draws teams without any balancing.</p>
       </div>
       <div class="field">
         <label>Number of Available Courts</label>
@@ -2262,8 +2253,6 @@ function openSessionConfirmModal(opt, totalMatches, gpp, playerCount){
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
   const winningScore = state.settings.winningScore || 11;
   const modeLabel = state.settings.matchMode === 'RoundRobin' ? 'Round Robin' : 'Rotation';
-  const selectMode = state.settings.selectMode || 'smart';
-  const selectModeLabel = selectMode === 'random' ? '🎲 Random' : '⚡ Smart Balance';
 
   function toggleRow(id, label, hint, checked){
     return `
@@ -2289,7 +2278,6 @@ function openSessionConfirmModal(opt, totalMatches, gpp, playerCount){
       <div class="session-confirm-row"><span class="k">Games / Player</span><span class="v">${gpp}</span></div>
       <div class="session-confirm-row"><span class="k">Active Players</span><span class="v">${playerCount}</span></div>
       <div class="session-confirm-row"><span class="k">Match Mode</span><span class="v" style="font-family:inherit; color:var(--court);">${modeLabel}</span></div>
-      <div class="session-confirm-row"><span class="k">Select Mode</span><span class="v" style="font-family:inherit;">${selectModeLabel}</span></div>
     </div>
 
     <div class="eyebrow" style="margin:0 2px 6px;">Courts &amp; Scoring</div>
@@ -4481,15 +4469,6 @@ function renderSettingsView(el){
         </div>
       </div>
 
-      <div class="field">
-        <label>Select Mode</label>
-        <div class="radio-group-mode">
-          <div class="radio-box-btn ${(state.settings.selectMode || 'smart') === 'smart' ? 'active' : ''}" data-action="settings-select-mode" data-value="smart">⚡ Smart Balance</div>
-          <div class="radio-box-btn ${(state.settings.selectMode || 'smart') === 'random' ? 'active' : ''}" data-action="settings-select-mode" data-value="random">🎲 Random</div>
-        </div>
-        <p class="helper-text" style="margin-top:4px;">Smart Balance reduces repeat teammates and opponent pairings. Random draws teams without any balancing.</p>
-      </div>
-
       ${sessionFieldHtml}
 
       <div class="field" id="courts-field-wrapper" style="display: ${state.settings.matchMode === 'RoundRobin' ? 'block' : 'none'};">
@@ -4698,23 +4677,6 @@ document.addEventListener('click', function(e){
       state.settings.matchMode = t.dataset.value;
       saveAll();
       document.querySelectorAll('[data-action="setup-match-mode"]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.value === t.dataset.value);
-      });
-      break;
-    }
-    case 'setup-select-mode': {
-      state.settings.selectMode = t.dataset.value;
-      saveAll();
-      // Update the active state of the radio buttons in place
-      document.querySelectorAll('[data-action="setup-select-mode"]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.value === t.dataset.value);
-      });
-      break;
-    }
-    case 'settings-select-mode': {
-      state.settings.selectMode = t.dataset.value;
-      saveAll();
-      document.querySelectorAll('[data-action="settings-select-mode"]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.value === t.dataset.value);
       });
       break;
