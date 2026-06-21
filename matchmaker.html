@@ -997,7 +997,12 @@ function closeModal(){
   const root = document.getElementById('modal-root');
   root.innerHTML = '';
 }
-function openModal(html){
+// `dismissible` (default true) controls whether tapping the backdrop closes
+// the modal. Pass false for modals that require an explicit answer (e.g.
+// the "Race to 2?" prompt) so an accidental outside tap can't silently
+// resolve the decision without the user actually choosing an option.
+function openModal(html, dismissible){
+  if(dismissible === undefined) dismissible = true;
   const root = document.getElementById('modal-root');
   root.innerHTML = `<div class="modal-bg" id="modal-bg-inner">
     <div class="modal-sheet">${html}</div>
@@ -1005,7 +1010,7 @@ function openModal(html){
   // Close only when clicking the backdrop itself, not children
   const bg = root.querySelector('#modal-bg-inner');
   if(bg) bg.addEventListener('click', function(e){
-    if(e.target === bg) closeModal();
+    if(dismissible && e.target === bg) closeModal();
   });
 }
 
@@ -1659,8 +1664,20 @@ function selectRoundRobinWinner(matchId, winningTeam) {
     const target = getMatchWinTarget(m);
     const requireMargin = !m.raceActive; // Race to 2 is sudden-death — no win-by-2 margin
     if(loseScore === null || isNaN(loseScore)) loseScore = Math.max(0, target - 3);
-    if(winScore === null || isNaN(winScore) || winScore < target || (requireMargin && winScore - loseScore < 2)){
-      winScore = requireMargin ? Math.max(target, loseScore + 2) : target;
+    if(winScore === null || isNaN(winScore) || winScore < target){
+      // The winning team hasn't actually reached the winning score yet —
+      // award them exactly the configured winning score (e.g. 11), and cap
+      // the opponent's score so the margin rule holds. Previously this fell
+      // through to `loseScore + 2`, which meant a high opponent score (e.g.
+      // 10 or 11) inflated the winner's score to 12 or 13 instead of the
+      // winning score that was actually configured.
+      winScore = target;
+      if(requireMargin) loseScore = Math.min(loseScore, target - 2);
+    } else if(requireMargin && winScore - loseScore < 2){
+      // The winner's score already reached/passed the winning score, but the
+      // margin isn't satisfied (a genuine deuce) — extend minimally from the
+      // scores actually on the board, never below what's already there.
+      winScore = Math.max(winScore, loseScore + 2);
     }
     if(winningTeam === 'A'){ m.scoreA = winScore; m.scoreB = loseScore; }
     else { m.scoreB = winScore; m.scoreA = loseScore; }
@@ -1769,7 +1786,7 @@ function maybeOfferRaceToTwo(m, mode, matchId){
         <button class="btn btn-ghost" data-action="decline-race-to-two">No, Keep Playing</button>
         <button class="btn btn-primary" data-action="accept-race-to-two" data-mode="${mode}" data-match="${matchId || ''}">Yes, Race to 2</button>
       </div>
-    `);
+    `, false);
   }
 }
 
