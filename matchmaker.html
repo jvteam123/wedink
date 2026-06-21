@@ -2106,7 +2106,7 @@ function syncSitOutQueue(){
 
 function generateRoundRobinGeneration() {
   const activeList = activePlayers().slice();
-  if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.', 'warning'); return; }
+  if(activeList.length < 4) { toast('Need at least 4 active players.', 'warning'); return; }
 
   const plan = state.settings.sessionPlan;
   const planIsFinished = plan && (state.matches.length - plan.matchesAtStart) >= plan.totalMatches;
@@ -2115,7 +2115,8 @@ function generateRoundRobinGeneration() {
     saveAll();
   }
 
-  if(!state.settings.sessionPlan){
+  // Always show Session Setup so the user can confirm/change the mode
+  if(!state.settings.sessionPlan || state.settings.matchMode === 'Rotation'){
     openSessionSetupModal();
     return;
   }
@@ -3996,7 +3997,7 @@ function renderMatchView(el){
         <div class="big">🏓</div>
         <div class="et">Court is clear</div>
         <p>Ready to select players and spin up a balanced match pairing.</p>
-        <button class="btn btn-primary" style="margin-top:16px;" data-action="next-match">Generate Next Match</button>
+        <button class="btn btn-primary" style="margin-top:16px;" data-action="generate-roundrobin">Generate Match</button>
       </div>
     `;
     return;
@@ -4667,11 +4668,7 @@ document.addEventListener('click', function(e){
 
     // Round robin workflow
     case 'generate-roundrobin':
-      if(state.settings.matchMode === 'Rotation'){
-        nextRotationMatch();
-      } else {
-        generateRoundRobinGeneration();
-      }
+      generateRoundRobinGeneration();
       break;
     case 'confirm-next-generation': closeModal(); generateRoundRobinGeneration(); break;
     case 'do-generate-rr': closeModal(); _doGenerateRoundRobinGeneration(null); break;
