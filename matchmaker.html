@@ -1964,6 +1964,7 @@ function confirmRoundRobinMatch(matchId){
     scoreA: sA, scoreB: sB,
     winners: tA_win ? m.teamA : m.teamB,
     losers: tA_win ? m.teamB : m.teamA,
+    forfeit: m.forfeit || null, // 'A' or 'B' when the recorded result came from a forfeit, not real play
     date: new Date().toISOString()
   };
   state.matches.push(matchRecord);
@@ -2000,7 +2001,7 @@ function confirmRoundRobinMatch(matchId){
 
   m.status = 'done';
   m.court = null;
-  playGameWinSound();
+  if(!m.forfeit) playGameWinSound();
 
   advanceRRQueue();
 
@@ -2014,6 +2015,139 @@ function confirmRoundRobinMatch(matchId){
   } else {
     saveAll(); renderAll();
     toast('Match recorded — next match is up.');
+  }
+}
+
+// ============================================================
+// SKIP MATCH — sends an active match to the back of the queue instead of
+// playing it now. The court it was on opens up for whichever queued match
+// is next in line; the skipped match's score/serve state is cleared so it
+// starts clean whenever it eventually comes back around.
+// ============================================================
+function confirmSkipRRMatch(matchId){
+  const gen = state.currentGeneration;
+  const m = gen && gen.matches.find(x => x.id === matchId);
+  if(!m || m.status !== 'active') return;
+  openModal(`
+    <div class="modal-title">Skip This Match?</div>
+    <div class="modal-sub">This sends the match to the back of the queue and frees up Court ${m.court} for the next match in line. You can come back to it later.</div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-primary" data-action="do-skip-rr-match" data-match="${matchId}">Skip Match</button>
+    </div>
+  `);
+}
+
+function skipRRMatchToBack(matchId){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status !== 'active') { closeModal(); return; }
+
+  const maxIndex = Math.max(...gen.matches.map(x => x.matchIndex));
+  m.status = 'queued';
+  m.court = null;
+  m.matchIndex = maxIndex + 1;
+  // Clear in-progress score/serve state — it's going to the back of the
+  // line, so it should start fresh whenever it's pulled up again.
+  m.scoreA = null; m.scoreB = null; m.winner = null;
+  m.serving = 'A'; m.serverNum = 1; m.firstServe = true;
+  m.raceActive = false; m.raceOffered = false;
+  m._serveUndoStack = [];
+
+  advanceRRQueue();
+  saveAll(); renderAll(); closeModal();
+  toast(m.status === 'active' ? 'No other matches were queued — this one is still up.' : 'Match moved to the back of the queue.');
+}
+
+// ============================================================
+// FORFEIT MATCH — records a match as won by default because one team (or
+// both) didn't play. A single-team forfeit awards the other team the
+// configured winning score and finalizes through the normal confirmation
+// path, so it's reflected in stats/ratings/history like any other result,
+// just tagged as a forfeit. A double forfeit closes out the match with no
+// winner and no stats impact — nobody played, so nobody's record changes.
+// ============================================================
+function confirmForfeitRRMatch(matchId){
+  const gen = state.currentGeneration;
+  const m = gen && gen.matches.find(x => x.id === matchId);
+  if(!m || m.status !== 'active') return;
+  const teamAName = `${esc(playerName(m.teamA[0]))} &amp; ${esc(playerName(m.teamA[1]))}`;
+  const teamBName = `${esc(playerName(m.teamB[0]))} &amp; ${esc(playerName(m.teamB[1]))}`;
+  openModal(`
+    <div class="modal-title">Forfeit Match</div>
+    <div class="modal-sub">Who's forfeiting Court ${m.court}?</div>
+    <div class="modal-actions" style="margin-top:16px; flex-direction:column;">
+      <button class="btn btn-secondary btn-block" data-action="do-forfeit-rr-match" data-match="${m.id}" data-who="A">Team A Forfeits — ${teamBName} Wins</button>
+      <button class="btn btn-secondary btn-block" style="margin-top:8px;" data-action="do-forfeit-rr-match" data-match="${m.id}" data-who="B">Team B Forfeits — ${teamAName} Wins</button>
+      <button class="btn btn-danger btn-block" style="margin-top:8px;" data-action="do-forfeit-rr-match" data-match="${m.id}" data-who="both">Both Teams Forfeit — No Winner</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px;" data-action="modal-close">Cancel</button>
+    </div>
+  `);
+}
+
+function forfeitRRMatch(matchId, who){
+  const gen = state.currentGeneration;
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status !== 'active') { closeModal(); return; }
+
+  if(who === 'both'){
+    state.undo = {
+      players: deepClone(state.players),
+      matches: deepClone(state.matches),
+      current: null,
+      currentGeneration: deepClone(state.currentGeneration),
+      round: state.round
+    };
+    // No-contest — log it in history for visibility, but don't touch any
+    // player's wins/losses/streak/rating since neither team actually played.
+    state.matches.push({
+      id: uid('m'),
+      round: gen.generation,
+      generation: gen.generation,
+      court: m.court || 0,
+      teamA: m.teamA, teamB: m.teamB,
+      scoreA: 0, scoreB: 0,
+      winners: [], losers: [],
+      forfeit: 'both',
+      date: new Date().toISOString()
+    });
+    m.status = 'done';
+    m.court = null;
+    m.winner = null;
+    advanceRRQueue();
+
+    const allDone = gen.matches.every(x => x.status === 'done');
+    closeModal();
+    if(allDone){
+      const finishedGen = gen.generation;
+      state.round = finishedGen;
+      state.currentGeneration = null;
+      saveAll(); renderAll();
+      promptNextGeneration(finishedGen);
+    } else {
+      saveAll(); renderAll();
+      toast('Match recorded as a double forfeit — no winner.');
+    }
+    return;
+  }
+
+  const winningTeam = who === 'A' ? 'B' : 'A';
+  const target = getMatchWinTarget(m);
+  m.winner = winningTeam;
+  m.forfeit = who;
+  if(winningTeam === 'A'){ m.scoreA = target; m.scoreB = 0; }
+  else { m.scoreB = target; m.scoreA = 0; }
+
+  // Close the forfeit-picker modal first — confirmRoundRobinMatch may open
+  // its own "Generation Complete" modal if this was the last match, and
+  // that one should be left open rather than immediately closed after it.
+  const willFinishGeneration = gen.matches.filter(x => x.id !== m.id).every(x => x.status === 'done');
+  closeModal();
+  confirmRoundRobinMatch(matchId);
+  if(!willFinishGeneration){
+    toast(`Team ${who} forfeited — Team ${winningTeam} wins by default.`);
   }
 }
 
@@ -2651,6 +2785,10 @@ function renderMatchView(el){
               <button class="btn btn-ghost btn-sm undo-serve-btn" data-action="rr-undo-serve" data-match="${m.id}" title="Undo the last serve decision (1st server / serve 2 / side out)" ${(!m._serveUndoStack || !m._serveUndoStack.length)?'disabled':''}>↩️${(m._serveUndoStack && m._serveUndoStack.length) ? ' '+m._serveUndoStack.length : ''}</button>
             </div>
             <button class="btn btn-primary btn-block" data-action="confirm-rr-match" data-match="${m.id}">Confirm Result &amp; Pull Next Match</button>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="btn btn-ghost btn-sm" style="flex:1;" data-action="rr-skip-match" data-match="${m.id}" title="Move this match to the back of the queue">⏭️ Skip Match</button>
+              <button class="btn btn-ghost btn-sm" style="flex:1; color:var(--loss);" data-action="rr-forfeit-match" data-match="${m.id}" title="Record this match as a forfeit">🚩 Forfeit Match</button>
+            </div>
           </div>
         </div>
       `;
@@ -3284,6 +3422,10 @@ document.addEventListener('click', function(e){
     case 'rr-undo-serve': confirmUndoServeRR(t.dataset.match); break;
     case 'do-rr-undo-serve': undoServeRR(t.dataset.match); break;
     case 'confirm-rr-match': confirmRoundRobinMatch(t.dataset.match); break;
+    case 'rr-skip-match': confirmSkipRRMatch(t.dataset.match); break;
+    case 'do-skip-rr-match': skipRRMatchToBack(t.dataset.match); break;
+    case 'rr-forfeit-match': confirmForfeitRRMatch(t.dataset.match); break;
+    case 'do-forfeit-rr-match': forfeitRRMatch(t.dataset.match, t.dataset.who); break;
     case 'accept-race-to-two': acceptRaceToTwo(t.dataset.mode, t.dataset.match); break;
     case 'decline-race-to-two': declineRaceToTwo(); break;
     case 'open-replace-player': openReplacePlayerModal(t.dataset.match, t.dataset.team, t.dataset.player); break;
