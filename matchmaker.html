@@ -1949,7 +1949,8 @@ function adjustRRScore(matchId, team, delta){
   }
   let cur = team === 'A' ? m.scoreA : m.scoreB;
   cur = (cur === null || isNaN(cur)) ? 0 : cur;
-  cur = Math.max(0, cur + delta);
+  const maxScore = getMatchWinTarget(m);
+  cur = Math.min(maxScore, Math.max(0, cur + delta));
   updateRRMatchScore(matchId, team, cur);
   if(delta > 0){
     playPointUpSound();
@@ -2557,7 +2558,8 @@ function adjustRotationScore(team, delta){
   }
   let cur = team === 'A' ? state.current.scoreA : state.current.scoreB;
   cur = (cur === null || isNaN(cur)) ? 0 : cur;
-  cur = Math.max(0, cur + delta);
+  const maxScore = getMatchWinTarget(state.current);
+  cur = Math.min(maxScore, Math.max(0, cur + delta));
   if(team === 'A') state.current.scoreA = cur; else state.current.scoreB = cur;
   saveAll();
   if(delta > 0){
@@ -3039,13 +3041,13 @@ function renderMatchView(el){
             <div class="score-stepper">
               <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>−</button>
               <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
-              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>+</button>
+              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score" ${(!servingA || (m.scoreA !== null && m.scoreA >= getMatchWinTarget(m)))?'disabled title="'+(servingA?'Score is at the maximum':'Team A is receiving — only the serving team scores')+'"':''}>+</button>
             </div>
             <span class="rr-score-vs-sm">vs</span>
             <div class="score-stepper">
               <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>−</button>
               <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
-              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="1" aria-label="Increase Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>+</button>
+              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="1" aria-label="Increase Team B score" ${(!servingB || (m.scoreB !== null && m.scoreB >= getMatchWinTarget(m)))?'disabled title="'+(servingB?'Score is at the maximum':'Team B is receiving — only the serving team scores')+'"':''}>+</button>
             </div>
           </div>
           <div style="padding:0 14px 14px;">
@@ -3178,7 +3180,7 @@ function renderMatchView(el){
           <div class="score-stepper">
             <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>−</button>
             <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreA" placeholder="0" value="${c.scoreA !== null && c.scoreA !== undefined ? c.scoreA : ''}" oninput="window.updateRotationScoreInput('A', this.value)">
-            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="A" data-delta="1" aria-label="Increase Team A score" ${servingA?'':'disabled title="Team A is receiving — only the serving team scores"'}>+</button>
+            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="A" data-delta="1" aria-label="Increase Team A score" ${(!servingA || (c.scoreA !== null && c.scoreA >= getMatchWinTarget(c)))?'disabled title="'+(servingA?'Score is at the maximum':'Team A is receiving — only the serving team scores')+'"':''}>+</button>
           </div>
         </div>
         <div class="cb-score-vs">vs</div>
@@ -3187,7 +3189,7 @@ function renderMatchView(el){
           <div class="score-stepper">
             <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>−</button>
             <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreB" placeholder="0" value="${c.scoreB !== null && c.scoreB !== undefined ? c.scoreB : ''}" oninput="window.updateRotationScoreInput('B', this.value)">
-            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="B" data-delta="1" aria-label="Increase Team B score" ${servingB?'':'disabled title="Team B is receiving — only the serving team scores"'}>+</button>
+            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="B" data-delta="1" aria-label="Increase Team B score" ${(!servingB || (c.scoreB !== null && c.scoreB >= getMatchWinTarget(c)))?'disabled title="'+(servingB?'Score is at the maximum':'Team B is receiving — only the serving team scores')+'"':''}>+</button>
           </div>
         </div>
       </div>
