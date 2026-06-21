@@ -539,6 +539,141 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   .queue-row .qmeta, .queue-row > div{font-size:12.5px;}
 }
 
+/* ============================================================
+   TABLET LANDSCAPE LAYOUT
+   Triggers at ≥768px width in landscape orientation.
+   Switches to a fixed left sidebar + scrollable main content.
+   ============================================================ */
+@media (min-width:768px) and (orientation:landscape){
+
+  body{
+    overflow:hidden; /* sidebar handles its own scroll */
+  }
+
+  #app{
+    max-width:100%;
+    flex-direction:row;
+    min-height:100vh; min-height:100dvh;
+    padding-bottom:0;
+  }
+
+  /* ---- Sidebar (topbar + tabs stacked vertically) ---- */
+  .topbar{
+    position:fixed; top:0; left:0; bottom:0;
+    width:220px; z-index:30;
+    border-bottom:none; border-right:1px solid var(--line-soft);
+    background:linear-gradient(180deg, var(--surface) 0%, rgba(24,30,37,0.98) 100%);
+    backdrop-filter:blur(12px);
+    padding:20px 14px 20px;
+    display:flex; flex-direction:column; gap:0;
+    overflow-y:auto; overflow-x:hidden;
+  }
+
+  .brand-row{
+    flex-direction:column; align-items:flex-start; gap:10px;
+    margin-bottom:16px; padding-bottom:16px;
+    border-bottom:1px solid var(--line-soft);
+  }
+
+  /* Brand mark + name in a row inside sidebar */
+  .brand-row > button:first-child{ display:none; } /* hide hamburger — tabs are always visible */
+
+  .brand-mark{ width:38px; height:38px; border-radius:12px; }
+
+  /* Topbar icon buttons: arrange in a row at the bottom of brand-row */
+  .topbar-icon-btn{
+    width:32px; height:32px;
+  }
+
+  /* Dash strip becomes vertical list */
+  .dash-strip{
+    flex-direction:column; gap:6px; overflow-x:visible;
+    padding-bottom:0; margin-top:0;
+    border-bottom:1px solid var(--line-soft);
+    padding-bottom:16px; margin-bottom:4px;
+  }
+  .dash-strip .d-item{
+    font-size:11.5px;
+  }
+  .dash-strip .d-item .v{
+    font-size:14px;
+  }
+
+  /* Tabs row becomes part of sidebar */
+  .tabs-row{
+    position:fixed; left:0; top:0; bottom:0; width:220px;
+    z-index:28; pointer-events:none; /* topbar sits above it */
+  }
+
+  .tabs{
+    position:absolute; left:0; right:0;
+    top:0; bottom:0;
+    flex-direction:column; gap:4px;
+    overflow-x:visible; overflow-y:auto;
+    padding:0; border-bottom:none;
+    background:transparent; pointer-events:all;
+    /* Will be positioned by JS nudge below */
+    padding-top:var(--sidebar-tabs-top, 220px);
+    padding-bottom:16px; padding-left:14px; padding-right:14px;
+  }
+
+  .tab-btn{
+    width:100%; justify-content:flex-start;
+    border-radius:var(--radius-md) !important;
+    padding:10px 12px;
+    font-size:13px;
+  }
+  .tab-btn.active{
+    background:rgba(215,242,61,0.10);
+    border-color:rgba(215,242,61,0.3);
+  }
+  .tabs-fade{ display:none; }
+
+  /* Onboarding banner in sidebar */
+  #onboardingBanner .nav-hint{
+    margin-top:8px; font-size:11.5px;
+  }
+
+  /* ---- Main content panel ---- */
+  .view{
+    margin-left:220px;
+    flex:1; min-height:100vh; min-height:100dvh;
+    overflow-y:auto; overflow-x:hidden;
+    padding:20px 28px 40px;
+    max-width:none;
+  }
+
+  /* Wider content: two-column scoreboard for RR multi-court */
+  .scoreboard + .scoreboard{
+    margin-top:16px;
+  }
+
+  /* Wider table wrap */
+  .table-wrap{
+    overflow-x:auto;
+  }
+
+  /* Modal sheet wider on tablet */
+  .modal-sheet{
+    max-width:520px;
+  }
+
+  /* Toast anchored top-right of the content panel */
+  #toast-root{
+    right:24px; top:20px;
+  }
+
+  /* Summary grid can go 4-col */
+  .summary-grid{
+    grid-template-columns:1fr 1fr 1fr 1fr;
+  }
+
+  /* Profile stat row can spread wider */
+  .profile-stat-row{
+    grid-template-columns:repeat(6,1fr);
+  }
+}
+
 /* ---------- Control bar score input ---------- */
 .cb-score-row{
   display:flex; align-items:center; gap:8px; margin-bottom:8px;
