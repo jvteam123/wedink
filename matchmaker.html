@@ -2155,7 +2155,7 @@ function openSessionSetupModal(){
     </div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
-      <button class="btn btn-primary" id="sessionSetupNextBtn" data-action="confirm-session-setup">${isRotation ? 'Generate Match' : 'Next: Session Length'}</button>
+      <button class="btn btn-primary" id="sessionSetupNextBtn" data-action="confirm-session-setup">${isRotation ? 'Next: Balancing' : 'Next: Session Length'}</button>
     </div>
   `, false);
 }
@@ -2173,11 +2173,64 @@ function confirmSessionSetup(){
   }
   saveAll();
   if(state.settings.matchMode === 'Rotation'){
-    closeModal();
-    nextRotationMatch();
+    openRotationConfirmModal();
   } else {
     openSessionLengthPicker();
   }
+}
+
+function openRotationConfirmModal(){
+  const winningScore = state.settings.winningScore || 11;
+
+  function toggleRow(id, label, hint, checked){
+    return `
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">${label}</div>
+          <div class="t-hint">${hint}</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+    `;
+  }
+
+  openModal(`
+    <div class="modal-title">Confirm &amp; Generate</div>
+    <div class="modal-sub" style="line-height:1.6;">Review balancing settings before generating the match.</div>
+
+    <div class="card" style="margin:0 0 10px; padding:4px 14px;">
+      <div class="session-confirm-row"><span class="k">Match Mode</span><span class="v" style="font-family:inherit; color:var(--court);">Rotation</span></div>
+      <div class="session-confirm-row"><span class="k">Winning Score</span><span class="v">${winningScore}</span></div>
+      <div class="session-confirm-row"><span class="k">Active Players</span><span class="v">${activePlayers().length}</span></div>
+    </div>
+
+    <div class="eyebrow" style="margin:0 2px 6px;">Balancing &amp; Fairness</div>
+    <div class="card" style="margin:0;">
+      ${toggleRow('rotEqualPlayToggle', 'Equal Play Priority', 'Prioritizes players with the fewest games played so far.', !!state.settings.equalPlayPriority)}
+      ${toggleRow('rotSmartBalanceToggle', 'Smart Balance Engine', 'Reduces repeat teammate and opponent pairings.', !!state.settings.smartBalance)}
+      ${toggleRow('rotRematchPreventionToggle', 'Rematch Prevention', 'Avoids re-pairing players who just faced each other.', state.settings.rematchPrevention !== false)}
+    </div>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="back-to-session-setup">Back</button>
+      <button class="btn btn-primary" data-action="confirm-rotation-generate">Confirm &amp; Generate</button>
+    </div>
+  `, false);
+}
+
+function confirmRotationGenerate(){
+  const eqplEl = document.getElementById('rotEqualPlayToggle');
+  const smartEl = document.getElementById('rotSmartBalanceToggle');
+  const rematchEl = document.getElementById('rotRematchPreventionToggle');
+  if(eqplEl) state.settings.equalPlayPriority = eqplEl.checked;
+  if(smartEl) state.settings.smartBalance = smartEl.checked;
+  if(rematchEl) state.settings.rematchPrevention = rematchEl.checked;
+  saveAll();
+  closeModal();
+  nextRotationMatch();
 }
 
 // Runs the existing court-count sanity check, then generates. Split out so
@@ -4690,6 +4743,7 @@ document.addEventListener('click', function(e){
     case 'back-to-session-picker': openSessionLengthPicker(); break;
     case 'back-to-session-setup': openSessionSetupModal(); break;
     case 'confirm-session-setup': confirmSessionSetup(); break;
+    case 'confirm-rotation-generate': confirmRotationGenerate(); break;
     case 'setup-match-mode': {
       state.settings.matchMode = t.dataset.value;
       saveAll();
@@ -4697,7 +4751,7 @@ document.addEventListener('click', function(e){
         btn.classList.toggle('active', btn.dataset.value === t.dataset.value);
       });
       const nextBtn = document.getElementById('sessionSetupNextBtn');
-      if(nextBtn) nextBtn.textContent = t.dataset.value === 'Rotation' ? 'Generate Match' : 'Next: Session Length';
+      if(nextBtn) nextBtn.textContent = t.dataset.value === 'Rotation' ? 'Next: Balancing' : 'Next: Session Length';
       break;
     }
     case 'confirm-session-plan':
