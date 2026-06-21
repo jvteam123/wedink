@@ -791,7 +791,8 @@ const DEFAULT_SETTINGS = {
   audioScoring: true,    // play sound cues for +/- points, side-outs, and game wins
   voiceAnnounce: true,   // speak the score call (server's score first) and side-out announcements out loud
   winningScore: 11,      // first team to reach this score (win by 2) takes the match
-  raceToTwo: true         // when both teams reach 10-10 ("Love-Love"), offer a sudden-death Race to 2
+  raceToTwo: true,        // when both teams reach 10-10 ("Love-Love"), offer a sudden-death Race to 2
+  rematchPrevention: true // prevent rematching players who faced each other in the immediately previous match
 };
 
 /* ============================================================
@@ -1599,6 +1600,20 @@ function combinations(arr, k){
   return out;
 }
 
+// Returns a Set of opponent id pairs that appeared in the last completed match,
+// used by rematch prevention to add a heavy penalty to re-facing the same players.
+function lastMatchOpponentPairs(){
+  if(!state.settings.rematchPrevention) return new Set();
+  const last = state.matches[state.matches.length - 1];
+  if(!last) return new Set();
+  const pairs = new Set();
+  last.teamA.forEach(idA => last.teamB.forEach(idB => {
+    pairs.add(idA + '|' + idB);
+    pairs.add(idB + '|' + idA);
+  }));
+  return pairs;
+}
+
 function scoreSplit(four, settings){
   const [a,b,c,d] = four;
   const allSplits = [ [[a,b],[c,d]], [[a,c],[b,d]], [[a,d],[b,c]] ];
@@ -1621,12 +1636,22 @@ function scoreSplit(four, settings){
 
   const splits = filteredSplits.length ? filteredSplits : allSplits;
 
+  // Rematch prevention: heavy penalty for opponent pairs that just faced each other
+  const recentOpponents = lastMatchOpponentPairs();
+
   let best = null;
   splits.forEach(([t1,t2])=>{
     const teammatePenalty = pairCount(t1[0].teammates, t1[1].id) + pairCount(t2[0].teammates, t2[1].id);
     const opponentPenalty = pairCount(t1[0].opponents, t2[0].id) + pairCount(t1[0].opponents, t2[1].id) + pairCount(t1[1].opponents, t2[0].id) + pairCount(t1[1].opponents, t2[1].id);
     const skillDiff = Math.abs((t1[0].rating + t1[1].rating) - (t2[0].rating + t2[1].rating));
-    const score = (teammatePenalty * 300) + (opponentPenalty * 100) + (skillDiff * 0.5);
+    // Count how many cross-team pairs just played each other last match
+    let rematchPenalty = 0;
+    if(recentOpponents.size){
+      [t1[0].id, t1[1].id].forEach(idA => [t2[0].id, t2[1].id].forEach(idB => {
+        if(recentOpponents.has(idA + '|' + idB)) rematchPenalty++;
+      }));
+    }
+    const score = (teammatePenalty * 300) + (opponentPenalty * 100) + (skillDiff * 0.5) + (rematchPenalty * 800);
     if(best===null || score < best.score){ best = { split:[t1,t2], score }; }
   });
   return best;
@@ -3767,6 +3792,17 @@ function renderSettingsView(el){
         </div>
         <label class="switch">
           <input type="checkbox" id="raceToTwoToggle" ${state.settings.raceToTwo ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">🚫 Rematch Prevention</div>
+          <div class="t-hint">Avoids rematching players who faced each other in the immediately previous match. A heavy penalty is applied during matchmaking — useful when player count is low.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="rematchPreventionToggle" ${state.settings.rematchPrevention !== false ? 'checked' : ''}>
           <div class="track"></div><div class="thumb"></div>
         </label>
       </div>
