@@ -2597,10 +2597,40 @@ function advanceRRQueue(){
   }
 }
 
-function selectRoundRobinWinner(matchId, winningTeam) {
-  const gen = state.currentGeneration;
-  if(!gen) return;
-  const m = gen.matches.find(x => x.id === matchId);
+// ============================================================
+// LIVE-SCORING ENGINE — shared by Round Robin (one match per court,
+// looked up by id out of gen.matches) and Rotation (the single
+// state.current match). Both modes score a match identically —
+// steppers, manual entry, winner buttons, serve tracking, Race to
+// 2 — the only real difference is WHERE the match object lives and
+// which DOM nodes represent it on screen. This tiny context object
+// captures that difference so every rule below is written exactly
+// once instead of twice.
+// ============================================================
+function liveMatchCtx(mode, matchId){
+  if(mode === 'rr'){
+    return {
+      mode, matchId,
+      getMatch(){ const gen = state.currentGeneration; return gen && gen.matches.find(x => x.id === matchId); },
+      scoreInput(team){ return document.querySelector(`input[oninput*="'${matchId}', '${team}'"]`); },
+      winBtn(team){ return document.querySelector(`.sb-winbtn[data-match="${matchId}"][data-team="${team}"]`); },
+      render(){ renderMatchView(document.getElementById('view')); }
+    };
+  }
+  return {
+    mode: 'rotation', matchId: null,
+    getMatch(){ return state.current; },
+    scoreInput(team){ return document.getElementById(team === 'A' ? 'scoreA' : 'scoreB'); },
+    winBtn(team){ return document.getElementById(team === 'A' ? 'rotationWinBtnA' : 'rotationWinBtnB'); },
+    render(){ renderMatchView(document.getElementById('view')); }
+  };
+}
+
+// Tapping a "Team X Wins" button: locks in the winner, and snaps the
+// scoreline to a valid winning score if it hasn't gotten there yet (or
+// swaps the scores back if the selection is being flipped to the other team).
+function selectMatchWinner(ctx, winningTeam){
+  const m = ctx.getMatch();
   if(!m || m.status === 'done') return;
   const previousWinner = m.winner;
   m.winner = winningTeam;
@@ -2643,57 +2673,19 @@ function selectRoundRobinWinner(matchId, winningTeam) {
     else { m.scoreB = winScore; m.scoreA = loseScore; }
   }
 
-  saveAll(); renderAll();
-}
-
-// Rotation-mode counterpart to selectRoundRobinWinner — same swap/award logic,
-// just operating on state.current (the single live court) instead of a Round
-// Robin match record.
-function selectRotationWinner(winningTeam) {
-  const c = state.current;
-  if(!c) return;
-  const previousWinner = c.winner;
-  c.winner = winningTeam;
-
-  if(previousWinner && previousWinner !== winningTeam){
-    // Flipping the winner selection — swap the two scores too, so they stay
-    // attached to the correct team instead of being left on the old winner.
-    const tmp = c.scoreA;
-    c.scoreA = c.scoreB;
-    c.scoreB = tmp;
-  } else {
-    // Make sure the scoreline actually reflects the team just marked as the
-    // winner — covers both no-score-yet, and marking a winner directly while
-    // the score hasn't reached the winning score.
-    let winScore = winningTeam === 'A' ? c.scoreA : c.scoreB;
-    let loseScore = winningTeam === 'A' ? c.scoreB : c.scoreA;
-    const target = getMatchWinTarget(c);
-    const requireMargin = !c.raceActive; // Race to 2 is sudden-death — no win-by-2 margin
-    if(loseScore === null || isNaN(loseScore)) loseScore = Math.max(0, target - 3);
-    if(winScore === null || isNaN(winScore) || winScore < target){
-      winScore = target;
-      if(requireMargin) loseScore = Math.min(loseScore, target - 2);
-    } else if(requireMargin && winScore - loseScore < 2){
-      winScore = Math.max(winScore, loseScore + 2);
-    }
-    if(winningTeam === 'A'){ c.scoreA = winScore; c.scoreB = loseScore; }
-    else { c.scoreB = winScore; c.scoreA = loseScore; }
-  }
-
   saveAll();
-  renderMatchView(document.getElementById('view'));
+  ctx.render();
 }
 
-// Updates the rotation-mode "Team A/B Wins" buttons in place after an
+// Updates a scoreboard's "Team A/B Wins" buttons in place after an
 // auto-detected winner, without a full re-render (which would yank focus
 // away from whichever score input the user is still typing in).
-function syncRotationWinnerButtons(){
-  const c = state.current;
-  if(!c) return;
-  const btnA = document.getElementById('rotationWinBtnA');
-  const btnB = document.getElementById('rotationWinBtnB');
+function syncWinnerButtons(ctx){
+  const m = ctx.getMatch();
+  if(!m) return;
+  const btnA = ctx.winBtn('A'), btnB = ctx.winBtn('B');
   if(!btnA || !btnB) return;
-  const aWin = c.winner === 'A', bWin = c.winner === 'B';
+  const aWin = m.winner === 'A', bWin = m.winner === 'B';
   btnA.classList.toggle('btn-primary', aWin);
   btnA.classList.toggle('btn-secondary', !aWin);
   btnA.textContent = aWin ? '✓ Winner Selected' : 'Team A Wins';
@@ -2702,43 +2694,45 @@ function syncRotationWinnerButtons(){
   btnB.textContent = bWin ? '✓ Winner Selected' : 'Team B Wins';
 }
 
-function updateRRMatchScore(matchId, team, val){
-  const gen = state.currentGeneration;
-  if(!gen) return;
-  const m = gen.matches.find(x => x.id === matchId);
-  if(!m || m.status === 'done') return;
-  let num = parseInt(val, 10);
-  if(isNaN(num)) return;
-  const maxScore = getMatchWinTarget(m);
-  num = Math.min(maxScore, Math.max(0, num));
-  // Reflect clamped value back and strip leading zeroes
-  const inputEl = document.querySelector(`input[oninput*="'${matchId}', '${team}'"]`);
-  if(inputEl) inputEl.value = num;
-  if(team === 'A') m.scoreA = num; else m.scoreB = num;
-
-  // Recompute the winner from scratch every time a score changes: first team
-  // to reach the winning score (with a 2-point margin) is the winner — or,
-  // once a Race to 2 is active, simply the first team to reach 2, no margin
-  // required. If neither side currently meets that — including a tie at the
-  // winning score — the winner is cleared, so a stale selection can't linger
-  // once the scores no longer support it (e.g. typing the winning score on
-  // the team that just lost, after the other team already had it).
-  const sA = m.scoreA, sB = m.scoreB;
+// Recomputes the winner from scratch from whatever scores are currently on
+// the board: first team to reach the winning score (with a 2-point margin)
+// wins, or just first-to-2 once a Race to 2 is active. If neither side
+// currently meets that — including a tie at the winning score — this
+// returns null, so a stale winner selection can't linger once the scores
+// no longer support it.
+function detectWinner(m){
   const target = getMatchWinTarget(m);
   const winsIt = m.raceActive
     ? (s) => s !== null && s >= target
     : (s, o) => s !== null && s >= target && s - (o === null ? 0 : o) >= 2;
-  let autoWinner = null;
-  if(winsIt(sA, sB)) autoWinner = 'A';
-  else if(winsIt(sB, sA)) autoWinner = 'B';
+  if(winsIt(m.scoreA, m.scoreB)) return 'A';
+  if(winsIt(m.scoreB, m.scoreA)) return 'B';
+  return null;
+}
 
+// Manual score entry — typing directly into the score box.
+function updateMatchScore(ctx, team, val){
+  const m = ctx.getMatch();
+  if(!m || m.status === 'done') return;
+  let num = val === '' ? null : parseInt(val, 10);
+  if(num !== null && !isNaN(num)){
+    const maxScore = getMatchWinTarget(m);
+    num = Math.min(maxScore, Math.max(0, num));
+    // Reflect clamped value back and strip leading zeroes
+    const el = ctx.scoreInput(team);
+    if(el) el.value = num;
+  }
+  if(team === 'A') m.scoreA = (num === null || isNaN(num)) ? null : num;
+  else m.scoreB = (num === null || isNaN(num)) ? null : num;
+
+  const autoWinner = detectWinner(m);
   if(m.winner !== autoWinner){
     m.winner = autoWinner;
-    syncRRWinnerButtons(matchId); // update buttons in place, no full re-render (keeps the score input focused)
+    syncWinnerButtons(ctx); // update buttons in place, keeps the score input focused
   }
 
   saveAll();
-  maybeOfferRaceToTwo(m, 'rr', matchId);
+  maybeOfferRaceToTwo(m, ctx.mode, ctx.matchId);
 }
 
 // ============================================================
@@ -2822,13 +2816,8 @@ function maybeOfferRaceToTwo(m, mode, matchId){
 }
 
 function acceptRaceToTwo(mode, matchId){
-  let m;
-  if(mode === 'rr'){
-    const gen = state.currentGeneration;
-    m = gen && gen.matches.find(x => x.id === matchId);
-  } else {
-    m = state.current;
-  }
+  const ctx = liveMatchCtx(mode, matchId);
+  const m = ctx.getMatch();
   if(!m){ closeModal(); return; }
   m.scoreA = 0;
   m.scoreB = 0;
@@ -2837,18 +2826,15 @@ function acceptRaceToTwo(mode, matchId){
   saveAll();
   closeModal();
   toast('Race to 2 started — first to 2 wins!', 'success');
-  if(mode === 'rr') syncRRWinnerButtons(matchId);
-  renderMatchView(document.getElementById('view'));
+  ctx.render();
 }
 
 function declineRaceToTwo(){
   closeModal();
 }
 
-function adjustRRScore(matchId, team, delta){
-  const gen = state.currentGeneration;
-  if(!gen) return;
-  const m = gen.matches.find(x => x.id === matchId);
+function adjustMatchScore(ctx, team, delta){
+  const m = ctx.getMatch();
   if(!m || m.status === 'done') return;
   // Only the serving team can score in pickleball — the receiving team's
   // stepper is disabled in the UI, but this guard covers any stray click too.
@@ -2860,7 +2846,10 @@ function adjustRRScore(matchId, team, delta){
   cur = (cur === null || isNaN(cur)) ? 0 : cur;
   const maxScore = getMatchWinTarget(m);
   cur = Math.min(maxScore, Math.max(0, cur + delta));
-  updateRRMatchScore(matchId, team, cur);
+  if(team === 'A') m.scoreA = cur; else m.scoreB = cur;
+  m.winner = detectWinner(m);
+
+  saveAll();
   if(delta > 0){
     playPointUpSound();
     speakScoreOrMilestone(m, cur);
@@ -2868,26 +2857,23 @@ function adjustRRScore(matchId, team, delta){
     playPointDownSound();
     speakScoreCall(m);
   }
+  maybeOfferRaceToTwo(m, ctx.mode, ctx.matchId);
   // Full re-render so winner-dependent UI (skip/forfeit disabled, + button cap) stays in sync
-  renderMatchView(document.getElementById('view'));
+  ctx.render();
 }
 
-function setServingTeamRR(matchId, team){
-  const gen = state.currentGeneration;
-  if(!gen) return;
-  const m = gen.matches.find(x => x.id === matchId);
+function setServingTeam(ctx, team){
+  const m = ctx.getMatch();
   if(!m || m.status === 'done') return;
   if(!m.firstServe) return; // who serves first can only be set before the very first serve of the game
   pushServeUndo(m);
   m.serving = team;
   saveAll();
-  renderMatchView(document.getElementById('view'));
+  ctx.render();
 }
 
-function advanceServerRR(matchId){
-  const gen = state.currentGeneration;
-  if(!gen) return;
-  const m = gen.matches.find(x => x.id === matchId);
+function advanceServer(ctx){
+  const m = ctx.getMatch();
   if(!m || m.status === 'done') return;
   if(m.firstServe) return; // the very first serve of the game is a single serve — no serve 2 to switch to
   if(m.serverNum !== 1) return; // already on serve 2 — side out is the next move, not this
@@ -2896,13 +2882,11 @@ function advanceServerRR(matchId){
   saveAll();
   playSideOutSound();
   speakServeSwitchCall(m);
-  renderMatchView(document.getElementById('view'));
+  ctx.render();
 }
 
-function sideOutRR(matchId){
-  const gen = state.currentGeneration;
-  if(!gen) return;
-  const m = gen.matches.find(x => x.id === matchId);
+function sideOutMatch(ctx){
+  const m = ctx.getMatch();
   if(!m || m.status === 'done') return;
   // Standard doubles side-out needs both servers to have served, EXCEPT the
   // very first serve of the game, which is just one serve before the first
@@ -2915,55 +2899,34 @@ function sideOutRR(matchId){
   saveAll();
   playSideOutSound();
   speakSideOut(m);
-  renderMatchView(document.getElementById('view'));
+  ctx.render();
 }
 
 // Asks for confirmation before unwinding the most recent serve decision —
 // undoing isn't itself undoable, so we make sure that's really what's wanted.
-function confirmUndoServeRR(matchId){
-  const gen = state.currentGeneration;
-  const m = gen && gen.matches.find(x => x.id === matchId);
+function confirmUndoServeModal(ctx){
+  const m = ctx.getMatch();
   if(!m || !m._serveUndoStack || !m._serveUndoStack.length){ toast('No serve decision to undo.', 'info'); return; }
+  const undoAction = ctx.mode === 'rr' ? 'do-rr-undo-serve' : 'do-rotation-undo-serve';
   openModal(`
     <div class="modal-title">Undo Serve Decision?</div>
-    <div class="modal-sub">This reverts the most recent serve action (1st server / serve 2 / side out) on this court. The score is not affected. ${m._serveUndoStack.length > 1 ? `You can undo ${m._serveUndoStack.length} steps in total.` : ''}</div>
+    <div class="modal-sub">This reverts the most recent serve action (1st server / serve 2 / side out). The score is not affected. ${m._serveUndoStack.length > 1 ? `You can undo ${m._serveUndoStack.length} steps in total.` : ''}</div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
-      <button class="btn btn-danger" data-action="do-rr-undo-serve" data-match="${matchId}">Yes, Undo</button>
+      <button class="btn btn-danger" data-action="${undoAction}" data-match="${ctx.matchId || ''}">Yes, Undo</button>
     </div>
   `);
 }
 
-function undoServeRR(matchId){
-  const gen = state.currentGeneration;
-  if(!gen) return;
-  const m = gen.matches.find(x => x.id === matchId);
+function undoServeMatch(ctx){
+  const m = ctx.getMatch();
   if(!m || !m._serveUndoStack || !m._serveUndoStack.length){ toast('No serve decision to undo.', 'info'); return; }
   const snap = m._serveUndoStack.pop();
   restoreServe(m, snap);
   saveAll();
   closeModal();
   toast('Serve decision undone.', 'success');
-  renderMatchView(document.getElementById('view'));
-}
-
-// Updates a Round Robin scoreboard's "Team A/B Wins" buttons in place after
-// an auto-detected winner, without re-rendering the whole match list (which
-// would yank focus away from whichever score input the user is still typing in).
-function syncRRWinnerButtons(matchId){
-  const gen = state.currentGeneration;
-  const m = gen && gen.matches.find(x => x.id === matchId);
-  if(!m) return;
-  const btnA = document.querySelector(`.sb-winbtn[data-match="${matchId}"][data-team="A"]`);
-  const btnB = document.querySelector(`.sb-winbtn[data-match="${matchId}"][data-team="B"]`);
-  if(!btnA || !btnB) return;
-  const aWin = m.winner === 'A', bWin = m.winner === 'B';
-  btnA.classList.toggle('btn-primary', aWin);
-  btnA.classList.toggle('btn-secondary', !aWin);
-  btnA.textContent = aWin ? '✓ Winner Selected' : 'Team A Wins';
-  btnB.classList.toggle('btn-primary', bWin);
-  btnB.classList.toggle('btn-secondary', !bWin);
-  btnB.textContent = bWin ? '✓ Winner Selected' : 'Team B Wins';
+  ctx.render();
 }
 
 // Finalizes a single court's result immediately (stats, rating, history),
@@ -3496,135 +3459,14 @@ function replaceCurrentPlayer(team, oldId, newId){
 
 /* ============================================================
    MATCH FINALIZATION (ROTATION ORIGINAL SYSTEM)
+   ------------------------------------------------------------
+   The live scoring itself (manual entry, +/- steppers, winner
+   buttons, serve tracking) is handled by the shared engine above
+   via liveMatchCtx('rotation', null) — see the action dispatcher
+   and the window.updateRotationScoreInput hook for where it's
+   wired in. recordRotationMatch() below is what's specific to
+   Rotation: finalizing the single current match into history.
    ============================================================ */
-function updateRotationScoreInput(team, val){
-  if(!state.current) return;
-  let num = val === '' ? null : parseInt(val, 10);
-  if(num !== null && !isNaN(num)){
-    const maxScore = getMatchWinTarget(state.current);
-    num = Math.min(maxScore, Math.max(0, num));
-    // Reflect clamped value back and strip leading zeroes
-    const inputId = team === 'A' ? 'scoreA' : 'scoreB';
-    const el = document.getElementById(inputId);
-    if(el) el.value = num;
-  }
-  if(team === 'A') state.current.scoreA = (num === null || isNaN(num)) ? null : num;
-  else state.current.scoreB = (num === null || isNaN(num)) ? null : num;
-
-  // Recompute the winner from scratch every time a score changes — same rule
-  // as Round Robin: first team to reach the winning score (with a 2-point
-  // margin) wins, or just the first to 2 once a Race to 2 is active.
-  const sA = state.current.scoreA, sB = state.current.scoreB;
-  const target = getMatchWinTarget(state.current);
-  const winsIt = state.current.raceActive
-    ? (s) => s !== null && s >= target
-    : (s, o) => s !== null && s >= target && s - (o === null ? 0 : o) >= 2;
-  let autoWinner = null;
-  if(winsIt(sA, sB)) autoWinner = 'A';
-  else if(winsIt(sB, sA)) autoWinner = 'B';
-  if(state.current.winner !== autoWinner){
-    state.current.winner = autoWinner;
-    syncRotationWinnerButtons(); // update buttons in place, keeps the score input focused
-  }
-
-  saveAll();
-  maybeOfferRaceToTwo(state.current, 'rotation', null);
-}
-
-function adjustRotationScore(team, delta){
-  if(!state.current) return;
-  // Only the serving team can score in pickleball — the receiving team's
-  // stepper is disabled in the UI, but this guard covers any stray click too.
-  if(state.current.serving !== team){
-    toast(`Only the serving team can score — Team ${state.current.serving} is serving.`, 'warning');
-    return;
-  }
-  let cur = team === 'A' ? state.current.scoreA : state.current.scoreB;
-  cur = (cur === null || isNaN(cur)) ? 0 : cur;
-  const maxScore = getMatchWinTarget(state.current);
-  cur = Math.min(maxScore, Math.max(0, cur + delta));
-  if(team === 'A') state.current.scoreA = cur; else state.current.scoreB = cur;
-
-  const sA = state.current.scoreA, sB = state.current.scoreB;
-  const target = getMatchWinTarget(state.current);
-  const winsIt = state.current.raceActive
-    ? (s) => s !== null && s >= target
-    : (s, o) => s !== null && s >= target && s - (o === null ? 0 : o) >= 2;
-  let autoWinner = null;
-  if(winsIt(sA, sB)) autoWinner = 'A';
-  else if(winsIt(sB, sA)) autoWinner = 'B';
-  state.current.winner = autoWinner;
-
-  saveAll();
-  if(delta > 0){
-    playPointUpSound();
-    speakScoreOrMilestone(state.current, cur);
-  } else {
-    playPointDownSound();
-    speakScoreCall(state.current);
-  }
-  maybeOfferRaceToTwo(state.current, 'rotation', null);
-  renderMatchView(document.getElementById('view'));
-}
-
-function setServingTeamRotation(team){
-  if(!state.current) return;
-  if(!state.current.firstServe) return; // who serves first can only be set before the very first serve of the game
-  pushServeUndo(state.current);
-  state.current.serving = team;
-  saveAll();
-  renderMatchView(document.getElementById('view'));
-}
-
-function advanceServerRotation(){
-  if(!state.current) return;
-  if(state.current.firstServe) return; // the very first serve of the game is a single serve — no serve 2 to switch to
-  if(state.current.serverNum !== 1) return;
-  pushServeUndo(state.current);
-  state.current.serverNum = 2;
-  saveAll();
-  playSideOutSound();
-  speakServeSwitchCall(state.current);
-  renderMatchView(document.getElementById('view'));
-}
-
-function sideOutRotation(){
-  if(!state.current) return;
-  if(!state.current.firstServe && state.current.serverNum !== 2) return;
-  pushServeUndo(state.current);
-  state.current.serving = state.current.serving === 'A' ? 'B' : 'A';
-  state.current.serverNum = 1;
-  state.current.firstServe = false;
-  saveAll();
-  playSideOutSound();
-  speakSideOut(state.current);
-  renderMatchView(document.getElementById('view'));
-}
-
-// Asks for confirmation before unwinding the most recent serve decision —
-// undoing isn't itself undoable, so we make sure that's really what's wanted.
-function confirmUndoServeRotation(){
-  if(!state.current || !state.current._serveUndoStack || !state.current._serveUndoStack.length){ toast('No serve decision to undo.', 'info'); return; }
-  const n = state.current._serveUndoStack.length;
-  openModal(`
-    <div class="modal-title">Undo Serve Decision?</div>
-    <div class="modal-sub">This reverts the most recent serve action (1st server / serve 2 / side out). The score is not affected. ${n > 1 ? `You can undo ${n} steps in total.` : ''}</div>
-    <div class="modal-actions" style="margin-top:16px;">
-      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
-      <button class="btn btn-danger" data-action="do-rotation-undo-serve">Yes, Undo</button>
-    </div>
-  `);
-}
-
-function undoServeRotation(){
-  if(!state.current || !state.current._serveUndoStack || !state.current._serveUndoStack.length){ toast('No serve decision to undo.', 'info'); return; }
-  const snap = state.current._serveUndoStack.pop();
-  restoreServe(state.current, snap);
-  saveAll();
-  closeModal();
-  toast('Serve decision undone.', 'success');
-  renderMatchView(document.getElementById('view'));
-}
 
 function recordRotationMatch(scoreA, scoreB) {
   if(!state.current) return;
@@ -4137,7 +3979,7 @@ function renderMatchView(el){
 
     // Attach global helper cleanly to bridge input elements smoothly without complex re-render interruptions
     window.updateRRScore = function(matchId, team, val){
-      updateRRMatchScore(matchId, team, val);
+      updateMatchScore(liveMatchCtx('rr', matchId), team, val);
     };
     return;
   }
@@ -4244,7 +4086,7 @@ function renderMatchView(el){
   `;
 
   window.updateRotationScoreInput = function(team, val){
-    updateRotationScoreInput(team, val);
+    updateMatchScore(liveMatchCtx('rotation', null), team, val);
   };
 }
 
@@ -4819,13 +4661,13 @@ document.addEventListener('click', function(e){
     case 'save-match-score':
       recordRotationMatch(document.getElementById('scoreA').value, document.getElementById('scoreB').value);
       break;
-    case 'rotation-score-adjust': adjustRotationScore(t.dataset.team, parseInt(t.dataset.delta,10)); break;
-    case 'set-rotation-winner': selectRotationWinner(t.dataset.team); break;
-    case 'rotation-set-server': setServingTeamRotation(t.dataset.team); break;
-    case 'rotation-advance-server': advanceServerRotation(); break;
-    case 'rotation-side-out': sideOutRotation(); break;
-    case 'rotation-undo-serve': confirmUndoServeRotation(); break;
-    case 'do-rotation-undo-serve': undoServeRotation(); break;
+    case 'rotation-score-adjust': adjustMatchScore(liveMatchCtx('rotation', null), t.dataset.team, parseInt(t.dataset.delta,10)); break;
+    case 'set-rotation-winner': selectMatchWinner(liveMatchCtx('rotation', null), t.dataset.team); break;
+    case 'rotation-set-server': setServingTeam(liveMatchCtx('rotation', null), t.dataset.team); break;
+    case 'rotation-advance-server': advanceServer(liveMatchCtx('rotation', null)); break;
+    case 'rotation-side-out': sideOutMatch(liveMatchCtx('rotation', null)); break;
+    case 'rotation-undo-serve': confirmUndoServeModal(liveMatchCtx('rotation', null)); break;
+    case 'do-rotation-undo-serve': undoServeMatch(liveMatchCtx('rotation', null)); break;
 
     // Round robin workflow
     case 'generate-roundrobin':
