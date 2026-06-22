@@ -4945,14 +4945,6 @@ function renderMatchView(el){
     html += renderRotationCourtScoreboard(m);
   });
 
-  html += `
-    <div class="card" style="margin-top:4px;">
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="start-csop">↺ Regenerate All Courts</button>
-        <button class="btn btn-danger btn-sm" style="flex:1;" data-action="undo-match" ${!state.undo?'disabled':''}>↩ Undo Last Match</button>
-      </div>
-    </div>
-  `;
   el.innerHTML = html;
 
   window.updateRCScore = function(courtId, team, val) {
