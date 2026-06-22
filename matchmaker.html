@@ -1634,6 +1634,10 @@ function togglePlayerActive(id){
     toast(`${p.name} is in an unfinished generation match — use \"Replace\" on that match instead, or finish it first.`, 'warning');
     return;
   }
+  if(p.active && Array.isArray(state.rotationCourts) && state.rotationCourts.some(c => c && c.status === 'active' && (c.teamA.includes(id) || c.teamB.includes(id)))) {
+    toast(`${p.name} is live on a court — use the swap icon to sub them out, or finish/close that court first.`, 'warning');
+    return;
+  }
   const wasInactive = !p.active;
   p.active = !p.active;
   if(!p.active) {
@@ -1753,6 +1757,7 @@ function checkInResetAll(){
     if(p.active) reset++;
     p.active = false;
     p.consecutiveSitOuts = 0; p.sitOutPriority = 0; p.waitingRounds = 0;
+    p.streakGames = 0; p.lastSatOut = 0; p.waitingSince = 0;
   });
 
   saveAll(); renderAll();
@@ -1766,6 +1771,9 @@ function removePlayer(id){
   }
   if(state.currentGeneration && state.currentGeneration.matches.some(m => m.status !== 'done' && (m.teamA.includes(id) || m.teamB.includes(id)))) {
     toast('Cannot remove a player who is in an unfinished generation match.', 'warning'); return;
+  }
+  if(Array.isArray(state.rotationCourts) && state.rotationCourts.some(c => c && c.status === 'active' && (c.teamA.includes(id) || c.teamB.includes(id)))) {
+    toast('Cannot remove a player who is currently on a live court.', 'warning'); return;
   }
   const p = getPlayer(id);
   state.players = state.players.filter(pl=>pl.id!==id);
@@ -1781,6 +1789,7 @@ function removePlayer(id){
 function resetPlayersAndStats(){
   state.players.forEach(p=>{
     p.gamesPlayed=0; p.wins=0; p.losses=0; p.rating=1000; p.currentStreak=0; p.longestStreak=0; p.sitOuts=0; p.consecutiveSitOuts=0; p.sitOutPriority=0; p.waitingRounds=0; p.results=[]; p.teammates={}; p.opponents={};
+    p.streakGames=0; p.lastSatOut=0; p.waitingSince=0; // fatigue/consecutive-play tracking (CSOP)
   });
   state.matches = [];
   state.current = null;
@@ -2285,6 +2294,7 @@ function csoGenerateMatchForCourt(courtNum, excludeIds) {
   pool.filter(p => !teamA.includes(p) && !teamB.includes(p)).forEach(p => {
     p.sitOuts = (p.sitOuts || 0);
     p.lastSatOut = now + 1;
+    p.streakGames = 0; // sitting out breaks the consecutive-games-played streak
   });
 
   return matchObj;
@@ -2532,7 +2542,6 @@ function confirmRotationCourtMatch(courtId) {
   [...m.teamA, ...m.teamB].forEach(id => {
     const p = getPlayer(id); if (!p) return;
     ensureCSOP(p);
-    // streak game count tracked separately from win/loss streak
   });
 
   [[recordTeamA[0], recordTeamA[1]], [recordTeamB[0], recordTeamB[1]]].forEach(([p1,p2]) => {
@@ -2693,6 +2702,23 @@ function skipRotationCourtMatch(courtId) {
   toast(`Court ${courtNum} match cleared.`, 'success');
 }
 
+// Permanently close a single court — used when you're down a court (time, space,
+// players leaving) but want the rest of Open Play to keep running. Unlike
+// skipRotationCourtMatch (which clears one match but the court itself stays
+// configured and gets refilled), this also lowers the target court count so
+// fillEmptyRotationCourts / Add Court won't immediately spin it back up.
+function closeRotationCourt(courtId) {
+  if (!Array.isArray(state.rotationCourts)) return;
+  const m = state.rotationCourts.find(c => c.id === courtId);
+  if (!m) { closeModal(); return; }
+  const courtNum = m.courtNum;
+  state.rotationCourts = state.rotationCourts.filter(c => c.id !== courtId);
+  const cur = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
+  state.settings.numCourts = Math.max(1, cur - 1);
+  saveAll(); renderAll(); closeModal();
+  toast(`Court ${courtNum} closed — session continues on the remaining court${state.rotationCourts.length!==1?'s':''}.`, 'success');
+}
+
 /* ============================================================
    ROTATION COURT MATCH VIEW RENDERER
    ============================================================ */
@@ -2728,8 +2754,13 @@ function renderRotationCourtScoreboard(m) {
     <div class="scoreboard" style="margin-bottom:14px;">
       <div class="sb-head">
         <span class="sb-round">COURT <b>${m.courtNum}</b> · Match <b>#${m.round}</b></span>
-        ${m.raceActive ? `<span class="race-badge">🏁 Race to 2</span>` : ''}
-        <div class="live-dot"><div class="d"></div>Live</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${m.raceActive ? `<span class="race-badge">🏁 Race to 2</span>` : ''}
+          <div class="live-dot"><div class="d"></div>Live</div>
+          <button class="icon-btn-tiny" data-action="close-rc-court" data-court="${m.id}" aria-label="Close this court" title="Close this court">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
       </div>
       <div class="sb-body">
         <div class="sb-team team-a">
@@ -5610,11 +5641,34 @@ document.addEventListener('click', function(e){
       break;
     case 'start-csop': initRotationCourts(); break;
     case 'add-csop-court': {
+      const cur = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
+      if (cur >= 10) { toast('Maximum of 10 courts.', 'warning'); break; }
+      state.settings.numCourts = cur + 1;
       const filled = fillEmptyRotationCourts();
-      if (filled) { saveAll(); renderAll(); toast(`Added ${filled} court${filled>1?'s':''}.`, 'success'); }
-      else toast('Not enough free active players to open another court.', 'warning');
+      saveAll(); renderAll();
+      if (filled) toast(`Court ${cur + 1} is live.`, 'success');
+      else toast(`Court ${cur + 1} added — waiting for enough free players to fill it.`, 'info');
       break;
     }
+    case 'close-rc-court': {
+      const courts = Array.isArray(state.rotationCourts) ? state.rotationCourts : [];
+      const m = courts.find(c => c.id === t.dataset.court);
+      if (!m) break;
+      const inProgress = hasMatchStarted(m);
+      openModal(`
+        <div class="modal-title">Close Court ${m.courtNum}?</div>
+        <div class="modal-sub" style="line-height:1.6;">
+          ${inProgress ? '<strong style="color:var(--loss);">This match has an in-progress score — it will be lost, no result is recorded.</strong> ' : ''}
+          The 4 players on this court return to the waiting pool and the court is removed. The rest of the session keeps running.
+        </div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-danger" data-action="do-close-rc-court" data-court="${m.id}">Yes, Close Court</button>
+        </div>
+      `);
+      break;
+    }
+    case 'do-close-rc-court': closeRotationCourt(t.dataset.court); break;
     case 'rc-set-winner': setRotationCourtWinner(t.dataset.court, t.dataset.team); break;
     case 'rc-score-adjust': adjustRotationCourtScore(t.dataset.court, t.dataset.team, parseInt(t.dataset.delta,10)); break;
     case 'rc-set-server': setRotationCourtServer(t.dataset.court, t.dataset.team); break;
@@ -5946,6 +6000,7 @@ document.addEventListener('keydown', function(e){
 function openPlayerProfile(id){
   const p = getPlayer(id);
   if(!p) return;
+  ensureCSOP(p);
 
   const wp = winPct(p);
   const avg = playerScoreAverages(p.id);
@@ -6015,6 +6070,10 @@ function openPlayerProfile(id){
     ${recentForm.length ? `
     <div class="profile-pair-row">
       <b>📈 Recent form:</b> ${recentForm.map(r => r === 'W' ? `<span style="color:var(--win); font-weight:800;">W</span>` : `<span style="color:var(--loss); font-weight:800;">L</span>`).join(' ')}
+    </div>` : ''}
+    ${(p.streakGames||0) > 0 ? `
+    <div class="profile-pair-row">
+      <b>${(p.streakGames||0) >= 4 ? '🔥 Fatigue:' : '🎾 On a run:'}</b> ${p.streakGames} consecutive game${p.streakGames!==1?'s':''} without a rest${(p.streakGames||0) >= 3 ? ' <span style="color:var(--ball);">— due for a sit-out</span>' : ''}
     </div>` : ''}
     ${tmPairs.length ? `
     <div class="profile-pair-row">
