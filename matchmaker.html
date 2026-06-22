@@ -3027,13 +3027,13 @@ function openSessionSetupModal(){
   const isRotation = state.settings.matchMode === 'Rotation';
   openModal(`
     <div class="modal-title">🎾 Session Setup</div>
-    <div class="modal-sub" style="line-height:1.6;">Choose your match mode, courts, and winning score.</div>
+    <div class="modal-sub" style="line-height:1.6;">Courts and winning score for your <b style="color:var(--text);">${isRotation ? 'Open Play' : 'Round Robin'}</b> session.</div>
     <div class="card" style="margin:0;">
       <div class="field">
         <label>Match Mode</label>
-        <div class="radio-group-mode">
-          <div class="radio-box-btn ${state.settings.matchMode === 'Rotation' ? 'active' : ''}" data-action="setup-match-mode" data-value="Rotation">Open Play</div>
-          <div class="radio-box-btn ${state.settings.matchMode === 'RoundRobin' ? 'active' : ''}" data-action="setup-match-mode" data-value="RoundRobin">Round Robin</div>
+        <div class="session-confirm-row" style="background:var(--surface-2); border-radius:var(--radius-sm); padding:10px 12px;">
+          <span class="v" style="font-family:inherit; color:var(--court); font-weight:700;">${isRotation ? '🏓 Open Play' : '🔀 Round Robin'}</span>
+          <button type="button" data-action="pick-match-mode" style="background:none; border:none; color:var(--ball); font-size:12px; font-weight:700; cursor:pointer; padding:0;">Change</button>
         </div>
       </div>
       <div class="field">
