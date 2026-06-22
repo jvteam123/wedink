@@ -2998,6 +2998,27 @@ function generateRoundRobinGeneration() {
   openSessionSetupModal();
 }
 
+// Mode picker — shown every time the user starts fresh from the Match tab
+function openModePickerModal(){
+  openModal(`
+    <div class="modal-title">🎾 Choose Match Mode</div>
+    <div class="modal-sub" style="line-height:1.6;">How do you want to run today's session?</div>
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+      <button class="btn btn-primary" style="padding:18px 16px; font-size:15px; text-align:left; display:flex; flex-direction:column; gap:4px;" data-action="pick-mode-openplay">
+        <span style="font-size:18px;">🏓 Open Play</span>
+        <span style="font-weight:400; font-size:12px; opacity:0.85;">Courts run independently. New match auto-generates the moment each court finishes.</span>
+      </button>
+      <button class="btn btn-secondary" style="padding:18px 16px; font-size:15px; text-align:left; display:flex; flex-direction:column; gap:4px;" data-action="pick-mode-roundrobin">
+        <span style="font-size:18px;">🔀 Round Robin</span>
+        <span style="font-weight:400; font-size:12px; opacity:0.85;">Everyone is scheduled each generation. Choose session length and courts up front.</span>
+      </button>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+    </div>
+  `, false);
+}
+
 // Step 1 of starting a new session: courts + winning score, asked up front
 // before the match-count picker so the organizer sets the table once.
 function openSessionSetupModal(){
@@ -4715,19 +4736,30 @@ function renderActiveView(){
    VIEW COMPONENT GENERATORS
    ============================================================ */
 function renderMatchView(el){
+  // No active session at all — show mode picker
+  const hasRRSession = state.settings.matchMode === 'RoundRobin' && state.currentGeneration;
+  const hasOpenPlaySession = state.settings.matchMode === 'Rotation' && Array.isArray(state.rotationCourts) && state.rotationCourts.some(c => c && c.status === 'active');
+
+  if(!hasRRSession && !hasOpenPlaySession){
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="big">🎾</div>
+        <div class="et">Choose Match Mode</div>
+        <p>How do you want to run today's session?</p>
+        <button class="btn btn-primary" style="margin-top:14px; width:100%; padding:16px; display:flex; flex-direction:column; gap:4px; text-align:left;" data-action="pick-mode-openplay">
+          <span style="font-size:16px; font-weight:700;">🏓 Open Play</span>
+          <span style="font-weight:400; font-size:12px; opacity:0.85;">Courts auto-generate new matches as they finish.</span>
+        </button>
+        <button class="btn btn-secondary" style="margin-top:10px; width:100%; padding:16px; display:flex; flex-direction:column; gap:4px; text-align:left;" data-action="pick-mode-roundrobin">
+          <span style="font-size:16px; font-weight:700;">🔀 Round Robin</span>
+          <span style="font-weight:400; font-size:12px; opacity:0.85;">Everyone is scheduled each generation with a set session length.</span>
+        </button>
+      </div>
+    `;
+    return;
+  }
+
   if(state.settings.matchMode === 'RoundRobin') {
-    // ROUND ROBIN CURRENT SYSTEM CONTAINER VIEW
-    if(!state.currentGeneration) {
-      el.innerHTML = `
-        <div class="empty-state">
-          <div class="big">🔀</div>
-          <div class="et">Round Robin Matchmaker ready</div>
-          <p>Click below to generate the full match list for this generation — every active player gets scheduled once, even if you only have one court.</p>
-          <button class="btn btn-primary" style="margin-top:16px;" data-action="generate-roundrobin">Generate Match</button>
-        </div>
-      `;
-      return;
-    }
 
     const gen = state.currentGeneration;
     const activeMatches = gen.matches.filter(m => m.status === 'active').sort((a,b) => a.matchIndex - b.matchIndex);
@@ -4895,23 +4927,6 @@ function renderMatchView(el){
 
   // CONTINUOUS SMART OPEN PLAY — ROTATION MODE (multi-court, event-driven)
   const courts = Array.isArray(state.rotationCourts) ? state.rotationCourts.filter(c => c && c.status === 'active') : [];
-  const numCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
-  const pool = csoActivePlayers();
-
-  if (!courts.length) {
-    el.innerHTML = `
-      <div class="empty-state">
-        <div class="big">🏓</div>
-        <div class="et">Continuous Smart Open Play</div>
-        <p>Courts are independent — each generates a new match the moment it finishes, keeping players moving without waiting for everyone.<br><br>
-        <strong style="color:var(--ball);">${pool.length} active player${pool.length!==1?'s':''}</strong> · <strong style="color:var(--court);">${numCourts} court${numCourts!==1?'s':''}</strong> configured</p>
-        <button class="btn btn-primary" style="margin-top:16px;" data-action="start-csop">
-          🚀 Start Open Play
-        </button>
-      </div>
-    `;
-    return;
-  }
 
   let html = `<div class="section-title">🏓 Continuous Open Play — ${courts.length} Court${courts.length!==1?'s':''} Live</div>`;
 
@@ -5578,6 +5593,19 @@ document.addEventListener('click', function(e){
     case 'next-match': nextRotationMatch(); break;
 
     // Continuous Smart Open Play (Rotation Mode multi-court)
+    case 'pick-match-mode': openModePickerModal(); break;
+    case 'pick-mode-openplay':
+      state.settings.matchMode = 'Rotation';
+      saveAll();
+      closeModal();
+      initRotationCourts();
+      break;
+    case 'pick-mode-roundrobin':
+      state.settings.matchMode = 'RoundRobin';
+      saveAll();
+      closeModal();
+      generateRoundRobinGeneration();
+      break;
     case 'start-csop': initRotationCourts(); break;
     case 'add-csop-court': {
       const filled = fillEmptyRotationCourts();
