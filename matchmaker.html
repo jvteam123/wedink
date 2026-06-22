@@ -1610,8 +1610,87 @@ function refreshCheckInModal(){
 }
 
 function toggleCheckIn(id){
+  const p = getPlayer(id);
+  const wasActive = p ? p.active : false;
   togglePlayerActive(id);
+  // If the player just checked IN (was inactive, now active), try to slot them
+  // into the next queued match so their play count catches up naturally.
+  if(p && !wasActive && p.active){
+    autoInsertNewCheckin(p);
+  }
   refreshCheckInModal();
+}
+
+/* ============================================================
+   AUTO-INSERT NEW CHECK-IN INTO NEXT QUEUED MATCH
+   ------------------------------------------------------------
+   When a player arrives and checks in mid-session, they join
+   the priority queue at the front (gamesPlayed = 0 beats
+   everyone). In Rotation mode the next call to nextRotationMatch()
+   already handles this perfectly — no extra work needed.
+
+   In Round Robin mode, matches are pre-generated in batches.
+   A freshly checked-in player would have to sit out an entire
+   generation before being scheduled, which is unfair. This
+   function fixes that: it finds the next queued (not yet active)
+   match and swaps out the player in that match who has played the
+   most games (i.e. the one who can best afford to wait), replacing
+   them with the new arrival — but only when the new arrival has
+   strictly fewer games played than that player.
+   ============================================================ */
+function autoInsertNewCheckin(newPlayer){
+  if(state.settings.matchMode !== 'RoundRobin') return;
+  const gen = state.currentGeneration;
+  if(!gen) return;
+
+  // Find the next queued match (lowest matchIndex that hasn't started yet)
+  const queued = gen.matches
+    .filter(m => m.status === 'queued')
+    .sort((a, b) => a.matchIndex - b.matchIndex);
+  if(!queued.length) return;
+
+  const nextMatch = queued[0];
+  const allSlots = [...nextMatch.teamA, ...nextMatch.teamB];
+
+  // Find the slot with the most games played — that's the best candidate to
+  // sit out and let the new arrival take their spot.
+  let worstId = null, worstGames = -1;
+  allSlots.forEach(id => {
+    const pl = getPlayer(id);
+    if(!pl) return;
+    if(pl.gamesPlayed > worstGames){
+      worstGames = pl.gamesPlayed;
+      worstId = id;
+    }
+  });
+
+  // Only swap if the new player has strictly fewer games played than the
+  // candidate being displaced. If they're tied or the new arrival has more,
+  // leave the schedule as-is.
+  if(worstId === null || newPlayer.gamesPlayed >= worstGames) return;
+
+  // Perform the swap in the queued match's team arrays
+  const teamA = nextMatch.teamA;
+  const teamB = nextMatch.teamB;
+  const idxA = teamA.indexOf(worstId);
+  const idxB = teamB.indexOf(worstId);
+  if(idxA !== -1) teamA[idxA] = newPlayer.id;
+  else if(idxB !== -1) teamB[idxB] = newPlayer.id;
+  else return; // shouldn't happen
+
+  // Move the displaced player back into the sitting-out list so they're
+  // visible and get re-scheduled in the next generation.
+  if(!gen.sittingOut) gen.sittingOut = [];
+  if(!gen.sittingOut.includes(worstId)) gen.sittingOut.push(worstId);
+  gen.sittingOut = gen.sittingOut.filter(id => id !== newPlayer.id);
+
+  saveAll();
+  const displaced = getPlayer(worstId);
+  toast(
+    `${newPlayer.name} added to the next queued match` +
+    (displaced ? ` · ${displaced.name} moves to sit-out (more games played)` : '') +
+    '.', 'success'
+  );
 }
 
 function confirmCheckInResetAll(){
