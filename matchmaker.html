@@ -5944,6 +5944,26 @@ document.addEventListener('click', function(e){
     case 'modal-close': closeModal(); break;
     case 'open-player-profile': openPlayerProfile(t.dataset.id); break;
     case 'show-session-summary': showSessionSummary(); break;
+
+    // Continuous Smart Open Play — court picker & start
+    case 'csop-pick-courts': {
+      const n = parseInt(t.dataset.courts, 10);
+      if (!isNaN(n) && n >= 1) {
+        state.settings.numCourts = n;
+        // Update visual selection state
+        document.querySelectorAll('[data-action="csop-pick-courts"]').forEach(btn => {
+          const isSelected = parseInt(btn.dataset.courts, 10) === n;
+          btn.classList.toggle('recommended', isSelected);
+          const check = btn.querySelector('.session-opt-check') || document.getElementById(`csop-court-check-${btn.dataset.courts}`);
+          if (check) {
+            check.style.borderColor = isSelected ? 'var(--ball)' : '';
+            check.style.background  = isSelected ? 'var(--ball)' : '';
+          }
+        });
+      }
+      break;
+    }
+    case 'csop-confirm-start': doInitRotationCourts(); break;
   }
 });
 
