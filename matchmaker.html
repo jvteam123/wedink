@@ -2758,7 +2758,7 @@ function renderRotationCourtScoreboard(m) {
         <div class="score-stepper">
           <button type="button" class="score-btn score-btn-minus rr-score-btn"
             data-action="rc-score-adjust" data-court="${m.id}" data-team="A" data-delta="-1"
-            ${(!servingA || (m.scoreA === null || m.scoreA <= 0)) ? 'disabled' : ''}>−</button>
+            ${(m.winner || !servingA || (m.scoreA === null || m.scoreA <= 0)) ? 'disabled' : ''}>−</button>
           <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A"
             class="cb-score-input rr-score-input"
             data-court-score="${m.id}-A"
@@ -2767,13 +2767,13 @@ function renderRotationCourtScoreboard(m) {
             oninput="window.updateRCScore('${m.id}', 'A', this.value)">
           <button type="button" class="score-btn score-btn-plus rr-score-btn"
             data-action="rc-score-adjust" data-court="${m.id}" data-team="A" data-delta="1"
-            ${(!servingA || (m.scoreA !== null && m.scoreA >= winTarget)) ? 'disabled' : ''}>+</button>
+            ${(m.winner || !servingA || (m.scoreA !== null && m.scoreA >= winTarget)) ? 'disabled' : ''}>+</button>
         </div>
         <span class="rr-score-vs-sm">vs</span>
         <div class="score-stepper">
           <button type="button" class="score-btn score-btn-minus rr-score-btn"
             data-action="rc-score-adjust" data-court="${m.id}" data-team="B" data-delta="-1"
-            ${(!servingB || (m.scoreB === null || m.scoreB <= 0)) ? 'disabled' : ''}>−</button>
+            ${(m.winner || !servingB || (m.scoreB === null || m.scoreB <= 0)) ? 'disabled' : ''}>−</button>
           <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B"
             class="cb-score-input rr-score-input"
             data-court-score="${m.id}-B"
@@ -2782,7 +2782,7 @@ function renderRotationCourtScoreboard(m) {
             oninput="window.updateRCScore('${m.id}', 'B', this.value)">
           <button type="button" class="score-btn score-btn-plus rr-score-btn"
             data-action="rc-score-adjust" data-court="${m.id}" data-team="B" data-delta="1"
-            ${(!servingB || (m.scoreB !== null && m.scoreB >= winTarget)) ? 'disabled' : ''}>+</button>
+            ${(m.winner || !servingB || (m.scoreB !== null && m.scoreB >= winTarget)) ? 'disabled' : ''}>+</button>
         </div>
       </div>
       <div style="padding:0 14px 14px;">
@@ -4824,15 +4824,15 @@ function renderMatchView(el){
           </div>
           <div class="sb-foot rr-score-foot">
             <div class="score-stepper">
-              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${(!servingA || (m.scoreA === null || m.scoreA <= 0)) ? 'disabled' : ''} title="${!servingA ? 'Team A is receiving — only the serving team scores' : (m.scoreA === null || m.scoreA <= 0) ? 'Score is already at 0' : ''}">−</button>
+              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${(m.winner || !servingA || (m.scoreA === null || m.scoreA <= 0)) ? 'disabled' : ''} title="${m.winner ? 'Winner already selected' : !servingA ? 'Team A is receiving — only the serving team scores' : (m.scoreA === null || m.scoreA <= 0) ? 'Score is already at 0' : ''}">−</button>
               <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" min="0" max="${getMatchWinTarget(m)}" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
-              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score" ${(!servingA || (m.scoreA !== null && m.scoreA >= getMatchWinTarget(m)))?'disabled title="'+(servingA?'Score is at the maximum':'Team A is receiving — only the serving team scores')+'"':''}>+</button>
+              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score" ${(m.winner || !servingA || (m.scoreA !== null && m.scoreA >= getMatchWinTarget(m)))?'disabled title="'+(m.winner?'Winner already selected':servingA?'Score is at the maximum':'Team A is receiving — only the serving team scores')+'"':''}>+</button>
             </div>
             <span class="rr-score-vs-sm">vs</span>
             <div class="score-stepper">
-              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${(!servingB || (m.scoreB === null || m.scoreB <= 0)) ? 'disabled' : ''} title="${!servingB ? 'Team B is receiving — only the serving team scores' : (m.scoreB === null || m.scoreB <= 0) ? 'Score is already at 0' : ''}">−</button>
+              <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${(m.winner || !servingB || (m.scoreB === null || m.scoreB <= 0)) ? 'disabled' : ''} title="${m.winner ? 'Winner already selected' : !servingB ? 'Team B is receiving — only the serving team scores' : (m.scoreB === null || m.scoreB <= 0) ? 'Score is already at 0' : ''}">−</button>
               <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" min="0" max="${getMatchWinTarget(m)}" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
-              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="1" aria-label="Increase Team B score" ${(!servingB || (m.scoreB !== null && m.scoreB >= getMatchWinTarget(m)))?'disabled title="'+(servingB?'Score is at the maximum':'Team B is receiving — only the serving team scores')+'"':''}>+</button>
+              <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="1" aria-label="Increase Team B score" ${(m.winner || !servingB || (m.scoreB !== null && m.scoreB >= getMatchWinTarget(m)))?'disabled title="'+(m.winner?'Winner already selected':servingB?'Score is at the maximum':'Team B is receiving — only the serving team scores')+'"':''}>+</button>
             </div>
           </div>
           <div style="padding:0 14px 14px;">
@@ -5026,18 +5026,18 @@ function _renderMatchViewOriginalRotation(el) {
         <div class="cb-score-team">
           <span class="cb-score-label">Team A Score</span>
           <div class="score-stepper">
-            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${(!servingA || (c.scoreA === null || c.scoreA <= 0)) ? 'disabled' : ''} title="${!servingA ? 'Team A is receiving — only the serving team scores' : (c.scoreA === null || c.scoreA <= 0) ? 'Score is already at 0' : ''}">−</button>
+            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${(c.winner || !servingA || (c.scoreA === null || c.scoreA <= 0)) ? 'disabled' : ''} title="${c.winner ? 'Winner already selected' : !servingA ? 'Team A is receiving — only the serving team scores' : (c.scoreA === null || c.scoreA <= 0) ? 'Score is already at 0' : ''}">−</button>
             <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreA" placeholder="0" min="0" max="${getMatchWinTarget(c)}" value="${c.scoreA !== null && c.scoreA !== undefined ? c.scoreA : ''}" oninput="window.updateRotationScoreInput('A', this.value)">
-            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="A" data-delta="1" aria-label="Increase Team A score" ${(!servingA || (c.scoreA !== null && c.scoreA >= getMatchWinTarget(c)))?'disabled title="'+(servingA?'Score is at the maximum':'Team A is receiving — only the serving team scores')+'"':''}>+</button>
+            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="A" data-delta="1" aria-label="Increase Team A score" ${(c.winner || !servingA || (c.scoreA !== null && c.scoreA >= getMatchWinTarget(c)))?'disabled title="'+(c.winner?'Winner already selected':servingA?'Score is at the maximum':'Team A is receiving — only the serving team scores')+'"':''}>+</button>
           </div>
         </div>
         <div class="cb-score-vs">vs</div>
         <div class="cb-score-team">
           <span class="cb-score-label">Team B Score</span>
           <div class="score-stepper">
-            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${(!servingB || (c.scoreB === null || c.scoreB <= 0)) ? 'disabled' : ''} title="${!servingB ? 'Team B is receiving — only the serving team scores' : (c.scoreB === null || c.scoreB <= 0) ? 'Score is already at 0' : ''}">−</button>
+            <button type="button" class="score-btn score-btn-minus" data-action="rotation-score-adjust" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${(c.winner || !servingB || (c.scoreB === null || c.scoreB <= 0)) ? 'disabled' : ''} title="${c.winner ? 'Winner already selected' : !servingB ? 'Team B is receiving — only the serving team scores' : (c.scoreB === null || c.scoreB <= 0) ? 'Score is already at 0' : ''}">−</button>
             <input type="number" pattern="[0-9]*" inputmode="numeric" class="cb-score-input" id="scoreB" placeholder="0" min="0" max="${getMatchWinTarget(c)}" value="${c.scoreB !== null && c.scoreB !== undefined ? c.scoreB : ''}" oninput="window.updateRotationScoreInput('B', this.value)">
-            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="B" data-delta="1" aria-label="Increase Team B score" ${(!servingB || (c.scoreB !== null && c.scoreB >= getMatchWinTarget(c)))?'disabled title="'+(servingB?'Score is at the maximum':'Team B is receiving — only the serving team scores')+'"':''}>+</button>
+            <button type="button" class="score-btn score-btn-plus" data-action="rotation-score-adjust" data-team="B" data-delta="1" aria-label="Increase Team B score" ${(c.winner || !servingB || (c.scoreB !== null && c.scoreB >= getMatchWinTarget(c)))?'disabled title="'+(c.winner?'Winner already selected':servingB?'Score is at the maximum':'Team B is receiving — only the serving team scores')+'"':''}>+</button>
           </div>
         </div>
       </div>
