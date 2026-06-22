@@ -5400,49 +5400,10 @@ function renderHistoryView(el){
 }
 
 function renderSettingsView(el){
-  const plan = state.settings.sessionPlan;
-  const planPlayedSoFar = plan ? (state.matches.length - plan.matchesAtStart) : 0;
-  const planIsFinished = plan && planPlayedSoFar >= plan.totalMatches;
-  const sessionFieldHtml = state.settings.matchMode === 'RoundRobin' ? `
-      <div class="field">
-        <label>Session Length</label>
-        ${plan && !planIsFinished ? `
-          <div class="card" style="margin:0; padding:10px 14px; background:var(--surface-2);">
-            <div class="session-confirm-row"><span class="k">Active Plan</span><span class="v" style="font-family:inherit;">${esc(plan.label)}</span></div>
-            <div class="session-confirm-row"><span class="k">Progress</span><span class="v">${clamp(planPlayedSoFar, 0, plan.totalMatches)}/${plan.totalMatches} matches</span></div>
-          </div>
-          <button class="btn btn-ghost" style="margin-top:8px; width:100%;" data-action="change-session-plan">Change Session Length</button>
-        ` : plan && planIsFinished ? `
-          <div class="card" style="margin:0; padding:10px 14px; background:var(--surface-2);">
-            <div class="session-confirm-row"><span class="k">Last Plan</span><span class="v" style="font-family:inherit;">${esc(plan.label)}</span></div>
-            <div class="session-confirm-row"><span class="k">Result</span><span class="v" style="color:var(--win);">Complete · ${plan.totalMatches}/${plan.totalMatches}</span></div>
-          </div>
-          <p class="helper-text" style="margin:8px 0;">That session finished — pick up where you left off, or start a fresh one.</p>
-          <button class="btn btn-primary" style="width:100%;" data-action="continue-match-cycle">Continue Match Cycle &amp; Generate</button>
-          <button class="btn btn-ghost" style="width:100%; margin-top:8px;" data-action="change-session-plan">Choose New Session Length</button>
-        ` : `
-          <p class="helper-text" style="margin:0 0 8px;">No session length chosen yet — you'll be asked to pick one the next time you generate matches.</p>
-          <button class="btn btn-ghost" style="width:100%;" data-action="change-session-plan">Choose Session Length</button>
-        `}
-      </div>
-  ` : '';
 
   el.innerHTML = `
     <div class="section-title">Match Settings</div>
     <div class="card">
-      ${sessionFieldHtml}
-
-      <div class="field" id="courts-field-wrapper" style="display: ${state.settings.matchMode === 'RoundRobin' ? 'block' : 'none'};">
-        <label>Number of Available Courts</label>
-        <input type="number" id="numCourtsInput" min="1" max="10" value="${state.settings.numCourts || 1}">
-        <p class="helper-text">Every active player is still scheduled each generation — courts just control how many matches play at once. With 1 court, the rest queue up as "Up Next" so you always know who's playing next.</p>
-      </div>
-
-      <div class="field">
-        <label>Winning Score</label>
-        <input type="number" id="winningScoreInput" min="1" max="99" value="${state.settings.winningScore || 11}">
-        <p class="helper-text">First team to reach this score (win by 2) takes the match. Default is 11.</p>
-      </div>
 
       <div class="toggle-row">
         <div>
@@ -5454,7 +5415,6 @@ function renderSettingsView(el){
           <div class="track"></div><div class="thumb"></div>
         </label>
       </div>
-
 
       <div class="toggle-row">
         <div>
@@ -5514,7 +5474,7 @@ function renderSettingsView(el){
       <div class="toggle-row">
         <div>
           <div class="t-label">🚫 Rematch Prevention</div>
-          <div class="t-hint">Avoids rematching players who faced each other in the immediately previous match. A heavy penalty is applied during matchmaking — useful when player count is low.</div>
+          <div class="t-hint">Avoids rematching players who faced each other in the immediately previous match.</div>
         </div>
         <label class="switch">
           <input type="checkbox" id="rematchPreventionToggle" ${state.settings.rematchPrevention !== false ? 'checked' : ''}>
