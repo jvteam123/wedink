@@ -2292,19 +2292,137 @@ function csoGenerateMatchForCourt(courtNum, excludeIds) {
 
 // Initialize Rotation courts for the Continuous Smart Open Play mode
 function initRotationCourts() {
-  const numCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
   const pool = csoActivePlayers();
   if (pool.length < 4) { toast('Need at least 4 active players.', 'warning'); return; }
 
-  // Check if courts already have active matches (don't reinitialize those)
+  // If courts are already live, skip the modal and just fill empty slots
   if (!Array.isArray(state.rotationCourts)) state.rotationCourts = [];
   const existingActive = state.rotationCourts.filter(c => c && c.status === 'active').length;
   if (existingActive > 0) {
-    // Just fill any empty court slots
     fillEmptyRotationCourts();
     return;
   }
 
+  // Show setup modal before starting
+  openCSOPSetupModal(pool.length);
+}
+
+function openCSOPSetupModal(activeCount) {
+  const maxPossible = Math.floor(activeCount / 4);
+  const currentCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
+  const currentScore  = state.settings.winningScore || 11;
+
+  // Build court count option buttons (1 up to the max possible given player count)
+  const maxShow = Math.min(maxPossible, 6);
+  const courtBtns = Array.from({length: maxShow}, (_, i) => i + 1).map(n => {
+    const playersNeeded = n * 4;
+    const sitOut = activeCount - playersNeeded;
+    const recommended = n === Math.min(Math.floor(activeCount / 4), Math.max(1, Math.round(activeCount / 6)));
+    return `
+      <button type="button" class="session-opt ${n === currentCourts ? 'recommended' : ''}"
+        data-action="csop-pick-courts" data-courts="${n}"
+        style="cursor:pointer;">
+        <div class="session-opt-count">
+          <span class="n">${n}</span>
+          <span class="u">court${n>1?'s':''}</span>
+        </div>
+        <div class="session-opt-body">
+          <div class="session-opt-name">
+            ${n === 1 ? 'Single Court' : n === 2 ? 'Two Courts' : n === 3 ? 'Three Courts' : n + ' Courts'}
+            ${n === currentCourts ? '<span class="session-opt-tag">Current</span>' : ''}
+          </div>
+          <div class="session-opt-sub">
+            ${playersNeeded} players on court${sitOut > 0 ? ` · ${sitOut} waiting/rotating` : ' · everyone plays at once'}
+          </div>
+        </div>
+        <div class="session-opt-check" id="csop-court-check-${n}" style="${n === currentCourts ? 'border-color:var(--ball); background:var(--ball);' : ''}"></div>
+      </button>`;
+  }).join('');
+
+  openModal(`
+    <div class="modal-title">🏓 Start Open Play</div>
+    <div class="modal-sub" style="line-height:1.6;">
+      <strong style="color:var(--text);">${activeCount} active player${activeCount!==1?'s':''}</strong> ready.
+      Set up your courts before we start — each court runs independently and auto-generates its next match the moment it finishes.
+    </div>
+
+    <div class="eyebrow" style="margin:14px 2px 8px;">How many courts are available?</div>
+    <div class="session-opt-list" id="csoCourtsList">
+      ${courtBtns}
+      ${maxPossible < 1 ? '<p class="helper-text" style="color:var(--loss);">Not enough active players — need at least 4.</p>' : ''}
+    </div>
+
+    <div class="eyebrow" style="margin:16px 2px 8px;">Winning Score</div>
+    <div class="card" style="margin:0 0 4px;">
+      <div class="field" style="margin:0;">
+        <input type="number" id="csoWinScoreInput" min="1" max="99" value="${currentScore}"
+          style="font-size:18px; font-weight:700; text-align:center;">
+        <p class="helper-text" style="margin:6px 2px 0;">First team to reach this score (win by 2) wins the match.</p>
+      </div>
+    </div>
+
+    <div class="eyebrow" style="margin:16px 2px 8px;">Balancing Options</div>
+    <div class="card" style="margin:0; padding:4px 14px;">
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">🏆 Winner vs Winner</div>
+          <div class="t-hint">Prefer grouping recent winners vs winners (soft bonus, not forced).</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="csoWvWToggle" ${state.settings.winnerVsWinner ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">🚫 Rematch Prevention</div>
+          <div class="t-hint">Avoid facing the same opponents as the very last match.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="csoRematchToggle" ${state.settings.rematchPrevention !== false ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="t-label">🏁 Race to 2</div>
+          <div class="t-hint">Offer a sudden-death Race to 2 when both teams hit 10–10.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="csoRaceToggle" ${state.settings.raceToTwo ? 'checked' : ''}>
+          <div class="track"></div><div class="thumb"></div>
+        </label>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-primary" id="csoStartBtn" data-action="csop-confirm-start">🚀 Start Open Play</button>
+    </div>
+  `, false);
+}
+
+function doInitRotationCourts() {
+  // Read settings from the modal
+  const scoreEl = document.getElementById('csoWinScoreInput');
+  const wvwEl   = document.getElementById('csoWvWToggle');
+  const remEl   = document.getElementById('csoRematchToggle');
+  const raceEl  = document.getElementById('csoRaceToggle');
+
+  if (scoreEl) {
+    const v = parseInt(scoreEl.value, 10);
+    state.settings.winningScore = (isNaN(v) || v < 1) ? 11 : v;
+  }
+  if (wvwEl)  state.settings.winnerVsWinner   = wvwEl.checked;
+  if (remEl)  state.settings.rematchPrevention = remEl.checked;
+  if (raceEl) state.settings.raceToTwo        = raceEl.checked;
+
+  closeModal();
+
+  const pool = csoActivePlayers();
+  if (pool.length < 4) { toast('Need at least 4 active players.', 'warning'); return; }
+
+  const numCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
   state.rotationCourts = [];
   const usedIds = new Set();
 
@@ -2324,7 +2442,7 @@ function initRotationCourts() {
   }
 
   saveAll(); renderAll();
-  toast(`${state.rotationCourts.length} court${state.rotationCourts.length>1?'s':''} now live — Continuous Smart Open Play started.`, 'success');
+  toast(`${state.rotationCourts.length} court${state.rotationCourts.length>1?'s':''} now live — Open Play started!`, 'success');
 }
 
 // Fill any courts that have finished (or are empty) without touching active ones
