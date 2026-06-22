@@ -4937,6 +4937,15 @@ function renderMatchView(el){
     html += renderRotationCourtScoreboard(m);
   });
 
+  html += `
+    <div class="card" style="margin-top:14px;">
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="add-csop-court">➕ Add Court</button>
+        <button class="btn btn-danger btn-sm" style="flex:1;" data-action="end-open-play">⏹️ End Session</button>
+      </div>
+    </div>
+  `;
+
   el.innerHTML = html;
 
   window.updateRCScore = function(courtId, team, val) {
@@ -5725,6 +5734,24 @@ document.addEventListener('click', function(e){
       }
       break;
     case 'do-skip-match': skipCurrentMatch(); closeModal(); break;
+    case 'end-open-play':
+      openModal(`
+        <div class="modal-title">End Open Play Session?</div>
+        <div class="modal-sub">This clears every live court and takes you back to the mode picker. Matches already recorded stay in your history and stats.</div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-danger" data-action="do-end-open-play">Yes, End Session</button>
+        </div>
+      `);
+      break;
+    case 'do-end-open-play':
+      state.current = null;
+      state.rotationCourts = [];
+      saveAll();
+      closeModal();
+      renderAll();
+      toast('Open Play session ended.', 'success');
+      break;
     case 'undo-match':
       if(!state.undo){ toast('Nothing to undo.', 'info'); break; }
       openModal(`
