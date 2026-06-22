@@ -815,7 +815,8 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 const KEYS = {
   players:'kl_players', matches:'kl_matches', current:'kl_current',
   settings:'kl_settings', round:'kl_round', undo:'kl_undo', tab:'kl_tab',
-  fixedDuos:'kl_fixedDuos', sitOutQueue:'kl_sitOutQueue'
+  fixedDuos:'kl_fixedDuos', sitOutQueue:'kl_sitOutQueue',
+  rotationCourts:'kl_rotationCourts'  // Continuous Smart Open Play: per-court state array
 };
 
 const DEFAULT_SETTINGS = {
@@ -852,15 +853,15 @@ const SESSION_PLAN_OPTIONS = [
 let state = {
   players: [],
   matches: [],
-  current: null,         // Rotation: { round, teamA:[id,id], teamB:[id,id] }
+  current: null,         // Rotation legacy single-court: { round, teamA:[id,id], teamB:[id,id] }
   currentGeneration: null, // RoundRobin: { generation, courts:[ { court, teamA:[id,id], teamB:[id,id], scoreA:null, scoreB:null, winner:null } ] }
   settings: { ...DEFAULT_SETTINGS },
   round: 0,
   undo: null,
   tab: 'match',
-  fixedDuos: [],          // array of [id1, id2] pairs that must always be on the same team
-  sitOutQueue: []          // RoundRobin: ordered array of player IDs — front = next due to sit out.
-                            // Persisted so fairness survives a page refresh (see syncSitOutQueue()).
+  fixedDuos: [],
+  sitOutQueue: [],
+  rotationCourts: []     // Continuous Smart Open Play: array of per-court match objects
 };
 
 /* ============================================================
@@ -1018,6 +1019,8 @@ async function loadState(){
     if(fd) state.fixedDuos = fd;
     const soq = data[KEYS.sitOutQueue];
     if(Array.isArray(soq)) state.sitOutQueue = soq;
+    const rc = data[KEYS.rotationCourts];
+    if(Array.isArray(rc)) state.rotationCourts = rc;
   }catch(e){
     console.error('Failed to load saved data from IndexedDB, starting fresh.', e);
     toast("Couldn't open local storage — starting with a blank session. Your browser may be blocking IndexedDB (private/incognito mode, or storage disabled).", 'error');
@@ -1036,7 +1039,8 @@ function saveAll(){
       [KEYS.undo, state.undo],
       [KEYS.tab, state.tab],
       [KEYS.fixedDuos, state.fixedDuos || []],
-      [KEYS.sitOutQueue, state.sitOutQueue || []]
+      [KEYS.sitOutQueue, state.sitOutQueue || []],
+      [KEYS.rotationCourts, state.rotationCourts || []]
     ];
     idbSetMany(entries).catch(e => {
       console.error('IndexedDB save failed.', e);
@@ -1739,6 +1743,7 @@ function checkInResetAll(){
   // not a half-finished match hanging around from before everyone reset.
   state.current = null;
   state.currentGeneration = null;
+  state.rotationCourts = [];
   state.undo = null;
   state.settings.sessionPlan = null; // a fresh session means choosing session length again
   state.sitOutQueue = []; // fresh session — rebuilt from scratch as players check in
@@ -1780,6 +1785,7 @@ function resetPlayersAndStats(){
   state.matches = [];
   state.current = null;
   state.currentGeneration = null;
+  state.rotationCourts = [];
   state.round = 0;
   state.undo = null;
   state.settings.sessionPlan = null;
@@ -1789,7 +1795,7 @@ function resetPlayersAndStats(){
 }
 
 function resetEverything(){
-  state = { players:[], matches:[], current:null, currentGeneration:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match', fixedDuos:[], sitOutQueue:[] };
+  state = { players:[], matches:[], current:null, currentGeneration:null, rotationCourts:[], settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match', fixedDuos:[], sitOutQueue:[] };
   saveAll(); renderAll(); closeModal();
   toast('All data has been cleared.', 'success');
 }
@@ -2044,6 +2050,653 @@ function partitionDuoBlocked(tierPlayers, eligibleIds){
   });
   return blocked;
 }
+
+/* ============================================================
+   CONTINUOUS SMART OPEN PLAY ENGINE (Rotation Mode)
+   ------------------------------------------------------------
+   Each court operates independently. When a court finishes its
+   match, it immediately generates a new one without waiting for
+   other courts. Uses weighted scoring to fairly select players
+   and produce high-quality matchups.
+   ============================================================ */
+
+// --- Player tracking fields used by CSOP ---
+function ensureCSOP(p) {
+  if (typeof p.streakGames !== 'number') p.streakGames = 0;  // consecutive games played
+  if (typeof p.lastSatOut !== 'number') p.lastSatOut = 0;    // round# of last sit-out
+  if (typeof p.waitingSince !== 'number') p.waitingSince = state.round; // round when player started waiting
+}
+
+function csoActivePlayers() {
+  return state.players.filter(p =>
+    p.active && !p.isSub &&
+    (p.condition || 'ok') === 'ok' &&
+    !['injured','tired','cant_play'].includes(p.condition)
+  );
+}
+
+// Weighted priority score — higher = more urgent to play
+function csoPlayerPriority(p, now) {
+  ensureCSOP(p);
+  let score = 0;
+
+  // 1. Fewest games played first (most weight)
+  const maxGames = Math.max(...csoActivePlayers().map(x => x.gamesPlayed), 0);
+  score += (maxGames - p.gamesPlayed) * 100;
+
+  // 2. Longest waiting first
+  const waitingRounds = now - (p.waitingSince || now);
+  score += waitingRounds * 20;
+
+  // 3. Sat out last round — high priority bonus
+  const roundsSinceLastSitOut = now - (p.lastSatOut || 0);
+  if (p.lastSatOut > 0 && roundsSinceLastSitOut <= 2) {
+    score += 80;
+  }
+
+  // 4. Starvation prevention: avoid anyone sitting twice before everyone sits once
+  score += (p.sitOuts || 0) <= 1 ? 30 : 0;
+
+  // 5. Streak penalty: lower priority after 3+ consecutive games
+  if (p.streakGames >= 3) score -= (p.streakGames - 2) * 40;
+
+  return score;
+}
+
+// Match quality score for a candidate split
+function csoMatchScore(teamA, teamB, now) {
+  let score = 0;
+  const allFour = [...teamA, ...teamB];
+
+  // Waiting priority: reward getting high-priority players on court
+  allFour.forEach(p => { score += csoPlayerPriority(p, now) * 0.5; });
+
+  // Sit-out priority: bonus if someone just sat out is getting back in
+  allFour.forEach(p => {
+    ensureCSOP(p);
+    if (p.lastSatOut > 0 && (now - p.lastSatOut) <= 2) score += 30;
+  });
+
+  // Fairness bonus: reward even games-played spread
+  const gps = allFour.map(p => p.gamesPlayed);
+  const spread = Math.max(...gps) - Math.min(...gps);
+  score -= spread * 30;
+
+  // Winner vs Winner bonus (optional preference, not hard rule)
+  if (state.settings.winnerVsWinner && state.matches.length > 0) {
+    const recent = state.matches.slice(-4);
+    const recentWinners = new Set(recent.flatMap(m => m.winners || []));
+    const aWinners = teamA.filter(p => recentWinners.has(p.id)).length;
+    const bWinners = teamB.filter(p => recentWinners.has(p.id)).length;
+    if (aWinners >= 1 && bWinners >= 1) score += 20;
+  }
+
+  // Win/loss similarity bonus: teams with similar records
+  const winPctA = teamA.reduce((s,p)=> s + (p.gamesPlayed>0 ? p.wins/p.gamesPlayed : 0.5), 0) / 2;
+  const winPctB = teamB.reduce((s,p)=> s + (p.gamesPlayed>0 ? p.wins/p.gamesPlayed : 0.5), 0) / 2;
+  score -= Math.abs(winPctA - winPctB) * 40;
+
+  // Games played difference penalty
+  const avgA = teamA.reduce((s,p)=>s+p.gamesPlayed,0)/2;
+  const avgB = teamB.reduce((s,p)=>s+p.gamesPlayed,0)/2;
+  score -= Math.abs(avgA - avgB) * 15;
+
+  // Same partner penalty (weighted, not absolute)
+  const tmA = pairCount(teamA[0].teammates, teamA[1].id);
+  const tmB = pairCount(teamB[0].teammates, teamB[1].id);
+  score -= (tmA + tmB) * 25;
+
+  // Same opponent penalty (weighted)
+  [[teamA[0],teamB[0]], [teamA[0],teamB[1]], [teamA[1],teamB[0]], [teamA[1],teamB[1]]].forEach(([pa,pb]) => {
+    score -= pairCount(pa.opponents, pb.id) * 12;
+  });
+
+  // Streak penalty (consecutive game protection)
+  allFour.forEach(p => {
+    ensureCSOP(p);
+    if (p.streakGames >= 3) score -= (p.streakGames - 2) * 20;
+    if (p.streakGames >= 4) score -= 50; // force rest warning
+  });
+
+  // Rematch prevention
+  const recentOpponents = lastMatchOpponentPairs();
+  if (recentOpponents.size) {
+    teamA.forEach(pa => teamB.forEach(pb => {
+      if (recentOpponents.has(pa.id + '|' + pb.id)) score -= 150;
+    }));
+  }
+
+  return score;
+}
+
+// Generate the best match for a specific court from the eligible pool
+// `excludeIds` = players already assigned to OTHER courts right now
+function csoGenerateMatchForCourt(courtNum, excludeIds) {
+  const now = state.round;
+  const pool = csoActivePlayers().filter(p => !excludeIds.has(p.id));
+  pool.forEach(ensureCSOP);
+
+  if (pool.length < 4) return null;
+
+  // Sort by priority descending — take a candidate window
+  pool.sort((a,b) => csoPlayerPriority(b, now) - csoPlayerPriority(a, now));
+
+  // Window: take top N players, biasing toward fair play
+  // Always include everyone at the minimum gamesPlayed tier
+  const minGames = pool[0].gamesPlayed;
+  let tierEnd = 0;
+  while (tierEnd < pool.length && pool[tierEnd].gamesPlayed === minGames) tierEnd++;
+  const windowSize = Math.max(tierEnd, Math.min(12, pool.length));
+  const candidates = pool.slice(0, windowSize);
+
+  // Evaluate all foursomes + all team splits, pick best by csoMatchScore
+  let bestMatch = null;
+  let bestScore = -Infinity;
+
+  // Collapse fixed duos into units
+  const units = [];
+  const claimed = new Set();
+  candidates.forEach(p => {
+    if (claimed.has(p.id)) return;
+    const partnerId = getFixedDuoPartner(p.id);
+    const partner = partnerId ? candidates.find(c => c.id === partnerId) : null;
+    if (partner) {
+      units.push([p, partner]);
+      claimed.add(p.id); claimed.add(partner.id);
+    } else {
+      units.push([p]);
+      claimed.add(p.id);
+    }
+  });
+
+  // Enumerate foursomes
+  (function exploreCSOP(startIdx, chosen, count) {
+    if (count === 4) {
+      const four = chosen.flat();
+      // Try all 3 splits
+      const allSplits = [
+        [[four[0],four[1]], [four[2],four[3]]],
+        [[four[0],four[2]], [four[1],four[3]]],
+        [[four[0],four[3]], [four[1],four[2]]]
+      ];
+      // Filter splits that honor fixed duos
+      const validSplits = allSplits.filter(([t1,t2]) => {
+        for (const duo of (state.fixedDuos || [])) {
+          const [d1, d2] = duo;
+          const bothInFour = four.some(p=>p.id===d1) && four.some(p=>p.id===d2);
+          if (!bothInFour) continue;
+          const t1ids = [t1[0].id, t1[1].id];
+          const t2ids = [t2[0].id, t2[1].id];
+          if (!((t1ids.includes(d1) && t1ids.includes(d2)) || (t2ids.includes(d1) && t2ids.includes(d2)))) return false;
+        }
+        return true;
+      });
+      const splitsToTry = validSplits.length ? validSplits : allSplits;
+      splitsToTry.forEach(([tA, tB]) => {
+        const sc = csoMatchScore(tA, tB, now);
+        if (sc > bestScore) {
+          bestScore = sc;
+          bestMatch = { teamA: tA, teamB: tB };
+        }
+      });
+      return;
+    }
+    if (count > 4) return;
+    for (let i = startIdx; i < units.length; i++) {
+      if (count + units[i].length > 4) continue;
+      exploreCSOP(i + 1, chosen.concat([units[i]]), count + units[i].length);
+    }
+  })(0, [], 0);
+
+  if (!bestMatch) return null;
+
+  const { teamA, teamB } = bestMatch;
+
+  // Mark all four as "on court" — streak tracking, waiting reset
+  [...teamA, ...teamB].forEach(p => {
+    ensureCSOP(p);
+    p.streakGames = (p.streakGames || 0) + 1;
+    p.waitingSince = now + 1; // reset waiting clock; they'll start waiting again after this match
+    p.consecutiveSitOuts = 0;
+  });
+
+  // Everyone NOT in this match who is active is "waiting" — update their waiting clock
+  pool.filter(p => !teamA.includes(p) && !teamB.includes(p)).forEach(p => {
+    ensureCSOP(p);
+    if (p.waitingSince === undefined || p.waitingSince > now) p.waitingSince = now;
+  });
+
+  state.round++;
+
+  const matchObj = {
+    id: uid('rc'),
+    courtNum,
+    round: state.round,
+    teamA: teamA.map(p=>p.id),
+    teamB: teamB.map(p=>p.id),
+    scoreA: null, scoreB: null,
+    winner: null,
+    serving: 'A', serverNum: 1, firstServe: true,
+    status: 'active',
+    substitutions: {}
+  };
+
+  // Sit-out tracking for the pool members not playing
+  pool.filter(p => !teamA.includes(p) && !teamB.includes(p)).forEach(p => {
+    p.sitOuts = (p.sitOuts || 0);
+    p.lastSatOut = now + 1;
+  });
+
+  return matchObj;
+}
+
+// Initialize Rotation courts for the Continuous Smart Open Play mode
+function initRotationCourts() {
+  const numCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
+  const pool = csoActivePlayers();
+  if (pool.length < 4) { toast('Need at least 4 active players.', 'warning'); return; }
+
+  // Check if courts already have active matches (don't reinitialize those)
+  if (!Array.isArray(state.rotationCourts)) state.rotationCourts = [];
+  const existingActive = state.rotationCourts.filter(c => c && c.status === 'active').length;
+  if (existingActive > 0) {
+    // Just fill any empty court slots
+    fillEmptyRotationCourts();
+    return;
+  }
+
+  state.rotationCourts = [];
+  const usedIds = new Set();
+
+  for (let c = 1; c <= numCourts; c++) {
+    if (pool.filter(p => !usedIds.has(p.id)).length < 4) break;
+    const match = csoGenerateMatchForCourt(c, usedIds);
+    if (match) {
+      state.rotationCourts.push(match);
+      match.teamA.forEach(id => usedIds.add(id));
+      match.teamB.forEach(id => usedIds.add(id));
+    }
+  }
+
+  if (!state.rotationCourts.length) {
+    toast('Could not generate any matches. Need at least 4 active players.', 'warning');
+    return;
+  }
+
+  saveAll(); renderAll();
+  toast(`${state.rotationCourts.length} court${state.rotationCourts.length>1?'s':''} now live — Continuous Smart Open Play started.`, 'success');
+}
+
+// Fill any courts that have finished (or are empty) without touching active ones
+function fillEmptyRotationCourts() {
+  const numCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
+  if (!Array.isArray(state.rotationCourts)) state.rotationCourts = [];
+
+  // Remove "done" courts and track which are still active
+  state.rotationCourts = state.rotationCourts.filter(c => c && c.status === 'active');
+
+  const usedIds = new Set();
+  state.rotationCourts.forEach(c => {
+    c.teamA.forEach(id => usedIds.add(id));
+    c.teamB.forEach(id => usedIds.add(id));
+  });
+
+  let filled = 0;
+  const pool = csoActivePlayers();
+  for (let c = state.rotationCourts.length + 1; c <= numCourts; c++) {
+    if (pool.filter(p => !usedIds.has(p.id)).length < 4) break;
+    const match = csoGenerateMatchForCourt(c, usedIds);
+    if (match) {
+      state.rotationCourts.push(match);
+      match.teamA.forEach(id => usedIds.add(id));
+      match.teamB.forEach(id => usedIds.add(id));
+      filled++;
+    }
+  }
+  return filled;
+}
+
+// When a specific rotation court finishes, record result and immediately
+// generate the next match for that court (event-driven, independent of other courts)
+function confirmRotationCourtMatch(courtId) {
+  if (!Array.isArray(state.rotationCourts)) return;
+  const m = state.rotationCourts.find(c => c.id === courtId);
+  if (!m || m.status !== 'active') return;
+  if (m.winner === null) { toast('Select the winning team before confirming.', 'warning'); return; }
+
+  state.undo = {
+    players: deepClone(state.players),
+    matches: deepClone(state.matches),
+    current: null,
+    currentGeneration: null,
+    rotationCourts: deepClone(state.rotationCourts),
+    round: state.round,
+    sitOutQueue: deepClone(state.sitOutQueue || [])
+  };
+
+  const sA = parseInt(m.scoreA, 10) || 0;
+  const sB = parseInt(m.scoreB, 10) || 0;
+  const tA_win = m.winner === 'A';
+
+  const subs = m.substitutions || {};
+  function resolveOrig(id) { return Object.keys(subs).find(orig => subs[orig] === id) || id; }
+  const recordTeamA = m.teamA.map(resolveOrig);
+  const recordTeamB = m.teamB.map(resolveOrig);
+
+  const matchRecord = {
+    id: uid('m'),
+    round: m.round,
+    court: m.courtNum,
+    teamA: recordTeamA, teamB: recordTeamB,
+    scoreA: sA, scoreB: sB,
+    winners: tA_win ? recordTeamA : recordTeamB,
+    losers: tA_win ? recordTeamB : recordTeamA,
+    substitutions: Object.keys(subs).length ? subs : undefined,
+    date: new Date().toISOString()
+  };
+  state.matches.push(matchRecord);
+
+  // Update stats for all four (original IDs)
+  [...recordTeamA, ...recordTeamB].forEach(id => {
+    const p = getPlayer(id);
+    if (!p) return;
+    p.gamesPlayed++;
+    if (matchRecord.winners.includes(id)) {
+      p.wins++; p.results.push('W');
+      p.currentStreak = p.currentStreak > 0 ? p.currentStreak + 1 : 1;
+    } else {
+      p.losses++; p.results.push('L');
+      p.currentStreak = p.currentStreak < 0 ? p.currentStreak - 1 : -1;
+    }
+    if (Math.abs(p.currentStreak) > p.longestStreak) p.longestStreak = Math.abs(p.currentStreak);
+  });
+  // Streak games reset for the four players (they just played)
+  [...m.teamA, ...m.teamB].forEach(id => {
+    const p = getPlayer(id); if (!p) return;
+    ensureCSOP(p);
+    // streak game count tracked separately from win/loss streak
+  });
+
+  [[recordTeamA[0], recordTeamA[1]], [recordTeamB[0], recordTeamB[1]]].forEach(([p1,p2]) => {
+    const pl1 = getPlayer(p1), pl2 = getPlayer(p2);
+    if (pl1 && pl2) { bumpPair(pl1.teammates, p2); bumpPair(pl2.teammates, p1); }
+  });
+  recordTeamA.forEach(idA => recordTeamB.forEach(idB => {
+    const plA = getPlayer(idA), plB = getPlayer(idB);
+    if (plA && plB) { bumpPair(plA.opponents, idB); bumpPair(plB.opponents, idA); }
+  }));
+
+  const rA = (getPlayer(recordTeamA[0])?.rating||1000) + (getPlayer(recordTeamA[1])?.rating||1000);
+  const rB = (getPlayer(recordTeamB[0])?.rating||1000) + (getPlayer(recordTeamB[1])?.rating||1000);
+  const expA = 1 / (1 + Math.pow(10, (rB-rA)/400));
+  const change = Math.round(32 * ((tA_win?1:0) - expA));
+  recordTeamA.forEach(id => { const p=getPlayer(id); if(p) p.rating+=change; });
+  recordTeamB.forEach(id => { const p=getPlayer(id); if(p) p.rating-=change; });
+
+  // Sit-out priority: the four who just played lower priority, waiting players rise
+  const justPlayedIds = new Set([...m.teamA, ...m.teamB]);
+  csoActivePlayers().forEach(p => {
+    ensureCSOP(p);
+    if (justPlayedIds.has(p.id)) {
+      p.lastSatOut = 0; // played this match, not sitting out
+    }
+  });
+
+  // Mark this court slot as done and immediately spin up next match for it
+  m.status = 'done';
+  const courtNum = m.courtNum;
+  // Remove the done match from active courts
+  state.rotationCourts = state.rotationCourts.filter(c => c.status === 'active');
+
+  // Find IDs still active on other courts
+  const usedIds = new Set();
+  state.rotationCourts.forEach(c => {
+    c.teamA.forEach(id => usedIds.add(id));
+    c.teamB.forEach(id => usedIds.add(id));
+  });
+
+  // Immediately generate a new match for this court
+  const pool = csoActivePlayers();
+  if (pool.filter(p => !usedIds.has(p.id)).length >= 4) {
+    const nextMatch = csoGenerateMatchForCourt(courtNum, usedIds);
+    if (nextMatch) {
+      state.rotationCourts.push(nextMatch);
+      toast(`Court ${courtNum} match recorded ✓ — next match ready.`, 'success');
+    } else {
+      toast(`Court ${courtNum} match recorded ✓ — not enough available players to fill court right now.`, 'info');
+    }
+  } else {
+    toast(`Court ${courtNum} match recorded ✓ — waiting for more players to free up.`, 'info');
+  }
+
+  playGameWinSound();
+  saveAll(); renderAll();
+}
+
+// liveMatchCtx for rotation courts (event-driven)
+function liveRotationCourtCtx(courtId) {
+  return {
+    mode: 'rotation-court',
+    matchId: courtId,
+    getMatch() { return Array.isArray(state.rotationCourts) ? state.rotationCourts.find(c => c.id === courtId) : null; },
+    scoreInput(team) { return document.querySelector(`input[data-court-score="${courtId}-${team}"]`); },
+    winBtn(team) { return document.querySelector(`.csop-win-btn[data-court="${courtId}"][data-team="${team}"]`); },
+    render() { renderActiveView(); }
+  };
+}
+
+function adjustRotationCourtScore(courtId, team, delta) {
+  adjustMatchScore(liveRotationCourtCtx(courtId), team, delta);
+}
+function setRotationCourtWinner(courtId, team) {
+  selectMatchWinner(liveRotationCourtCtx(courtId), team);
+}
+function updateRotationCourtScore(courtId, team, val) {
+  updateMatchScore(liveRotationCourtCtx(courtId), team, val);
+}
+function setRotationCourtServer(courtId, team) {
+  setServingTeam(liveRotationCourtCtx(courtId), team);
+}
+function rotationCourtAdvanceServer(courtId) {
+  advanceServer(liveRotationCourtCtx(courtId));
+}
+function rotationCourtSideOut(courtId) {
+  sideOutMatch(liveRotationCourtCtx(courtId));
+}
+function rotationCourtUndoServe(courtId) {
+  confirmUndoServeModal(liveRotationCourtCtx(courtId));
+}
+function doRotationCourtUndoServe(courtId) {
+  undoServeMatch(liveRotationCourtCtx(courtId));
+}
+
+// Replace a player on an active rotation court
+function openReplaceRotationCourtPlayerModal(courtId, team, playerId) {
+  const m = Array.isArray(state.rotationCourts) ? state.rotationCourts.find(c => c.id === courtId) : null;
+  if (!m || m.status !== 'active') { toast('That court is not active.', 'warning'); return; }
+  const p = getPlayer(playerId);
+  const inMatchIds = new Set([...m.teamA, ...m.teamB]);
+
+  const benchCandidates = csoActivePlayers()
+    .filter(pl => pl.id !== playerId && !inMatchIds.has(pl.id))
+    .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+  const subCandidates = state.players
+    .filter(pl => pl.isSub && pl.active && (pl.condition||'ok')==='ok' && pl.id !== playerId && !inMatchIds.has(pl.id))
+    .sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+
+  const rowBtn = (b, badge) => `
+    <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between;"
+      data-action="do-replace-rotation-court-player" data-court="${courtId}" data-team="${team}"
+      data-player="${playerId}" data-sub="${b.id}">
+      <span>${esc(b.name)}</span>
+      <span class="mono" style="color:var(--text-faint); font-size:11px;">${badge} · ${b.gamesPlayed} gms</span>
+    </button>`;
+
+  const benchHtml = benchCandidates.length
+    ? benchCandidates.map(b => rowBtn(b, '🎮 Available')).join('') : '';
+  const subsHtml = subCandidates.length
+    ? `<div class="helper-text" style="margin:10px 2px 4px; color:var(--court);">🔁 Sub Players</div>` + subCandidates.map(b => rowBtn(b, '🔁 Sub')).join('') : '';
+  const noneHtml = (!benchCandidates.length && !subCandidates.length)
+    ? `<p class="helper-text">No other active players available right now.</p>` : '';
+
+  openModal(`
+    <div class="modal-title">Replace ${esc(p ? p.name : 'Player')}</div>
+    <div class="modal-sub">Tap a player to sub in for ${esc(p ? p.name : 'this player')} on Court ${m.courtNum}.</div>
+    ${benchHtml}${subsHtml}${noneHtml}
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
+    </div>
+  `);
+}
+
+function doReplaceRotationCourtPlayer(courtId, team, oldId, newId) {
+  if (!newId) { toast('No substitute selected.', 'warning'); return; }
+  const m = Array.isArray(state.rotationCourts) ? state.rotationCourts.find(c => c.id === courtId) : null;
+  if (!m || m.status !== 'active') { toast('That court is not active.', 'warning'); return; }
+  const teamArr = team === 'A' ? m.teamA : m.teamB;
+  const idx = teamArr.indexOf(oldId);
+  if (idx === -1) return;
+  if (!m.substitutions) m.substitutions = {};
+  const realOrig = Object.keys(m.substitutions).find(orig => m.substitutions[orig] === oldId) || oldId;
+  m.substitutions[realOrig] = newId;
+  teamArr[idx] = newId;
+  saveAll(); renderAll(); closeModal();
+  toast(`${playerName(realOrig)} subbed out — ${playerName(newId)} steps in.`, 'success');
+}
+
+// Skip a rotation court match (clear without recording)
+function skipRotationCourtMatch(courtId) {
+  if (!Array.isArray(state.rotationCourts)) return;
+  const m = state.rotationCourts.find(c => c.id === courtId);
+  if (!m) return;
+  const courtNum = m.courtNum;
+  state.rotationCourts = state.rotationCourts.filter(c => c.id !== courtId);
+  saveAll(); renderAll(); closeModal();
+  toast(`Court ${courtNum} match cleared.`, 'success');
+}
+
+/* ============================================================
+   ROTATION COURT MATCH VIEW RENDERER
+   ============================================================ */
+function renderRotationCourtScoreboard(m) {
+  const pA1 = getPlayer(m.teamA[0]), pA2 = getPlayer(m.teamA[1]);
+  const pB1 = getPlayer(m.teamB[0]), pB2 = getPlayer(m.teamB[1]);
+  if (m.serving === undefined) m.serving = 'A';
+  if (m.serverNum === undefined) m.serverNum = 1;
+  if (m.firstServe === undefined) m.firstServe = true;
+  const servingA = m.serving === 'A', servingB = m.serving === 'B';
+  const serveLabel = m.firstServe ? '1st Serve' : `Serve ${m.serverNum}`;
+  const activeA = m.winner === 'A', activeB = m.winner === 'B';
+  const winTarget = getMatchWinTarget(m);
+
+  function nameTag(team, playerId) {
+    const p = getPlayer(playerId);
+    const justify = team === 'A' ? 'flex-end' : 'flex-start';
+    const cond = p ? (p.condition || 'ok') : 'ok';
+    const condBadge = cond === 'tired' ? ' 😴' : cond === 'injured' ? ' 🤕' : cond === 'cant_play' ? ' 🙅' : '';
+    ensureCSOP(p || {});
+    const streakWarn = p && p.streakGames >= 4 ? ` <span style="color:var(--loss); font-size:10px; font-weight:700;">🔥${p.streakGames}</span>` : p && p.streakGames >= 3 ? ` <span style="color:var(--ball); font-size:10px; font-weight:700;">🔥${p.streakGames}</span>` : '';
+    return `<span style="display:inline-flex; align-items:center; flex-wrap:wrap; justify-content:${justify}; gap:4px; max-width:100%;">
+      ${esc(p?.name || '—')}${condBadge}${streakWarn}
+      <button class="icon-btn-tiny" data-action="open-replace-rc-player"
+        data-court="${m.id}" data-team="${team}" data-player="${playerId}"
+        aria-label="Replace player" title="Replace this player">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+    </span>`;
+  }
+
+  return `
+    <div class="scoreboard" style="margin-bottom:14px;">
+      <div class="sb-head">
+        <span class="sb-round">COURT <b>${m.courtNum}</b> · Match <b>#${m.round}</b></span>
+        ${m.raceActive ? `<span class="race-badge">🏁 Race to 2</span>` : ''}
+        <div class="live-dot"><div class="d"></div>Live</div>
+      </div>
+      <div class="sb-body">
+        <div class="sb-team team-a">
+          <span class="sb-tag">Team A</span>
+          <div class="sb-names">${nameTag('A', m.teamA[0])}<br>${nameTag('A', m.teamA[1])}</div>
+          <div class="sb-rating">Avg: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
+          ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rc-set-server" data-court="${m.id}" data-team="A">Make 1st server</button>` : '')}
+          <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn csop-win-btn"
+            data-action="rc-set-winner" data-court="${m.id}" data-team="A">
+            ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
+          </button>
+        </div>
+        <div class="sb-divider"></div>
+        <div class="sb-team team-b">
+          <span class="sb-tag">Team B</span>
+          <div class="sb-names">${nameTag('B', m.teamB[0])}<br>${nameTag('B', m.teamB[1])}</div>
+          <div class="sb-rating">Avg: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
+          ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rc-set-server" data-court="${m.id}" data-team="B">Make 1st server</button>` : '')}
+          <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn csop-win-btn"
+            data-action="rc-set-winner" data-court="${m.id}" data-team="B">
+            ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
+          </button>
+        </div>
+      </div>
+      <div class="sb-foot rr-score-foot">
+        <div class="score-stepper">
+          <button type="button" class="score-btn score-btn-minus rr-score-btn"
+            data-action="rc-score-adjust" data-court="${m.id}" data-team="A" data-delta="-1"
+            ${(!servingA || (m.scoreA === null || m.scoreA <= 0)) ? 'disabled' : ''}>−</button>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A"
+            class="cb-score-input rr-score-input"
+            data-court-score="${m.id}-A"
+            min="0" max="${winTarget}"
+            value="${m.scoreA !== null ? m.scoreA : ''}"
+            oninput="window.updateRCScore('${m.id}', 'A', this.value)">
+          <button type="button" class="score-btn score-btn-plus rr-score-btn"
+            data-action="rc-score-adjust" data-court="${m.id}" data-team="A" data-delta="1"
+            ${(!servingA || (m.scoreA !== null && m.scoreA >= winTarget)) ? 'disabled' : ''}>+</button>
+        </div>
+        <span class="rr-score-vs-sm">vs</span>
+        <div class="score-stepper">
+          <button type="button" class="score-btn score-btn-minus rr-score-btn"
+            data-action="rc-score-adjust" data-court="${m.id}" data-team="B" data-delta="-1"
+            ${(!servingB || (m.scoreB === null || m.scoreB <= 0)) ? 'disabled' : ''}>−</button>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B"
+            class="cb-score-input rr-score-input"
+            data-court-score="${m.id}-B"
+            min="0" max="${winTarget}"
+            value="${m.scoreB !== null ? m.scoreB : ''}"
+            oninput="window.updateRCScore('${m.id}', 'B', this.value)">
+          <button type="button" class="score-btn score-btn-plus rr-score-btn"
+            data-action="rc-score-adjust" data-court="${m.id}" data-team="B" data-delta="1"
+            ${(!servingB || (m.scoreB !== null && m.scoreB >= winTarget)) ? 'disabled' : ''}>+</button>
+        </div>
+      </div>
+      <div style="padding:0 14px 14px;">
+        <div style="display:flex; gap:8px; margin-bottom:10px;">
+          <button class="btn btn-secondary btn-sm" style="flex:1;"
+            data-action="rc-advance-server" data-court="${m.id}"
+            ${(m.firstServe || m.serverNum===2) ? 'disabled' : ''}>🎾 Serve 2</button>
+          <button class="btn btn-secondary btn-sm sideout-btn" style="flex:1;"
+            data-action="rc-side-out" data-court="${m.id}"
+            ${(m.winner || (!m.firstServe && m.serverNum===1)) ? 'disabled' : ''}>🔁 Side Out</button>
+          <button class="btn btn-ghost btn-sm undo-serve-btn"
+            data-action="rc-undo-serve" data-court="${m.id}"
+            title="Undo serve decision"
+            ${(!m._serveUndoStack || !m._serveUndoStack.length) ? 'disabled' : ''}>↩️${(m._serveUndoStack && m._serveUndoStack.length) ? ' '+m._serveUndoStack.length : ''}</button>
+        </div>
+        <button class="btn btn-primary btn-block"
+          data-action="confirm-rc-match" data-court="${m.id}">
+          ✅ Confirm Result &amp; Auto-Generate Next
+        </button>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-ghost btn-sm" style="flex:1;"
+            data-action="skip-rc-match" data-court="${m.id}"
+            ${hasMatchStarted(m) ? 'disabled title="Scoring started — finish or undo first"' : ''}>⏭️ Skip</button>
+          <button class="btn btn-danger btn-sm" style="flex:1;"
+            data-action="undo-match"
+            ${!state.undo ? 'disabled' : ''}>↩ Undo Last</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 
 function nextRotationMatch(){
   const pool = selectionPool();
@@ -2715,6 +3368,16 @@ function advanceRRQueue(){
 // once instead of twice.
 // ============================================================
 function liveMatchCtx(mode, matchId){
+  if(mode === 'rotation-court'){
+    const courtId = matchId;
+    return {
+      mode, matchId: courtId,
+      getMatch(){ return Array.isArray(state.rotationCourts) ? state.rotationCourts.find(c => c.id === courtId) : null; },
+      scoreInput(team){ return document.querySelector(`input[data-court-score="${courtId}-${team}"]`); },
+      winBtn(team){ return document.querySelector(`.csop-win-btn[data-court="${courtId}"][data-team="${team}"]`); },
+      render(){ renderActiveView(); }
+    };
+  }
   if(mode === 'rr'){
     return {
       mode, matchId,
@@ -2911,19 +3574,20 @@ function maybeOfferRaceToTwo(m, mode, matchId){
   if(safeScore(m.scoreA) === 10 && safeScore(m.scoreB) === 10){
     m.raceOffered = true;
     saveAll();
+    const safeMode = mode || 'rotation';
     openModal(`
       <div class="modal-title">Race to 2?</div>
       <div class="modal-sub">Both teams have reached 10–10 (Love–Love). Would you like to play a Race to 2?</div>
       <div class="modal-actions" style="margin-top:16px;">
         <button class="btn btn-ghost" data-action="decline-race-to-two">No, Keep Playing</button>
-        <button class="btn btn-primary" data-action="accept-race-to-two" data-mode="${mode}" data-match="${matchId || ''}">Yes, Race to 2</button>
+        <button class="btn btn-primary" data-action="accept-race-to-two" data-mode="${safeMode}" data-match="${matchId || ''}">Yes, Race to 2</button>
       </div>
     `, false);
   }
 }
 
 function acceptRaceToTwo(mode, matchId){
-  const ctx = liveMatchCtx(mode, matchId);
+  const ctx = (mode === 'rotation-court') ? liveRotationCourtCtx(matchId) : liveMatchCtx(mode, matchId);
   const m = ctx.getMatch();
   if(!m){ closeModal(); return; }
   m.scoreA = 0;
@@ -3679,11 +4343,12 @@ function recordRotationMatch(scoreA, scoreB) {
 }
 
 function skipCurrentMatch() {
-  if(!state.current && !state.currentGeneration) return;
+  if(!state.current && !state.currentGeneration && (!state.rotationCourts || !state.rotationCourts.length)) return;
   if(state.settings.matchMode === 'RoundRobin') {
     state.currentGeneration = null;
   } else {
     state.current = null;
+    state.rotationCourts = [];
   }
   saveAll(); renderAll();
   toast('Current match cleared.', 'success');
@@ -3697,6 +4362,7 @@ function undoLastMatch() {
   state.currentGeneration = state.undo.currentGeneration;
   state.round = state.undo.round;
   if(state.undo.sitOutQueue) state.sitOutQueue = state.undo.sitOutQueue;
+  if(state.undo.rotationCourts) state.rotationCourts = state.undo.rotationCourts;
   state.undo = null;
   saveAll(); renderAll();
   toast('Last match results undone.', 'success');
@@ -3734,7 +4400,8 @@ function exportData(filename){
     settings: state.settings,
     round: state.round,
     sitOutQueue: state.sitOutQueue || [],
-    version: '2.0-multi-mode'
+    rotationCourts: state.rotationCourts || [],
+    version: '3.0-csop'
   };
   const str = JSON.stringify(dump, null, 2);
   const blob = new Blob([str], {type: 'application/json'});
@@ -3766,6 +4433,7 @@ function importDataFromText(txt){
     state.settings = { ...DEFAULT_SETTINGS, ...dump.settings };
     state.round = parseInt(dump.round,10)||0;
     state.sitOutQueue = Array.isArray(dump.sitOutQueue) ? dump.sitOutQueue : [];
+    state.rotationCourts = Array.isArray(dump.rotationCourts) ? dump.rotationCourts : [];
     
     const incomingC = dump.current;
     if (incomingC && incomingC.matches) {
@@ -3829,11 +4497,15 @@ function updateDashStrip(){
   const total = state.players.length;
   const activeCount = activePlayers().length;
   const matchesCount = state.matches.length;
+  const activeCourts = state.settings.matchMode === 'Rotation'
+    ? (Array.isArray(state.rotationCourts) ? state.rotationCourts.filter(c=>c&&c.status==='active').length : 0)
+    : (state.currentGeneration ? state.currentGeneration.matches.filter(m=>m.status==='active').length : 0);
   ds.innerHTML = `
     <div class="d-item"><span class="eyebrow">Players:</span><span class="v">${total}</span></div>
     <div class="d-item"><span class="eyebrow">Active:</span><span class="v">${activeCount}</span></div>
     <div class="d-item"><span class="eyebrow">Matches:</span><span class="v">${matchesCount}</span></div>
-    <div class="d-item"><span class="eyebrow">Mode:</span><span class="v" style="color:var(--court);">${state.settings.matchMode === 'RoundRobin' ? 'Round Robin' : 'Rotation'}</span></div>
+    <div class="d-item"><span class="eyebrow">Courts:</span><span class="v" style="color:var(--win);">${activeCourts}</span></div>
+    <div class="d-item"><span class="eyebrow">Mode:</span><span class="v" style="color:var(--court);">${state.settings.matchMode === 'RoundRobin' ? 'Round Robin' : 'Open Play'}</span></div>
   `;
 }
 
@@ -4108,7 +4780,70 @@ function renderMatchView(el){
     return;
   }
 
-  // STANDARD EXISTING ROTATION MODE VIEW SYSTEM
+  // CONTINUOUS SMART OPEN PLAY — ROTATION MODE (multi-court, event-driven)
+  const courts = Array.isArray(state.rotationCourts) ? state.rotationCourts.filter(c => c && c.status === 'active') : [];
+  const numCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
+  const pool = csoActivePlayers();
+
+  if (!courts.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="big">🏓</div>
+        <div class="et">Continuous Smart Open Play</div>
+        <p>Courts are independent — each generates a new match the moment it finishes, keeping players moving without waiting for everyone.<br><br>
+        <strong style="color:var(--ball);">${pool.length} active player${pool.length!==1?'s':''}</strong> · <strong style="color:var(--court);">${numCourts} court${numCourts!==1?'s':''}</strong> configured</p>
+        <button class="btn btn-primary" style="margin-top:16px;" data-action="start-csop">
+          🚀 Start Open Play
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `<div class="section-title">🏓 Continuous Open Play — ${courts.length} Court${courts.length!==1?'s':''} Live</div>`;
+
+  // Session balance summary
+  const activePl = pool;
+  if (activePl.length) {
+    const gps = activePl.map(p => p.gamesPlayed);
+    const minGP = Math.min(...gps), maxGP = Math.max(...gps);
+    const spread = maxGP - minGP;
+    const spreadColor = spread <= 1 ? 'var(--win)' : spread <= 2 ? 'var(--ball)' : 'var(--loss)';
+    html += `
+      <div class="card" style="margin-bottom:12px; padding:10px 14px; display:flex; gap:14px; align-items:center;">
+        <div style="flex:1; font-size:12px; color:var(--text-dim);">
+          <span style="color:var(--text); font-weight:700;">${activePl.length}</span> active players · games played spread: <span style="color:${spreadColor}; font-weight:800;">±${spread}</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" data-action="add-csop-court" style="flex:none;"
+          ${activePl.filter(p => !courts.some(c => c.teamA.includes(p.id) || c.teamB.includes(p.id))).length < 4 ? 'disabled title="Not enough free players"' : ''}>
+          + Court
+        </button>
+      </div>
+    `;
+  }
+
+  courts.sort((a,b) => a.courtNum - b.courtNum);
+  courts.forEach(m => {
+    html += renderRotationCourtScoreboard(m);
+  });
+
+  html += `
+    <div class="card" style="margin-top:4px;">
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="start-csop">↺ Regenerate All Courts</button>
+        <button class="btn btn-danger btn-sm" style="flex:1;" data-action="undo-match" ${!state.undo?'disabled':''}>↩ Undo Last Match</button>
+      </div>
+    </div>
+  `;
+  el.innerHTML = html;
+
+  window.updateRCScore = function(courtId, team, val) {
+    updateRotationCourtScore(courtId, team, val);
+  };
+  return;
+}
+
+function _renderMatchViewOriginalRotation(el) {
   if(!state.current){
     el.innerHTML = `
       <div class="empty-state">
@@ -4214,20 +4949,33 @@ function renderMatchView(el){
   };
 }
 
+// (Legacy single-court rotation kept for undo recovery — not used in CSOP flow)
+
 function renderQueueView(el){
-  const activeList = activePlayers().slice();
-  
-  // Sort properly for clear inspection presentation layout
+  const activeList = csoActivePlayers().slice();
+  const now = state.round;
   activeList.forEach(p => {
+    ensureCSOP(p);
     if(p.sitOutPriority === undefined) p.sitOutPriority = 0;
     if(p.waitingRounds === undefined) p.waitingRounds = 0;
   });
 
-  // Presentation priority matches requirements index ordering layout sorting definitions
+  const onCourtIds = new Set();
+  if (state.settings.matchMode === 'Rotation' && Array.isArray(state.rotationCourts)) {
+    state.rotationCourts.filter(c=>c&&c.status==='active').forEach(c => {
+      c.teamA.forEach(id => onCourtIds.add(id));
+      c.teamB.forEach(id => onCourtIds.add(id));
+    });
+  }
+
   activeList.sort((a,b) => {
+    // On-court players go to the bottom
+    const aOnCourt = onCourtIds.has(a.id) ? 1 : 0;
+    const bOnCourt = onCourtIds.has(b.id) ? 1 : 0;
+    if (aOnCourt !== bOnCourt) return aOnCourt - bOnCourt;
     if(a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
-    if(b.sitOutPriority !== a.sitOutPriority) return b.sitOutPriority - a.sitOutPriority;
-    if(b.waitingRounds !== a.waitingRounds) return b.waitingRounds - a.waitingRounds;
+    const pa = csoPlayerPriority(b, now), pb = csoPlayerPriority(a, now);
+    if(pa !== pb) return pa - pb;
     return a.name.localeCompare(b.name);
   });
 
@@ -4238,30 +4986,36 @@ function renderQueueView(el){
 
   el.innerHTML = `
     <div class="section-title">Queue Priority Rankings</div>
+    <p class="helper-text" style="margin:-4px 2px 10px;">Players on court are shown at the bottom. Priority score drives who's selected next — higher = sooner on court.</p>
     <div class="card" style="padding:10px 4px;">
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th style="padding-left:12px; width:60px;">Priority</th>
+              <th style="padding-left:12px; width:50px;">#</th>
               <th>Player</th>
               <th style="text-align:center;">Games</th>
-              <th style="text-align:center;">Con. Sit</th>
-              <th style="text-align:center;">Sit Pri</th>
-              <th style="text-align:center;">Wait Rnds</th>
+              <th style="text-align:center;">Priority</th>
+              <th style="text-align:center;">Streak</th>
+              <th style="text-align:center;">Status</th>
             </tr>
           </thead>
           <tbody>
-            ${activeList.map((p, idx) => `
-              <tr>
+            ${activeList.map((p, idx) => {
+              const onCourt = onCourtIds.has(p.id);
+              const pri = Math.round(csoPlayerPriority(p, now));
+              const streakWarn = p.streakGames >= 4 ? '🔥🔥' : p.streakGames >= 3 ? '🔥' : '';
+              const statusLabel = onCourt ? `<span style="color:var(--win); font-size:11px; font-weight:700;">▶ On Court</span>` : `<span style="color:var(--text-faint); font-size:11px;">⏳ Waiting</span>`;
+              return `
+              <tr style="${onCourt ? 'opacity:0.55;' : ''}">
                 <td style="padding-left:12px;"><span class="qrank">${idx+1}</span></td>
                 <td class="namecell"><strong>${esc(p.name)}</strong></td>
                 <td style="text-align:center;">${p.gamesPlayed}</td>
-                <td style="text-align:center; color:var(--loss); font-weight:bold;">${p.consecutiveSitOuts || 0}</td>
-                <td style="text-align:center; color:var(--court);">${p.sitOutPriority || 0}</td>
-                <td style="text-align:center; color:var(--ball);">${p.waitingRounds || 0}</td>
+                <td style="text-align:center; color:var(--ball); font-weight:700;">${pri}</td>
+                <td style="text-align:center; color:var(--court);">${p.streakGames || 0}${streakWarn}</td>
+                <td style="text-align:center;">${statusLabel}</td>
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
       </div>
@@ -4783,6 +5537,36 @@ document.addEventListener('click', function(e){
     
     // Rotation workflow
     case 'next-match': nextRotationMatch(); break;
+
+    // Continuous Smart Open Play (Rotation Mode multi-court)
+    case 'start-csop': initRotationCourts(); break;
+    case 'add-csop-court': {
+      const filled = fillEmptyRotationCourts();
+      if (filled) { saveAll(); renderAll(); toast(`Added ${filled} court${filled>1?'s':''}.`, 'success'); }
+      else toast('Not enough free active players to open another court.', 'warning');
+      break;
+    }
+    case 'rc-set-winner': setRotationCourtWinner(t.dataset.court, t.dataset.team); break;
+    case 'rc-score-adjust': adjustRotationCourtScore(t.dataset.court, t.dataset.team, parseInt(t.dataset.delta,10)); break;
+    case 'rc-set-server': setRotationCourtServer(t.dataset.court, t.dataset.team); break;
+    case 'rc-advance-server': rotationCourtAdvanceServer(t.dataset.court); break;
+    case 'rc-side-out': rotationCourtSideOut(t.dataset.court); break;
+    case 'rc-undo-serve': rotationCourtUndoServe(t.dataset.court); break;
+    case 'do-rc-undo-serve': doRotationCourtUndoServe(t.dataset.court); break;
+    case 'confirm-rc-match': confirmRotationCourtMatch(t.dataset.court); break;
+    case 'skip-rc-match':
+      openModal(`
+        <div class="modal-title">Skip This Court Match?</div>
+        <div class="modal-sub">The match will be cleared without recording a result. A new match will be generated for this court when you're ready.</div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-secondary" data-action="do-skip-rc-match" data-court="${t.dataset.court}">Yes, Skip</button>
+        </div>
+      `);
+      break;
+    case 'do-skip-rc-match': skipRotationCourtMatch(t.dataset.court); break;
+    case 'open-replace-rc-player': openReplaceRotationCourtPlayerModal(t.dataset.court, t.dataset.team, t.dataset.player); break;
+    case 'do-replace-rotation-court-player': doReplaceRotationCourtPlayer(t.dataset.court, t.dataset.team, t.dataset.player, t.dataset.sub); break;
     case 'save-match-score':
       recordRotationMatch(document.getElementById('scoreA').value, document.getElementById('scoreB').value);
       break;
@@ -4796,7 +5580,11 @@ document.addEventListener('click', function(e){
 
     // Round robin workflow
     case 'generate-roundrobin':
-      generateRoundRobinGeneration();
+      if(state.settings.matchMode === 'Rotation') {
+        initRotationCourts();
+      } else {
+        generateRoundRobinGeneration();
+      }
       break;
     case 'confirm-next-generation': closeModal(); generateRoundRobinGeneration(); break;
     case 'do-generate-rr': closeModal(); _doGenerateRoundRobinGeneration(null); break;
