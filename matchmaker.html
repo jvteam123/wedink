@@ -2994,13 +2994,8 @@ function generateRoundRobinGeneration() {
     saveAll();
   }
 
-  // Always show Session Setup so the user can confirm/change the mode
-  if(!state.settings.sessionPlan || state.settings.matchMode === 'Rotation'){
-    openSessionSetupModal();
-    return;
-  }
-
-  proceedToGenerateGeneration(activeList);
+  // Always show Session Setup so the user can pick the mode every time
+  openSessionSetupModal();
 }
 
 // Step 1 of starting a new session: courts + winning score, asked up front
@@ -3011,13 +3006,13 @@ function openSessionSetupModal(){
   const isRotation = state.settings.matchMode === 'Rotation';
   openModal(`
     <div class="modal-title">🎾 Session Setup</div>
-    <div class="modal-sub" style="line-height:1.6;">First, confirm how many courts you've got and what score wins a match.</div>
+    <div class="modal-sub" style="line-height:1.6;">Choose your match mode, courts, and winning score.</div>
     <div class="card" style="margin:0;">
       <div class="field">
         <label>Match Mode</label>
         <div class="radio-group-mode">
-          <div class="radio-box-btn ${state.settings.matchMode === 'Rotation' ? 'active' : ''}" data-action="setup-match-mode" data-value="Rotation">Rotation Mode</div>
-          <div class="radio-box-btn ${state.settings.matchMode === 'RoundRobin' ? 'active' : ''}" data-action="setup-match-mode" data-value="RoundRobin">Round Robin Mode</div>
+          <div class="radio-box-btn ${state.settings.matchMode === 'Rotation' ? 'active' : ''}" data-action="setup-match-mode" data-value="Rotation">Open Play</div>
+          <div class="radio-box-btn ${state.settings.matchMode === 'RoundRobin' ? 'active' : ''}" data-action="setup-match-mode" data-value="RoundRobin">Round Robin</div>
         </div>
       </div>
       <div class="field">
@@ -5435,14 +5430,6 @@ function renderSettingsView(el){
   el.innerHTML = `
     <div class="section-title">Match Settings</div>
     <div class="card">
-      <div class="field">
-        <label>Match Mode</label>
-        <div class="radio-group-mode">
-          <div class="radio-box-btn ${state.settings.matchMode === 'Rotation' ? 'active' : ''}" data-action="toggle-mode-setting" data-value="Rotation">Rotation Mode</div>
-          <div class="radio-box-btn ${state.settings.matchMode === 'RoundRobin' ? 'active' : ''}" data-action="toggle-mode-setting" data-value="RoundRobin">Round Robin Mode</div>
-        </div>
-      </div>
-
       ${sessionFieldHtml}
 
       <div class="field" id="courts-field-wrapper" style="display: ${state.settings.matchMode === 'RoundRobin' ? 'block' : 'none'};">
