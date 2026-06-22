@@ -4920,25 +4920,7 @@ function renderMatchView(el){
 
   let html = `<div class="section-title">🏓 Continuous Open Play — ${courts.length} Court${courts.length!==1?'s':''} Live</div>`;
 
-  // Session balance summary
-  const activePl = pool;
-  if (activePl.length) {
-    const gps = activePl.map(p => p.gamesPlayed);
-    const minGP = Math.min(...gps), maxGP = Math.max(...gps);
-    const spread = maxGP - minGP;
-    const spreadColor = spread <= 1 ? 'var(--win)' : spread <= 2 ? 'var(--ball)' : 'var(--loss)';
-    html += `
-      <div class="card" style="margin-bottom:12px; padding:10px 14px; display:flex; gap:14px; align-items:center;">
-        <div style="flex:1; font-size:12px; color:var(--text-dim);">
-          <span style="color:var(--text); font-weight:700;">${activePl.length}</span> active players · games played spread: <span style="color:${spreadColor}; font-weight:800;">±${spread}</span>
-        </div>
-        <button class="btn btn-ghost btn-sm" data-action="add-csop-court" style="flex:none;"
-          ${activePl.filter(p => !courts.some(c => c.teamA.includes(p.id) || c.teamB.includes(p.id))).length < 4 ? 'disabled title="Not enough free players"' : ''}>
-          + Court
-        </button>
-      </div>
-    `;
-  }
+
 
   courts.sort((a,b) => a.courtNum - b.courtNum);
   courts.forEach(m => {
