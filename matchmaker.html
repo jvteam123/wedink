@@ -2994,7 +2994,7 @@ function advanceServer(ctx){
 
 function sideOutMatch(ctx){
   const m = ctx.getMatch();
-  if(!m || m.status === 'done') return;
+  if(!m || m.status === 'done' || m.winner) return;
   // Standard doubles side-out needs both servers to have served, EXCEPT the
   // very first serve of the game, which is just one serve before the first
   // side-out (per official pickleball rules).
@@ -4048,7 +4048,7 @@ function renderMatchView(el){
           <div style="padding:0 14px 14px;">
             <div style="display:flex; gap:8px; margin-bottom:10px;">
               <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="rr-advance-server" data-match="${m.id}" ${(m.firstServe || m.serverNum===2)?'disabled':''}>🎾 Switch to Serve 2</button>
-              <button class="btn btn-secondary btn-sm sideout-btn" style="flex:1;" data-action="rr-side-out" data-match="${m.id}" ${(!m.firstServe && m.serverNum===1)?'disabled':''}>🔁 Side Out</button>
+              <button class="btn btn-secondary btn-sm sideout-btn" style="flex:1;" data-action="rr-side-out" data-match="${m.id}" ${(m.winner || (!m.firstServe && m.serverNum===1))?'disabled':''}>🔁 Side Out</button>
               <button class="btn btn-ghost btn-sm undo-serve-btn" data-action="rr-undo-serve" data-match="${m.id}" title="Undo the last serve decision (1st server / serve 2 / side out)" ${(!m._serveUndoStack || !m._serveUndoStack.length)?'disabled':''}>↩️${(m._serveUndoStack && m._serveUndoStack.length) ? ' '+m._serveUndoStack.length : ''}</button>
             </div>
             <button class="btn btn-primary btn-block" data-action="confirm-rr-match" data-match="${m.id}">Confirm Result &amp; Pull Next Match</button>
@@ -4198,7 +4198,7 @@ function renderMatchView(el){
       </div>
       <div style="display:flex; gap:8px; margin-top:10px;">
         <button class="btn btn-secondary" style="flex:1;" data-action="rotation-advance-server" ${(c.firstServe || c.serverNum===2)?'disabled':''}>🎾 Switch to Serve 2</button>
-        <button class="btn btn-secondary sideout-btn" style="flex:1;" data-action="rotation-side-out" ${(!c.firstServe && c.serverNum===1)?'disabled':''}>🔁 Side Out</button>
+        <button class="btn btn-secondary sideout-btn" style="flex:1;" data-action="rotation-side-out" ${(c.winner || (!c.firstServe && c.serverNum===1))?'disabled':''}>🔁 Side Out</button>
         <button class="btn btn-ghost undo-serve-btn" data-action="rotation-undo-serve" title="Undo the last serve decision (1st server / serve 2 / side out)" ${(!c._serveUndoStack || !c._serveUndoStack.length)?'disabled':''}>↩️${(c._serveUndoStack && c._serveUndoStack.length) ? ' '+c._serveUndoStack.length : ''}</button>
       </div>
       <button class="btn btn-primary btn-block" style="margin-top:12px;" data-action="save-match-score">Submit Final Score</button>
