@@ -895,6 +895,9 @@ let state = {
   scheduledGenerations: [] // Round Robin "one-time generation": pre-built future rounds waiting their turn
 };
 
+// In-memory session flags (not persisted — intentionally reset each page load)
+let _courtCountNoticeDismissed = false;
+
 /* ============================================================
    INDEXEDDB PERSISTENCE LAYER
    ------------------------------------------------------------
@@ -3437,13 +3440,14 @@ function proceedToGenerateGeneration(activeList){
   // Warn if the number of courts exceeds the number of possible matches
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
   const possibleMatches = Math.floor(activeList.length / 4);
-  if(possibleMatches < numCourts){
+  if(possibleMatches < numCourts && !_courtCountNoticeDismissed){
     const excess = numCourts - possibleMatches;
     const needed = numCourts * 4;
     const msg = possibleMatches === 1
       ? `⚠️ Only 1 match can be generated with ${activeList.length} active players — you need at least ${needed} players to fill ${numCourts} courts simultaneously. ${excess} court${excess>1?'s':''} will sit empty this generation.`
-      : `⚠️ Only ${possibleMatches} match${possibleMatches!==1?'es':''} can be generated with ${activeList.length} active players — ${numCourts} courts set but only ${possibleMatches} team${possibleMatches!==1?'s':''} formed. Need ${needed} players for full ${numCourts}-court play.`;
-    // Show a dismissable notification then proceed
+      : `⚠️ Only ${possibleMatches} match${possibleMatches!==1?'es':''} can be generated with ${activeList.length} active players — ${numCourts} courts set but only ${possibleMatches} team${possibleMatches!==1?'s':'s'} formed. Need ${needed} players for full ${numCourts}-court play.`;
+    // Show once per session, then proceed silently on subsequent generations
+    _courtCountNoticeDismissed = true;
     openModal(`
       <div class="modal-title" style="color:var(--ball);">⚠️ Court Count Notice</div>
       <div class="modal-sub" style="line-height:1.7; font-size:13.5px;">${msg}</div>
@@ -6125,18 +6129,88 @@ document.addEventListener('click', function(e){
 
     // Continuous Smart Open Play (Rotation Mode multi-court)
     case 'pick-match-mode': openModePickerModal(); break;
-    case 'pick-mode-openplay':
+    case 'pick-mode-openplay': {
+      // If there's existing match data and no active session, prompt to save first
+      const hasHistory = state.matches.length > 0;
+      const hasActiveSession = (state.settings.matchMode === 'Rotation' && Array.isArray(state.rotationCourts) && state.rotationCourts.some(c => c && c.status === 'active'))
+        || (state.settings.matchMode === 'RoundRobin' && !!state.currentGeneration);
+      if(hasHistory && !hasActiveSession){
+        openModal(`
+          <div class="modal-title">💾 Save Last Session?</div>
+          <div class="modal-sub" style="line-height:1.7;">You have <strong style="color:var(--text);">${state.matches.length} match${state.matches.length!==1?'es':''}</strong> recorded from a previous session. Starting a new match will keep that history and merge stats together.<br><br>Export a backup first if you'd like to keep this session separate.</div>
+          <div class="modal-actions" style="flex-direction:column; gap:8px; margin-top:16px;">
+            <button class="btn btn-secondary btn-block" data-action="export-data-then-openplay">📥 Export Backup &amp; Continue</button>
+            <button class="btn btn-primary btn-block" data-action="do-pick-mode-openplay">Continue Without Saving</button>
+            <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
+          </div>
+        `, false);
+        break;
+      }
       state.settings.matchMode = 'Rotation';
       saveAll();
       closeModal();
+      _courtCountNoticeDismissed = false;
       initRotationCourts();
       break;
-    case 'pick-mode-roundrobin':
+    }
+    case 'do-pick-mode-openplay':
+      state.settings.matchMode = 'Rotation';
+      saveAll();
+      closeModal();
+      _courtCountNoticeDismissed = false;
+      initRotationCourts();
+      break;
+    case 'export-data-then-openplay': {
+      closeModal();
+      const fname = defaultExportFileName();
+      exportData(fname);
+      // After export, directly start the session
+      state.settings.matchMode = 'Rotation';
+      saveAll();
+      _courtCountNoticeDismissed = false;
+      initRotationCourts();
+      break;
+    }
+    case 'pick-mode-roundrobin': {
+      const hasHistory = state.matches.length > 0;
+      const hasActiveSession = (state.settings.matchMode === 'Rotation' && Array.isArray(state.rotationCourts) && state.rotationCourts.some(c => c && c.status === 'active'))
+        || (state.settings.matchMode === 'RoundRobin' && !!state.currentGeneration);
+      if(hasHistory && !hasActiveSession){
+        openModal(`
+          <div class="modal-title">💾 Save Last Session?</div>
+          <div class="modal-sub" style="line-height:1.7;">You have <strong style="color:var(--text);">${state.matches.length} match${state.matches.length!==1?'es':''}</strong> recorded from a previous session. Starting a new match will keep that history and merge stats together.<br><br>Export a backup first if you'd like to keep this session separate.</div>
+          <div class="modal-actions" style="flex-direction:column; gap:8px; margin-top:16px;">
+            <button class="btn btn-secondary btn-block" data-action="export-data-then-roundrobin">📥 Export Backup &amp; Continue</button>
+            <button class="btn btn-primary btn-block" data-action="do-pick-mode-roundrobin">Continue Without Saving</button>
+            <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
+          </div>
+        `, false);
+        break;
+      }
       state.settings.matchMode = 'RoundRobin';
       saveAll();
       closeModal();
+      _courtCountNoticeDismissed = false;
       generateRoundRobinGeneration();
       break;
+    }
+    case 'do-pick-mode-roundrobin':
+      state.settings.matchMode = 'RoundRobin';
+      saveAll();
+      closeModal();
+      _courtCountNoticeDismissed = false;
+      generateRoundRobinGeneration();
+      break;
+    case 'export-data-then-roundrobin': {
+      closeModal();
+      const fname = defaultExportFileName();
+      exportData(fname);
+      state.settings.matchMode = 'RoundRobin';
+      saveAll();
+      _courtCountNoticeDismissed = false;
+      generateRoundRobinGeneration();
+      break;
+    }
     case 'start-csop': initRotationCourts(); break;
     case 'add-csop-court': {
       const cur = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
@@ -6344,6 +6418,7 @@ document.addEventListener('click', function(e){
       state.current = null;
       state.rotationCourts = [];
       state.settings.numCourts = 1; // reset court count so next session starts fresh
+      _courtCountNoticeDismissed = false;
       saveAll();
       closeModal();
       renderAll();
