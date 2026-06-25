@@ -2438,10 +2438,13 @@ function csoPreviewNextMatch(courtId, excludeIds) {
 // or when player availability has changed (new check-in, player removed, etc).
 // Call after any event that changes who's free: session start, confirm match,
 // skip match, check-in toggle, player add/remove.
-function refreshAllNextMatchPreviews() {
+// When onlyMissing=true (used at boot), courts that already have a persisted
+// nextMatch are left untouched so a manual re-shuffle survives a page reload.
+function refreshAllNextMatchPreviews(onlyMissing) {
   if (!Array.isArray(state.rotationCourts)) return;
   state.rotationCourts.forEach(c => {
     if (c.status !== 'active') return;
+    if (onlyMissing && c.nextMatch) return; // already have a saved preview — keep it
     c.nextMatch = csoPreviewNextMatch(c.id);
   });
 }
@@ -3063,6 +3066,15 @@ function renderUpNextCard(m) {
   const avgA = Math.round(((nA1?.rating||1000)+(nA2?.rating||1000))/2);
   const avgB = Math.round(((nB1?.rating||1000)+(nB2?.rating||1000))/2);
 
+  // Reshuffle is only allowed on the very first match of this court —
+  // once at least one result has been recorded, WvW / loss-vs-loss
+  // logic owns the pairing and manual reshuffling would break that.
+  const courtHasHistory = state.matches.some(r => r.court === m.courtNum);
+  const regenDisabled = courtHasHistory;
+  const regenTitle = courtHasHistory
+    ? 'Re-shuffle is disabled after the first match — Win vs Win / Loss vs Loss balancing now controls the lineup'
+    : 'Re-shuffle the Up Next lineup';
+
   return `
     <div class="up-next-card">
       <div class="up-next-label">
@@ -3081,8 +3093,9 @@ function renderUpNextCard(m) {
           <div class="up-next-sub">avg ${avgB}</div>
         </div>
       </div>
-      <button class="up-next-regen" data-action="regen-next-match" data-court="${m.id}" title="Re-shuffle the Up Next lineup">
-        🔀 Re-shuffle Up Next
+      <button class="up-next-regen" data-action="confirm-regen-next-match" data-court="${m.id}"
+        title="${regenTitle}" ${regenDisabled ? 'disabled style="opacity:.35; cursor:not-allowed;"' : ''}>
+        🔀 Re-shuffle Up Next${regenDisabled ? ' (locked after 1st match)' : ''}
       </button>
     </div>`;
 }
@@ -5924,6 +5937,28 @@ document.addEventListener('click', function(e){
     case 'rc-undo-serve': rotationCourtUndoServe(t.dataset.court); break;
     case 'do-rc-undo-serve': doRotationCourtUndoServe(t.dataset.court); break;
     case 'confirm-rc-match': confirmRotationCourtMatch(t.dataset.court); break;
+    case 'confirm-regen-next-match': {
+      // Show confirmation modal to prevent accidental reshuffles
+      const rc = Array.isArray(state.rotationCourts) ? state.rotationCourts.find(c => c.id === t.dataset.court) : null;
+      if (!rc || !rc.nextMatch) break;
+      const nA1 = playerName(rc.nextMatch.teamA[0]), nA2 = playerName(rc.nextMatch.teamA[1]);
+      const nB1 = playerName(rc.nextMatch.teamB[0]), nB2 = playerName(rc.nextMatch.teamB[1]);
+      openModal(`
+        <div class="modal-title">Re-shuffle Up Next?</div>
+        <div class="modal-sub" style="line-height:1.6;">
+          Current lineup for Court ${rc.courtNum}:<br>
+          <strong style="color:var(--text);">${esc(nA1)} &amp; ${esc(nA2)}</strong>
+          <span style="color:var(--text-faint);"> vs </span>
+          <strong style="color:var(--text);">${esc(nB1)} &amp; ${esc(nB2)}</strong><br>
+          <span style="color:var(--text-faint); font-size:12px;">A different foursome will be picked from the waiting pool.</span>
+        </div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-secondary" data-action="regen-next-match" data-court="${rc.id}">🔀 Yes, Re-shuffle</button>
+        </div>
+      `);
+      break;
+    }
     case 'regen-next-match': {
       const rc = Array.isArray(state.rotationCourts) ? state.rotationCourts.find(c => c.id === t.dataset.court) : null;
       if (rc) {
@@ -5934,13 +5969,12 @@ document.addEventListener('click', function(e){
           ? [...rc.nextMatch.teamA, ...rc.nextMatch.teamB]
           : [];
         const reshuffled = csoPreviewNextMatch(rc.id, currentPreviewIds);
-        // Only replace if we actually got a different result (enough players
-        // outside the excluded set); otherwise keep the current preview as-is.
         if (reshuffled) {
           rc.nextMatch = reshuffled;
-          saveAll(); renderAll();
+          saveAll(); closeModal(); renderAll();
           toast('Up Next lineup re-shuffled.', 'success');
         } else {
+          closeModal();
           toast('Not enough other players available — this is the only valid lineup right now.', 'info');
         }
       }
@@ -6493,7 +6527,7 @@ function initInstallBanner(){
   const viewEl = document.getElementById('view');
   if(viewEl) viewEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-faint);font-size:13px;">Loading…</div>';
   await loadState();
-  refreshAllNextMatchPreviews();
+  refreshAllNextMatchPreviews(true); // gentle: only fill courts that have no saved preview
   renderAll();
   initInstallBanner();
   maybeShowNavHint();
