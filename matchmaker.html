@@ -2343,7 +2343,9 @@ function csoGenerateMatchForCourt(courtNum, excludeIds) {
 // no waitingSince writes). Used purely for the "Up Next" display — the real
 // match object is only materialised when the current one is confirmed.
 // Returns { teamA:[id,id], teamB:[id,id] } or null if not enough free players.
-function csoPreviewNextMatch(courtId) {
+// Pass excludeIds (Set or array) to force those players out of the pool —
+// used by re-shuffle so it can't just return the same optimal result again.
+function csoPreviewNextMatch(courtId, excludeIds) {
   // IDs already committed to ANY live match, including this court's current
   // players — they are still playing and won't be free until this match is
   // confirmed, so they must not appear in the Up Next preview.
@@ -2360,7 +2362,8 @@ function csoPreviewNextMatch(courtId) {
     c.nextMatch.teamB.forEach(id => usedIds.add(id));
   });
 
-  const pool = csoActivePlayers().filter(p => !usedIds.has(p.id));
+  const excludeSet = excludeIds ? new Set(excludeIds) : new Set();
+  const pool = csoActivePlayers().filter(p => !usedIds.has(p.id) && !excludeSet.has(p.id));
   if (pool.length < 4) return null;
 
   // Reuse the same priority + scoring logic but operate on a snapshot so
@@ -5924,10 +5927,22 @@ document.addEventListener('click', function(e){
     case 'regen-next-match': {
       const rc = Array.isArray(state.rotationCourts) ? state.rotationCourts.find(c => c.id === t.dataset.court) : null;
       if (rc) {
-        rc.nextMatch = csoPreviewNextMatch(rc.id);
-        saveAll(); renderAll();
-        if (rc.nextMatch) toast('Up Next lineup re-shuffled.', 'success');
-        else toast('Not enough free players to preview a next match right now.', 'info');
+        // Exclude the players already in the current preview so the algorithm
+        // is forced to pick a genuinely different foursome, not just re-confirm
+        // the same optimal result.
+        const currentPreviewIds = rc.nextMatch
+          ? [...rc.nextMatch.teamA, ...rc.nextMatch.teamB]
+          : [];
+        const reshuffled = csoPreviewNextMatch(rc.id, currentPreviewIds);
+        // Only replace if we actually got a different result (enough players
+        // outside the excluded set); otherwise keep the current preview as-is.
+        if (reshuffled) {
+          rc.nextMatch = reshuffled;
+          saveAll(); renderAll();
+          toast('Up Next lineup re-shuffled.', 'success');
+        } else {
+          toast('Not enough other players available — this is the only valid lineup right now.', 'info');
+        }
       }
       break;
     }
