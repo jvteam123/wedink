@@ -160,7 +160,7 @@ input,select,textarea{touch-action:manipulation; -webkit-tap-highlight-color:tra
   position:sticky; top:var(--topbar-h, 72px); z-index:29; background:var(--bg);
 }
 .tabs{
-  display:flex; gap:6px; overflow-x:auto; padding:10px 16px; scroll-snap-type:x proximate;
+  display:flex; gap:6px; overflow-x:auto; padding:10px 16px; scroll-snap-type:x proximity;
   background:var(--bg);
   border-bottom:1px solid var(--line-soft);
 }
@@ -814,6 +814,7 @@ tr.rank-1 .rankbadge{color:var(--ball);}
    ============================================================ */
 const KEYS = {
   players:'kl_players', matches:'kl_matches', current:'kl_current',
+  currentGeneration:'kl_currentGeneration', // stored separately so mode-switch never drops either
   settings:'kl_settings', round:'kl_round', undo:'kl_undo', tab:'kl_tab',
   fixedDuos:'kl_fixedDuos', sitOutQueue:'kl_sitOutQueue',
   rotationCourts:'kl_rotationCourts'  // Continuous Smart Open Play: per-court state array
@@ -1002,11 +1003,17 @@ async function loadState(){
     }
     const m = data[KEYS.matches];
     if(m) state.matches = m;
+    // Load current (Rotation single match) and currentGeneration (RoundRobin) independently
+    // so a mode-setting change never silently drops whichever one was last active.
     const c = data[KEYS.current];
-    if(c !== undefined && c !== null) {
-      if(c && c.matches) { state.currentGeneration = c; state.current = null; }
-      else { state.current = c; state.currentGeneration = null; }
+    if(c !== undefined && c !== null){
+      // Legacy: old saves stored currentGeneration under the same 'current' key —
+      // detect by the presence of a .matches array and migrate transparently.
+      if(c && c.matches){ state.currentGeneration = c; state.current = null; }
+      else { state.current = c; }
     }
+    const cg = data[KEYS.currentGeneration];
+    if(cg !== undefined && cg !== null) state.currentGeneration = cg;
     const s = data[KEYS.settings];
     if(s) state.settings = { ...DEFAULT_SETTINGS, ...s };
     const r = data[KEYS.round];
@@ -1029,11 +1036,13 @@ async function loadState(){
 
 function saveAll(){
   try{
-    const currentSnapshot = state.settings.matchMode === 'RoundRobin' ? state.currentGeneration : state.current;
+    // Save state.current and state.currentGeneration under separate keys so a
+    // mid-session matchMode change in Settings never silently drops one of them.
     const entries = [
       [KEYS.players, state.players],
       [KEYS.matches, state.matches],
-      [KEYS.current, currentSnapshot],
+      [KEYS.current, state.current],
+      [KEYS.currentGeneration, state.currentGeneration],
       [KEYS.settings, state.settings],
       [KEYS.round, state.round],
       [KEYS.undo, state.undo],
@@ -1735,7 +1744,7 @@ function confirmCheckInResetAll(){
       Completed match history and player stats are kept.
     </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" data-action="checkin-open">Cancel</button>
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
       <button class="btn btn-primary" data-action="do-checkin-reset-all">Yes, Start New Session</button>
     </div>
   `);
@@ -3540,7 +3549,7 @@ function liveMatchCtx(mode, matchId){
     return {
       mode, matchId,
       getMatch(){ const gen = state.currentGeneration; return gen && gen.matches.find(x => x.id === matchId); },
-      scoreInput(team){ return document.querySelector(`input[oninput*="'${matchId}', '${team}'"]`); },
+      scoreInput(team){ return document.querySelector(`input[data-match-score="${matchId}-${team}"]`); },
       winBtn(team){ return document.querySelector(`.sb-winbtn[data-match="${matchId}"][data-team="${team}"]`); },
       render(){ renderMatchView(document.getElementById('view')); }
     };
@@ -3730,6 +3739,11 @@ function maybeOfferRaceToTwo(m, mode, matchId){
   if(!m || !state.settings.raceToTwo) return;
   if(m.raceOffered || m.raceActive) return;
   if(safeScore(m.scoreA) === 10 && safeScore(m.scoreB) === 10){
+    // Latch raceOffered only after the user answers — if they dismiss via
+    // Escape without choosing, the modal closes silently and the offer
+    // should NOT re-appear on the very next point. But we still only want
+    // to show it once per legitimate 10-10, so we set the flag here and let
+    // both answer paths (accept / decline) keep it true.
     m.raceOffered = true;
     saveAll();
     const safeMode = mode || 'rotation';
@@ -3740,7 +3754,7 @@ function maybeOfferRaceToTwo(m, mode, matchId){
         <button class="btn btn-ghost" data-action="decline-race-to-two">No, Keep Playing</button>
         <button class="btn btn-primary" data-action="accept-race-to-two" data-mode="${safeMode}" data-match="${matchId || ''}">Yes, Race to 2</button>
       </div>
-    `, false);
+    `, true); // backdrop-dismissible: Escape / backdrop tap = "No, Keep Playing"
   }
 }
 
@@ -4506,8 +4520,9 @@ function skipCurrentMatch() {
     state.currentGeneration = null;
   } else {
     state.current = null;
-    state.rotationCourts = [];
   }
+  // Always clear rotation courts so no stale court lingers regardless of mode.
+  state.rotationCourts = [];
   saveAll(); renderAll();
   toast('Current match cleared.', 'success');
 }
@@ -4876,13 +4891,13 @@ function renderMatchView(el){
           <div class="sb-foot rr-score-foot">
             <div class="score-stepper">
               <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="-1" aria-label="Decrease Team A score" ${(m.winner || !servingA || (m.scoreA === null || m.scoreA <= 0)) ? 'disabled' : ''} title="${m.winner ? 'Winner already selected' : !servingA ? 'Team A is receiving — only the serving team scores' : (m.scoreA === null || m.scoreA <= 0) ? 'Score is already at 0' : ''}">−</button>
-              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" min="0" max="${getMatchWinTarget(m)}" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
+              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A" class="cb-score-input rr-score-input" data-match-score="${m.id}-A" min="0" max="${getMatchWinTarget(m)}" value="${m.scoreA !== null ? m.scoreA : ''}" oninput="window.updateRRScore('${m.id}', 'A', this.value)">
               <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="A" data-delta="1" aria-label="Increase Team A score" ${(m.winner || !servingA || (m.scoreA !== null && m.scoreA >= getMatchWinTarget(m)))?'disabled title="'+(m.winner?'Winner already selected':servingA?'Score is at the maximum':'Team A is receiving — only the serving team scores')+'"':''}>+</button>
             </div>
             <span class="rr-score-vs-sm">vs</span>
             <div class="score-stepper">
               <button type="button" class="score-btn score-btn-minus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="-1" aria-label="Decrease Team B score" ${(m.winner || !servingB || (m.scoreB === null || m.scoreB <= 0)) ? 'disabled' : ''} title="${m.winner ? 'Winner already selected' : !servingB ? 'Team B is receiving — only the serving team scores' : (m.scoreB === null || m.scoreB <= 0) ? 'Score is already at 0' : ''}">−</button>
-              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" min="0" max="${getMatchWinTarget(m)}" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
+              <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B" class="cb-score-input rr-score-input" data-match-score="${m.id}-B" min="0" max="${getMatchWinTarget(m)}" value="${m.scoreB !== null ? m.scoreB : ''}" oninput="window.updateRRScore('${m.id}', 'B', this.value)">
               <button type="button" class="score-btn score-btn-plus rr-score-btn" data-action="rr-score-adjust" data-match="${m.id}" data-team="B" data-delta="1" aria-label="Increase Team B score" ${(m.winner || !servingB || (m.scoreB !== null && m.scoreB >= getMatchWinTarget(m)))?'disabled title="'+(m.winner?'Winner already selected':servingB?'Score is at the maximum':'Team B is receiving — only the serving team scores')+'"':''}>+</button>
             </div>
           </div>
@@ -5794,6 +5809,7 @@ document.addEventListener('click', function(e){
     case 'do-end-open-play':
       state.current = null;
       state.rotationCourts = [];
+      state.settings.numCourts = 1; // reset court count so next session starts fresh
       saveAll();
       closeModal();
       renderAll();
