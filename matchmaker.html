@@ -844,7 +844,8 @@ const KEYS = {
   currentGeneration:'kl_currentGeneration', // stored separately so mode-switch never drops either
   settings:'kl_settings', round:'kl_round', undo:'kl_undo', tab:'kl_tab',
   fixedDuos:'kl_fixedDuos', sitOutQueue:'kl_sitOutQueue',
-  rotationCourts:'kl_rotationCourts'  // Continuous Smart Open Play: per-court state array
+  rotationCourts:'kl_rotationCourts',  // Continuous Smart Open Play: per-court state array
+  scheduledGenerations:'kl_scheduledGenerations' // Round Robin "one-time generation": every future round already built, waiting to be activated
 };
 
 const DEFAULT_SETTINGS = {
@@ -860,7 +861,8 @@ const DEFAULT_SETTINGS = {
   winningScore: 11,      // first team to reach this score (win by 2) takes the match
   raceToTwo: true,        // when both teams reach 10-10 ("Love-Love"), offer a sudden-death Race to 2
   rematchPrevention: true, // prevent rematching players who faced each other in the immediately previous match
-  sessionPlan: null       // { totalMatches, gamesPerPlayer, label, matchesAtStart } — active Round Robin session length plan, or null if none chosen yet
+  sessionPlan: null,      // { totalMatches, gamesPerPlayer, label, matchesAtStart } — active Round Robin session length plan, or null if none chosen yet
+  generateFullSchedule: false // Round Robin "one-time generation": build every round of the chosen session length right away instead of one generation at a time
 };
 
 // Round Robin "session length" choices offered when starting a fresh session.
@@ -889,7 +891,8 @@ let state = {
   tab: 'match',
   fixedDuos: [],
   sitOutQueue: [],
-  rotationCourts: []     // Continuous Smart Open Play: array of per-court match objects
+  rotationCourts: [],    // Continuous Smart Open Play: array of per-court match objects
+  scheduledGenerations: [] // Round Robin "one-time generation": pre-built future rounds waiting their turn
 };
 
 /* ============================================================
@@ -1055,6 +1058,8 @@ async function loadState(){
     if(Array.isArray(soq)) state.sitOutQueue = soq;
     const rc = data[KEYS.rotationCourts];
     if(Array.isArray(rc)) state.rotationCourts = rc;
+    const sg = data[KEYS.scheduledGenerations];
+    if(Array.isArray(sg)) state.scheduledGenerations = sg;
   }catch(e){
     console.error('Failed to load saved data from IndexedDB, starting fresh.', e);
     toast("Couldn't open local storage — starting with a blank session. Your browser may be blocking IndexedDB (private/incognito mode, or storage disabled).", 'error');
@@ -1076,7 +1081,8 @@ function saveAll(){
       [KEYS.tab, state.tab],
       [KEYS.fixedDuos, state.fixedDuos || []],
       [KEYS.sitOutQueue, state.sitOutQueue || []],
-      [KEYS.rotationCourts, state.rotationCourts || []]
+      [KEYS.rotationCourts, state.rotationCourts || []],
+      [KEYS.scheduledGenerations, state.scheduledGenerations || []]
     ];
     idbSetMany(entries).catch(e => {
       console.error('IndexedDB save failed.', e);
@@ -2216,6 +2222,39 @@ function csoMatchScore(teamA, teamB, now) {
   return score;
 }
 
+// Builds the STRICT fairness-tier candidate set for CSOP match generation:
+// every player tied at the lowest gamesPlayed count in `pool` is admitted
+// first; only if that tier alone can't fill a foursome does the next-lowest
+// tier get pulled in WHOLESALE — exactly mirroring fairnessTierFrom() in the
+// legacy single-court Rotation engine and PASS 1 of the Round Robin
+// generator. This is a HARD gate: csoMatchScore()/csoGenerateMatchForCourt
+// only ever decide how the admitted tier(s) split into teams, never which
+// players are eligible — so a player who has already played can never be
+// picked ahead of someone on zero games just because a "better quality"
+// foursome scored higher.
+function csoFairTierCandidates(pool, now){
+  const sorted = pool.slice().sort((a,b) => a.gamesPlayed - b.gamesPlayed);
+  let candidates = [];
+  let cursor = 0;
+  while(candidates.length < 4 && cursor < sorted.length){
+    const gp = sorted[cursor].gamesPlayed;
+    let end = cursor;
+    while(end < sorted.length && sorted[end].gamesPlayed === gp) end++;
+    candidates = candidates.concat(sorted.slice(cursor, end));
+    cursor = end;
+  }
+  // A very large tied tier (everyone on the same gamesPlayed count) is
+  // trimmed to a sane search window using the secondary fairness signals —
+  // never by gamesPlayed, since everyone left here is already tied on that.
+  if(candidates.length > 12){
+    candidates = candidates
+      .slice()
+      .sort((a,b) => csoPlayerPriority(b, now) - csoPlayerPriority(a, now))
+      .slice(0, 12);
+  }
+  return candidates;
+}
+
 // Generate the best match for a specific court from the eligible pool
 // `excludeIds` = players already assigned to OTHER courts right now
 function csoGenerateMatchForCourt(courtNum, excludeIds) {
@@ -2225,16 +2264,9 @@ function csoGenerateMatchForCourt(courtNum, excludeIds) {
 
   if (pool.length < 4) return null;
 
-  // Sort by priority descending — take a candidate window
-  pool.sort((a,b) => csoPlayerPriority(b, now) - csoPlayerPriority(a, now));
-
-  // Window: take top N players, biasing toward fair play
-  // Always include everyone at the minimum gamesPlayed tier
-  const minGames = pool[0].gamesPlayed;
-  let tierEnd = 0;
-  while (tierEnd < pool.length && pool[tierEnd].gamesPlayed === minGames) tierEnd++;
-  const windowSize = Math.max(tierEnd, Math.min(12, pool.length));
-  const candidates = pool.slice(0, windowSize);
+  // Strict fairness tier — see csoFairTierCandidates() above. Quality
+  // scoring below only decides HOW these candidates split into teams.
+  const candidates = csoFairTierCandidates(pool, now);
 
   // Evaluate all foursomes + all team splits, pick best by csoMatchScore
   let bestMatch = null;
@@ -2369,12 +2401,7 @@ function csoPreviewNextMatch(courtId, excludeIds) {
   // Reuse the same priority + scoring logic but operate on a snapshot so
   // nothing in state is modified.
   const now = Date.now();
-  const sortedPool = pool.slice().sort((a, b) => csoPlayerPriority(b, now) - csoPlayerPriority(a, now));
-  const minGames = sortedPool[0].gamesPlayed;
-  let tierEnd = 0;
-  while (tierEnd < sortedPool.length && sortedPool[tierEnd].gamesPlayed === minGames) tierEnd++;
-  const windowSize = Math.max(tierEnd, Math.min(12, sortedPool.length));
-  const candidates = sortedPool.slice(0, windowSize);
+  const candidates = csoFairTierCandidates(pool, now);
 
   // Collapse fixed duos into units (same logic as csoGenerateMatchForCourt)
   const units = [];
@@ -3515,12 +3542,19 @@ function openSessionConfirmModal(opt, totalMatches, gpp, playerCount){
     </div>
 
     <div class="eyebrow" style="margin:0 2px 6px;">Balancing &amp; Fairness</div>
-    <div class="card" style="margin:0;">
+    <div class="card" style="margin:0 0 ${state.settings.matchMode === 'RoundRobin' ? '10px' : '0'};">
       ${toggleRow('sessionWinnerVsWinnerToggle', 'Winner vs Winner / Loser vs Loser', "Next generation pairs last generation's winners together and losers together.", !!state.settings.winnerVsWinner)}
       ${toggleRow('sessionEqualPlayToggle', 'Equal Play Priority', 'Prioritizes players with the fewest games played so far.', !!state.settings.equalPlayPriority)}
       ${toggleRow('sessionSmartBalanceToggle', 'Smart Balance Engine', 'Reduces repeat teammate and opponent pairings.', !!state.settings.smartBalance)}
       ${toggleRow('sessionRematchPreventionToggle', 'Rematch Prevention', 'Avoids re-pairing players who just faced each other.', state.settings.rematchPrevention !== false)}
     </div>
+
+    ${state.settings.matchMode === 'RoundRobin' ? `
+    <div class="eyebrow" style="margin:0 2px 6px;">Schedule Generation</div>
+    <div class="card" style="margin:0;">
+      ${toggleRow('sessionFullScheduleToggle', 'Generate Full Schedule Now', `Builds every round for all ${totalMatches} matches right away and lists the whole session, instead of one round at a time as you play. Winner vs Winner has no effect on rounds beyond the first, since results for those rounds don't exist yet.`, !!state.settings.generateFullSchedule)}
+    </div>
+    ` : ''}
 
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn btn-ghost" data-action="back-to-session-picker">Back</button>
@@ -3544,6 +3578,7 @@ function confirmSessionPlanAndGenerate(planId, totalMatches, gpp){
   const eqplEl = document.getElementById('sessionEqualPlayToggle');
   const smartEl = document.getElementById('sessionSmartBalanceToggle');
   const rematchEl = document.getElementById('sessionRematchPreventionToggle');
+  const fullScheduleEl = document.getElementById('sessionFullScheduleToggle');
 
   if(courtsEl){
     const v = parseInt(courtsEl.value, 10);
@@ -3557,6 +3592,7 @@ function confirmSessionPlanAndGenerate(planId, totalMatches, gpp){
   if(eqplEl) state.settings.equalPlayPriority = eqplEl.checked;
   if(smartEl) state.settings.smartBalance = smartEl.checked;
   if(rematchEl) state.settings.rematchPrevention = rematchEl.checked;
+  if(fullScheduleEl) state.settings.generateFullSchedule = fullScheduleEl.checked;
 
   state.settings.sessionPlan = {
     id: planId,
@@ -3578,16 +3614,28 @@ function confirmSessionPlanAndGenerate(planId, totalMatches, gpp){
     return;
   }
   const activeList = activePlayers().slice();
-  proceedToGenerateGeneration(activeList);
+  if(state.settings.generateFullSchedule){
+    proceedToGenerateFullSchedule(activeList, totalMatches);
+  } else {
+    proceedToGenerateGeneration(activeList);
+  }
 }
 
 
 
-function _doGenerateRoundRobinGeneration(activeList) {
-  if(!activeList) {
-    activeList = activePlayers().slice();
-    if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.', 'warning'); return; }
-  }
+// Builds ONE Round Robin generation (who plays, who sits, the matchups) for
+// the given genId, applying all the same fairness/balancing rules whether
+// it's being built live (one round at a time, the normal flow) or inside a
+// dry-run loop that's pre-building every round of a full schedule upfront.
+// Mutates state.sitOutQueue and each player's rotation bookkeeping fields
+// (sitOutPriority/waitingRounds/consecutiveSitOuts/sitOuts) for real, since
+// those represent the schedule itself — but never touches gamesPlayed,
+// wins/losses, or rating, since this never fabricates a result.
+// Pass opts.silent=true to suppress the "matchup history reset" toast
+// (used by the full-schedule pre-builder so it doesn't fire several times
+// in a row for rounds that haven't actually been played yet).
+function buildOneGeneration(activeList, genId, opts) {
+  opts = opts || {};
 
   activeList.forEach(p => {
     p._jitter = Math.random();
@@ -3615,7 +3663,7 @@ function _doGenerateRoundRobinGeneration(activeList) {
   }
   if(allExhausted){
     state.players.forEach(p => { p.teammates = {}; p.opponents = {}; });
-    toast('All combinations played at least once — matchup history reset for a fresh rotation.', 'info');
+    if(!opts.silent) toast('All combinations played at least once — matchup history reset for a fresh rotation.', 'info');
   }
 
   // Schedule EVERY foursome the active roster supports this generation (not capped by court count).
@@ -3674,8 +3722,13 @@ function _doGenerateRoundRobinGeneration(activeList) {
   let wvwApplied = false; // tracks whether winner/loser bucketing actually ran this build (not just whether the setting is on)
 
   // Winner-vs-winner / Loser-vs-loser bucketing, based on the generation that just finished.
-  if(state.settings.winnerVsWinner && state.round > 0){
-    const lastGenMatches = state.matches.filter(m => m.generation === state.round);
+  // Keyed off genId-1 (the generation immediately before this one) rather than
+  // state.round directly, so this same logic works whether genId is being
+  // built live (where state.round === genId-1 once the prior round is done)
+  // or inside the full-schedule dry-run loop (where future rounds simply
+  // won't find any real results yet and gracefully fall back to fairness-only).
+  if(state.settings.winnerVsWinner && genId > 1){
+    const lastGenMatches = state.matches.filter(m => m.generation === genId - 1);
     if(lastGenMatches.length){
       wvwApplied = true;
       const lastWinners = new Set(), lastLosers = new Set();
@@ -3711,7 +3764,6 @@ function _doGenerateRoundRobinGeneration(activeList) {
   }
 
   const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
-  const genId = state.round + 1;
   const matches = matchups.map((m, idx) => ({
     id: uid('gm'),
     matchIndex: idx,
@@ -3742,15 +3794,187 @@ function _doGenerateRoundRobinGeneration(activeList) {
     }
   });
 
-  state.currentGeneration = {
+  return {
     generation: genId,
     matches: matches,
     sittingOut: sittingPlayers.map(p => p.id),
     wvwApplied: wvwApplied // true only if winner/loser bucketing actually ran for this generation
   };
+}
+
+function _doGenerateRoundRobinGeneration(activeList) {
+  if(!activeList) {
+    activeList = activePlayers().slice();
+    if(activeList.length < 4) { toast('Need at least 4 active players for Round Robin.', 'warning'); return; }
+  }
+
+  const genId = state.round + 1;
+  const gen = buildOneGeneration(activeList, genId);
+  const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
+
+  state.currentGeneration = gen;
   state.current = null;
   saveAll(); renderAll();
-  toast(`Generation ${genId}: ${matches.length} match${matches.length===1?'':'es'} scheduled across ${Math.min(numCourts, matches.length)} court${Math.min(numCourts, matches.length)===1?'':'s'}.`, 'success');
+  toast(`Generation ${genId}: ${gen.matches.length} match${gen.matches.length===1?'':'es'} scheduled across ${Math.min(numCourts, gen.matches.length)} court${Math.min(numCourts, gen.matches.length)===1?'':'s'}.`, 'success');
+}
+
+// ============================================================
+// ONE-TIME GENERATION — pre-builds EVERY round of the chosen session
+// length right now, instead of one generation at a time. Each future
+// round is built with the exact same fairness/balancing logic as the
+// live flow (equal games played, sit-out rotation, smart balance), just
+// run ahead of time in a dry-run loop. Winner-vs-winner bucketing can't
+// apply to any round beyond the very next one, since there are no real
+// results yet for rounds further out — buildOneGeneration() already
+// degrades gracefully to fairness-only matchups in that case.
+//
+// Teammate/opponent VARIETY history is special-cased: while pre-building,
+// each round's scheduled pairings are temporarily applied (as if played)
+// so later rounds in the same schedule actually avoid repeating them —
+// otherwise every dry-run round would look identical to the algorithm,
+// since no real bumpPair() call happens until a match is truly confirmed.
+// The real history is restored byte-for-byte once the loop finishes, so
+// player profiles/stats only ever reflect games that have actually happened.
+// ============================================================
+function buildFullScheduleAndStart(activeList, totalMatches) {
+  const perGen = matchesPerGeneration(activeList.length);
+  const generationsNeeded = Math.max(1, Math.round(totalMatches / perGen));
+  const startGenId = state.round + 1;
+
+  const historySnapshot = new Map();
+  state.players.forEach(p => historySnapshot.set(p.id, {
+    teammates: deepClone(p.teammates || {}),
+    opponents: deepClone(p.opponents || {})
+  }));
+
+  const allGenerations = [];
+  for(let i = 0; i < generationsNeeded; i++){
+    const genId = startGenId + i;
+    const gen = buildOneGeneration(activeList, genId, { silent: true });
+    allGenerations.push(gen);
+
+    // Virtually "play" this round's pairings so the NEXT loop iteration's
+    // variety scoring already knows about them — reverted after the loop.
+    gen.matches.forEach(m => {
+      const [a1, a2] = m.teamA, [b1, b2] = m.teamB;
+      const pa1 = getPlayer(a1), pa2 = getPlayer(a2), pb1 = getPlayer(b1), pb2 = getPlayer(b2);
+      if(pa1 && pa2){ bumpPair(pa1.teammates, a2); bumpPair(pa2.teammates, a1); }
+      if(pb1 && pb2){ bumpPair(pb1.teammates, b2); bumpPair(pb2.teammates, b1); }
+      [a1, a2].forEach(idA => [b1, b2].forEach(idB => {
+        const plA = getPlayer(idA), plB = getPlayer(idB);
+        if(plA && plB){ bumpPair(plA.opponents, idB); bumpPair(plB.opponents, idA); }
+      }));
+    });
+  }
+
+  // Restore real teammate/opponent history — none of the pairings above have
+  // actually been played, so real history must stay exactly as it was; it
+  // increments for real as each scheduled match is genuinely confirmed.
+  state.players.forEach(p => {
+    const snap = historySnapshot.get(p.id);
+    if(snap){ p.teammates = snap.teammates; p.opponents = snap.opponents; }
+  });
+
+  state.currentGeneration = allGenerations.shift();
+  state.scheduledGenerations = allGenerations;
+  state.current = null;
+  saveAll(); renderAll();
+  toast(`Full schedule built: ${generationsNeeded} round${generationsNeeded!==1?'s':''}, ${totalMatches} matches total. Round 1 is up first.`, 'success');
+}
+
+// Court-count sanity check for the full-schedule path — mirrors
+// proceedToGenerateGeneration()'s warning, but routes "Generate Anyway"
+// into buildFullScheduleAndStart() instead of a single live generation.
+function proceedToGenerateFullSchedule(activeList, totalMatches) {
+  const numCourts = clamp(parseInt(state.settings.numCourts,10)||1, 1, 10);
+  const possibleMatches = Math.floor(activeList.length / 4);
+  if(possibleMatches < numCourts){
+    const excess = numCourts - possibleMatches;
+    const needed = numCourts * 4;
+    const msg = possibleMatches === 1
+      ? `⚠️ Only 1 match can be generated with ${activeList.length} active players — you need at least ${needed} players to fill ${numCourts} courts simultaneously. ${excess} court${excess>1?'s':''} will sit empty each generation.`
+      : `⚠️ Only ${possibleMatches} match${possibleMatches!==1?'es':''} can be generated with ${activeList.length} active players — ${numCourts} courts set but only ${possibleMatches} team${possibleMatches!==1?'s':''} formed. Need ${needed} players for full ${numCourts}-court play.`;
+    openModal(`
+      <div class="modal-title" style="color:var(--ball);">⚠️ Court Count Notice</div>
+      <div class="modal-sub" style="line-height:1.7; font-size:13.5px;">${msg}</div>
+      <div class="modal-actions" style="margin-top:16px;">
+        <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+        <button class="btn btn-primary" data-action="do-generate-full-schedule" data-total="${totalMatches}">Generate Anyway</button>
+      </div>
+    `);
+    return;
+  }
+  buildFullScheduleAndStart(activeList, totalMatches);
+}
+
+// Pulls the next pre-built generation off the schedule (if a full schedule
+// was generated up front) and activates it as the live currentGeneration.
+// Returns true if it advanced from the schedule, false if there's nothing
+// pre-built and the caller should build the next generation live instead.
+// Also guards against a stale schedule: if the active roster has changed
+// since the schedule was built (someone added/removed/paused), the rest of
+// the pre-built plan no longer matches who's actually here, so it's dropped
+// and play falls back to building each remaining generation live.
+function advanceToNextGeneration() {
+  if(!Array.isArray(state.scheduledGenerations) || !state.scheduledGenerations.length) return false;
+  const next = state.scheduledGenerations[0];
+  const stillActiveIds = new Set(activePlayers().map(p => p.id));
+  const rosterStillMatches = next.matches.every(m =>
+    m.teamA.every(id => stillActiveIds.has(id)) && m.teamB.every(id => stillActiveIds.has(id))
+  );
+  if(!rosterStillMatches){
+    state.scheduledGenerations = [];
+    toast('Active roster changed since the full schedule was built — building the next round live instead.', 'info');
+    return false;
+  }
+  state.scheduledGenerations = state.scheduledGenerations.slice(1);
+  state.currentGeneration = next;
+  saveAll(); renderAll();
+  return true;
+}
+
+// Lists EVERY round of the current Round Robin session — the live one plus
+// anything still pre-built and waiting — so the organizer can see the whole
+// plan at a glance (courts, matchups, and who sits out each round).
+function showFullScheduleModal(){
+  const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
+  if(!allGens.length){ toast('No schedule to show yet.', 'info'); return; }
+
+  const plan = state.settings.sessionPlan;
+  const roundsHtml = allGens.map(gen => {
+    const rows = gen.matches.slice().sort((a,b) => a.matchIndex - b.matchIndex).map(m => {
+      const a1 = esc(playerName(m.teamA[0])), a2 = esc(playerName(m.teamA[1]));
+      const b1 = esc(playerName(m.teamB[0])), b2 = esc(playerName(m.teamB[1]));
+      const tag = m.status === 'done'
+        ? `<span style="color:var(--text-faint);">Played${m.scoreA!=null ? ` · ${m.scoreA}–${m.scoreB}` : ''}</span>`
+        : m.status === 'active'
+          ? `<span style="color:var(--ball); font-weight:600;">Court ${m.court}</span>`
+          : `<span style="color:var(--text-faint);">Queued</span>`;
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 2px; border-bottom:1px solid var(--line-soft); font-size:12.5px;">
+          <span>${a1} / ${a2} <span style="color:var(--text-faint);">vs</span> ${b1} / ${b2}</span>
+          <span class="mono" style="font-size:11px; white-space:nowrap;">${tag}</span>
+        </div>`;
+    }).join('');
+    const sittingNames = (gen.sittingOut || []).map(id => esc(playerName(id))).join(', ');
+    return `
+      <div class="eyebrow" style="margin:14px 2px 6px;">Round ${gen.generation}</div>
+      <div class="card" style="margin:0 0 8px; padding:2px 12px;">
+        ${rows}
+        ${sittingNames ? `<div style="padding:7px 2px 2px; font-size:11.5px; color:var(--text-faint);">Sitting out: ${sittingNames}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  openModal(`
+    <div class="modal-title">📋 Full Session Schedule</div>
+    <div class="modal-sub" style="line-height:1.6;">${plan ? `${esc(plan.label)} · ${plan.totalMatches} matches across ${allGens.length} round${allGens.length!==1?'s':''}.` : `${allGens.length} round${allGens.length!==1?'s':''} generated.`}</div>
+    <div style="max-height:55vh; overflow-y:auto; margin-top:4px;">
+      ${roundsHtml}
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-primary btn-block" data-action="modal-close">Close</button>
+    </div>
+  `);
 }
 
 // Pulls the next queued match(es) onto any court that just freed up.
@@ -4349,6 +4573,13 @@ function forfeitRRMatch(matchId, who){
 // generation — they may want to let more players check in, swap settings,
 // or just take a breather between rounds first.
 function promptNextGeneration(finishedGen){
+  // A full schedule was pre-built up front — just activate the next round
+  // from it instead of building (or asking to build) anything new.
+  if(advanceToNextGeneration()){
+    toast(`Generation ${finishedGen} complete — Generation ${finishedGen + 1} from your full schedule is up.`, 'success');
+    return;
+  }
+
   const plan = state.settings.sessionPlan;
 
   if(!plan){
@@ -4417,6 +4648,7 @@ function continueMatchCycle(){
 // has been reached.
 function startNewSessionPlan(){
   state.settings.sessionPlan = null;
+  state.scheduledGenerations = [];
   saveAll();
   closeModal();
   openSessionLengthPicker();
@@ -4762,6 +4994,7 @@ function skipCurrentMatch() {
   if(!state.current && !state.currentGeneration && (!state.rotationCourts || !state.rotationCourts.length)) return;
   if(state.settings.matchMode === 'RoundRobin') {
     state.currentGeneration = null;
+    state.scheduledGenerations = [];
   } else {
     state.current = null;
   }
@@ -4818,6 +5051,7 @@ function exportData(filename){
     round: state.round,
     sitOutQueue: state.sitOutQueue || [],
     rotationCourts: state.rotationCourts || [],
+    scheduledGenerations: state.scheduledGenerations || [],
     version: '3.0-csop'
   };
   const str = JSON.stringify(dump, null, 2);
@@ -4851,6 +5085,7 @@ function importDataFromText(txt){
     state.round = parseInt(dump.round,10)||0;
     state.sitOutQueue = Array.isArray(dump.sitOutQueue) ? dump.sitOutQueue : [];
     state.rotationCourts = Array.isArray(dump.rotationCourts) ? dump.rotationCourts : [];
+    state.scheduledGenerations = Array.isArray(dump.scheduledGenerations) ? dump.scheduledGenerations : [];
     
     const incomingC = dump.current;
     if (incomingC && incomingC.matches) {
@@ -5050,6 +5285,7 @@ function renderMatchView(el){
     const doneCount = gen.matches.filter(m => m.status === 'done').length;
 
     const plan = state.settings.sessionPlan;
+    const hasScheduledAhead = Array.isArray(state.scheduledGenerations) && state.scheduledGenerations.length > 0;
     let sessionProgressHtml = '';
     if(plan){
       const playedSoFar = clamp(state.matches.length - plan.matchesAtStart, 0, plan.totalMatches);
@@ -5059,7 +5295,10 @@ function renderMatchView(el){
           <div class="session-progress-track"><div class="session-progress-fill" style="width:${pct}%;"></div></div>
           <div class="session-progress-label">
             <span>${plan.label} · ${playedSoFar}/${plan.totalMatches} matches</span>
-            <button type="button" data-action="change-session-plan" style="background:none; border:none; color:var(--court); font-size:11px; font-weight:700; cursor:pointer; padding:0;">Change</button>
+            <span>
+              ${hasScheduledAhead ? `<button type="button" data-action="view-full-schedule" style="background:none; border:none; color:var(--court); font-size:11px; font-weight:700; cursor:pointer; padding:0; margin-right:12px;">📋 Full Schedule</button>` : ''}
+              <button type="button" data-action="change-session-plan" style="background:none; border:none; color:var(--court); font-size:11px; font-weight:700; cursor:pointer; padding:0;">Change</button>
+            </span>
           </div>
         </div>
       `;
@@ -6014,6 +6253,13 @@ document.addEventListener('click', function(e){
       break;
     case 'confirm-next-generation': closeModal(); generateRoundRobinGeneration(); break;
     case 'do-generate-rr': closeModal(); _doGenerateRoundRobinGeneration(null); break;
+    case 'do-generate-full-schedule': {
+      closeModal();
+      const totalMatches = parseInt(t.dataset.total, 10) || (state.settings.sessionPlan ? state.settings.sessionPlan.totalMatches : 0);
+      buildFullScheduleAndStart(activePlayers().slice(), totalMatches);
+      break;
+    }
+    case 'view-full-schedule': showFullScheduleModal(); break;
     case 'pick-session-plan': pickSessionPlan(t.dataset.plan); break;
     case 'back-to-session-picker': openSessionLengthPicker(); break;
     case 'back-to-session-setup': openSessionSetupModal(); break;
