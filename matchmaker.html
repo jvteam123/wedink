@@ -11,7 +11,7 @@
 
   Original Author : Renzku
   Created         : 2026
-  Contact         : [your contact/email here]
+  Contact         : znerolodarbe@gmail.com
   ================================================================
 -->
 <!DOCTYPE html>
@@ -663,6 +663,33 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 .session-progress-track{ height:6px; border-radius:999px; background:var(--surface-3); overflow:hidden; }
 .session-progress-fill{ height:100%; background:var(--ball); border-radius:999px; transition:width .25s ease; }
 .session-progress-label{ font-size:11px; color:var(--text-faint); margin-top:6px; display:flex; justify-content:space-between; }
+
+/* ---------- Up Next preview card (Open Play) ---------- */
+.up-next-card{
+  background:var(--surface-2); border:1px dashed var(--line);
+  border-radius:var(--radius-md); padding:10px 14px; margin-top:2px;
+  animation:fadeIn .22s ease;
+}
+.up-next-label{
+  font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--text-faint); margin-bottom:7px; display:flex; align-items:center; gap:6px;
+}
+.up-next-label .dot{ width:6px; height:6px; border-radius:50%; background:var(--court); flex:none; }
+.up-next-teams{
+  display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700;
+}
+.up-next-team{ flex:1; display:flex; flex-direction:column; gap:2px; }
+.up-next-team.side-a{ align-items:flex-end; text-align:right; color:var(--text); }
+.up-next-team.side-b{ align-items:flex-start; text-align:left; color:var(--text); }
+.up-next-vs{ font-size:11px; font-weight:800; color:var(--text-faint); flex:none; }
+.up-next-name{ font-size:13px; font-weight:700; line-height:1.3; }
+.up-next-sub{ font-size:10.5px; color:var(--text-faint); font-family:var(--font-mono); }
+.up-next-regen{
+  margin-top:8px; width:100%; background:transparent; border:1px solid var(--line-soft);
+  border-radius:var(--radius-sm); color:var(--text-faint); font-size:11.5px; font-weight:600;
+  padding:5px 10px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;
+}
+.up-next-regen:active{ background:var(--surface-3); color:var(--text); }
 
 
 
@@ -1656,6 +1683,7 @@ function togglePlayerActive(id){
   }
   saveAll();
   if(p.active && wasInactive) maybeAutoBalanceCheckIn(p);
+  refreshAllNextMatchPreviews();
   renderAll();
 }
 
@@ -1791,6 +1819,7 @@ function removePlayer(id){
   // Clean up any fixed duo that referenced this player — otherwise their old
   // partner is left "stuck" thinking they still have a duo partner.
   state.fixedDuos = (state.fixedDuos || []).filter(d => !d.includes(id));
+  refreshAllNextMatchPreviews();
   saveAll(); renderAll(); closeModal();
   if(p) toast(`Removed ${p.name}.`, 'success');
 }
@@ -2309,7 +2338,110 @@ function csoGenerateMatchForCourt(courtNum, excludeIds) {
   return matchObj;
 }
 
-// Initialize Rotation courts for the Continuous Smart Open Play mode
+// Generates a lightweight PREVIEW of who would play next on a given court,
+// without mutating any player state (no streak bumps, no round counter bump,
+// no waitingSince writes). Used purely for the "Up Next" display — the real
+// match object is only materialised when the current one is confirmed.
+// Returns { teamA:[id,id], teamB:[id,id] } or null if not enough free players.
+function csoPreviewNextMatch(courtId) {
+  // IDs already committed to live matches (excluding the finishing court itself,
+  // since those players will be free once it's done)
+  const usedIds = new Set();
+  (state.rotationCourts || []).forEach(c => {
+    if (c.id === courtId) return; // they'll be free after this match
+    c.teamA.forEach(id => usedIds.add(id));
+    c.teamB.forEach(id => usedIds.add(id));
+  });
+  // Also reserve IDs that are already sitting in a nextMatch on OTHER courts
+  // so the same person isn't queued up on two courts at once.
+  (state.rotationCourts || []).forEach(c => {
+    if (c.id === courtId || !c.nextMatch) return;
+    c.nextMatch.teamA.forEach(id => usedIds.add(id));
+    c.nextMatch.teamB.forEach(id => usedIds.add(id));
+  });
+
+  const pool = csoActivePlayers().filter(p => !usedIds.has(p.id));
+  if (pool.length < 4) return null;
+
+  // Reuse the same priority + scoring logic but operate on a snapshot so
+  // nothing in state is modified.
+  const now = Date.now();
+  const sortedPool = pool.slice().sort((a, b) => csoPlayerPriority(b, now) - csoPlayerPriority(a, now));
+  const minGames = sortedPool[0].gamesPlayed;
+  let tierEnd = 0;
+  while (tierEnd < sortedPool.length && sortedPool[tierEnd].gamesPlayed === minGames) tierEnd++;
+  const windowSize = Math.max(tierEnd, Math.min(12, sortedPool.length));
+  const candidates = sortedPool.slice(0, windowSize);
+
+  // Collapse fixed duos into units (same logic as csoGenerateMatchForCourt)
+  const units = [];
+  const claimed = new Set();
+  candidates.forEach(p => {
+    if (claimed.has(p.id)) return;
+    const partnerId = getFixedDuoPartner(p.id);
+    const partner = partnerId ? candidates.find(c => c.id === partnerId) : null;
+    if (partner) {
+      units.push([p, partner]);
+      claimed.add(p.id); claimed.add(partner.id);
+    } else {
+      units.push([p]);
+      claimed.add(p.id);
+    }
+  });
+
+  let bestMatch = null;
+  let bestScore = -Infinity;
+  (function explore(startIdx, chosen, count) {
+    if (count === 4) {
+      const four = chosen.flat();
+      const allSplits = [
+        [[four[0],four[1]], [four[2],four[3]]],
+        [[four[0],four[2]], [four[1],four[3]]],
+        [[four[0],four[3]], [four[1],four[2]]]
+      ];
+      const validSplits = allSplits.filter(([t1,t2]) => {
+        for (const duo of (state.fixedDuos || [])) {
+          const [d1, d2] = duo;
+          const bothInFour = four.some(p=>p.id===d1) && four.some(p=>p.id===d2);
+          if (!bothInFour) continue;
+          const t1ids = [t1[0].id, t1[1].id];
+          const t2ids = [t2[0].id, t2[1].id];
+          if (!((t1ids.includes(d1) && t1ids.includes(d2)) || (t2ids.includes(d1) && t2ids.includes(d2)))) return false;
+        }
+        return true;
+      });
+      const splitsToTry = validSplits.length ? validSplits : allSplits;
+      splitsToTry.forEach(([tA, tB]) => {
+        const sc = csoMatchScore(tA, tB, now);
+        if (sc > bestScore) { bestScore = sc; bestMatch = { teamA: tA, teamB: tB }; }
+      });
+      return;
+    }
+    if (count > 4) return;
+    for (let i = startIdx; i < units.length; i++) {
+      if (count + units[i].length > 4) continue;
+      explore(i + 1, chosen.concat([units[i]]), count + units[i].length);
+    }
+  })(0, [], 0);
+
+  if (!bestMatch) return null;
+  return {
+    teamA: bestMatch.teamA.map(p => p.id),
+    teamB: bestMatch.teamB.map(p => p.id)
+  };
+}
+
+// Refresh the nextMatch preview on every court that doesn't already have one,
+// or when player availability has changed (new check-in, player removed, etc).
+// Call after any event that changes who's free: session start, confirm match,
+// skip match, check-in toggle, player add/remove.
+function refreshAllNextMatchPreviews() {
+  if (!Array.isArray(state.rotationCourts)) return;
+  state.rotationCourts.forEach(c => {
+    if (c.status !== 'active') return;
+    c.nextMatch = csoPreviewNextMatch(c.id);
+  });
+}
 function initRotationCourts() {
   const pool = csoActivePlayers();
   if (pool.length < 4) { toast('Need at least 4 active players.', 'warning'); return; }
@@ -2460,6 +2592,7 @@ function doInitRotationCourts() {
     return;
   }
 
+  refreshAllNextMatchPreviews();
   saveAll(); renderAll();
   toast(`${state.rotationCourts.length} court${state.rotationCourts.length>1?'s':''} now live — Open Play started!`, 'success');
 }
@@ -2581,6 +2714,7 @@ function confirmRotationCourtMatch(courtId) {
   // Mark this court slot as done and immediately spin up next match for it
   m.status = 'done';
   const courtNum = m.courtNum;
+  const previewedNext = m.nextMatch || null; // grab before we filter it away
   // Remove the done match from active courts
   state.rotationCourts = state.rotationCourts.filter(c => c.status === 'active');
 
@@ -2591,17 +2725,57 @@ function confirmRotationCourtMatch(courtId) {
     c.teamB.forEach(id => usedIds.add(id));
   });
 
-  // Immediately generate a new match for this court
+  // Use the already-previewed next match if still valid (all 4 players free),
+  // otherwise fall back to generating one fresh right now.
   const pool = csoActivePlayers();
-  if (pool.filter(p => !usedIds.has(p.id)).length >= 4) {
-    const nextMatch = csoGenerateMatchForCourt(courtNum, usedIds);
-    if (nextMatch) {
-      state.rotationCourts.push(nextMatch);
-      toast(`Court ${courtNum} match recorded ✓ — next match ready.`, 'success');
-    } else {
-      toast(`Court ${courtNum} match recorded ✓ — not enough available players to fill court right now.`, 'info');
-    }
+  let nextMatch = null;
+  if (previewedNext &&
+      previewedNext.teamA.every(id => !usedIds.has(id)) &&
+      previewedNext.teamB.every(id => !usedIds.has(id)) &&
+      pool.filter(p => !usedIds.has(p.id)).length >= 4) {
+    // Materialise the previewed match into a real match object
+    const allFour = [...previewedNext.teamA, ...previewedNext.teamB];
+    allFour.forEach(id => {
+      const p = getPlayer(id);
+      if (!p) return;
+      ensureCSOP(p);
+      p.streakGames = (p.streakGames || 0) + 1;
+      p.waitingSince = Date.now() + 1;
+      p.consecutiveSitOuts = 0;
+    });
+    pool.filter(p => !allFour.includes(p.id)).forEach(p => {
+      ensureCSOP(p);
+      if (p.waitingSince === undefined || p.waitingSince > Date.now()) p.waitingSince = Date.now();
+      p.lastSatOut = Date.now() + 1;
+      p.streakGames = 0;
+    });
+    state.round++;
+    nextMatch = {
+      id: uid('rc'),
+      courtNum,
+      round: state.round,
+      teamA: previewedNext.teamA,
+      teamB: previewedNext.teamB,
+      scoreA: null, scoreB: null,
+      winner: null,
+      serving: 'A', serverNum: 1, firstServe: true,
+      status: 'active',
+      substitutions: {}
+    };
+  } else if (pool.filter(p => !usedIds.has(p.id)).length >= 4) {
+    nextMatch = csoGenerateMatchForCourt(courtNum, usedIds);
+  }
+
+  if (nextMatch) {
+    state.rotationCourts.push(nextMatch);
+    // Pre-compute the Up Next preview for the freshly-started court
+    nextMatch.nextMatch = csoPreviewNextMatch(nextMatch.id);
+    // Also refresh previews on all other courts since player availability changed
+    refreshAllNextMatchPreviews();
+    toast(`Court ${courtNum} match recorded ✓ — next match ready.`, 'success');
   } else {
+    // Refresh other courts' previews anyway — someone just freed up
+    refreshAllNextMatchPreviews();
     toast(`Court ${courtNum} match recorded ✓ — waiting for more players to free up.`, 'info');
   }
 
@@ -2696,6 +2870,7 @@ function doReplaceRotationCourtPlayer(courtId, team, oldId, newId) {
   const realOrig = Object.keys(m.substitutions).find(orig => m.substitutions[orig] === oldId) || oldId;
   m.substitutions[realOrig] = newId;
   teamArr[idx] = newId;
+  refreshAllNextMatchPreviews();
   saveAll(); renderAll(); closeModal();
   toast(`${playerName(realOrig)} subbed out — ${playerName(newId)} steps in.`, 'success');
 }
@@ -2707,6 +2882,7 @@ function skipRotationCourtMatch(courtId) {
   if (!m) return;
   const courtNum = m.courtNum;
   state.rotationCourts = state.rotationCourts.filter(c => c.id !== courtId);
+  refreshAllNextMatchPreviews();
   saveAll(); renderAll(); closeModal();
   toast(`Court ${courtNum} match cleared.`, 'success');
 }
@@ -2852,9 +3028,61 @@ function renderRotationCourtScoreboard(m) {
         </div>
       </div>
     </div>
+    ${renderUpNextCard(m)}
   `;
 }
 
+
+// Renders the "Up Next" preview card shown below each live court scoreboard.
+// m = the live court match object (which carries m.nextMatch if available).
+function renderUpNextCard(m) {
+  const nx = m.nextMatch;
+  if (!nx) {
+    // Check if there are enough free players at all
+    const usedIds = new Set();
+    (state.rotationCourts || []).forEach(c => {
+      c.teamA.forEach(id => usedIds.add(id));
+      c.teamB.forEach(id => usedIds.add(id));
+    });
+    const freeCount = csoActivePlayers().filter(p => !usedIds.has(p.id)).length;
+    const msg = freeCount < 4
+      ? `Waiting for ${4 - freeCount} more player${4 - freeCount !== 1 ? 's' : ''} to free up`
+      : 'Generating…';
+    return `
+      <div class="up-next-card" style="opacity:.55;">
+        <div class="up-next-label"><span class="dot"></span>Up Next</div>
+        <div style="font-size:12px; color:var(--text-faint);">${msg}</div>
+      </div>`;
+  }
+
+  const nA1 = getPlayer(nx.teamA[0]), nA2 = getPlayer(nx.teamA[1]);
+  const nB1 = getPlayer(nx.teamB[0]), nB2 = getPlayer(nx.teamB[1]);
+  const avgA = Math.round(((nA1?.rating||1000)+(nA2?.rating||1000))/2);
+  const avgB = Math.round(((nB1?.rating||1000)+(nB2?.rating||1000))/2);
+
+  return `
+    <div class="up-next-card">
+      <div class="up-next-label">
+        <span class="dot"></span>Up Next on Court ${m.courtNum}
+      </div>
+      <div class="up-next-teams">
+        <div class="up-next-team side-a">
+          <div class="up-next-name">${esc(nA1?.name || '—')}</div>
+          <div class="up-next-name">${esc(nA2?.name || '—')}</div>
+          <div class="up-next-sub">avg ${avgA}</div>
+        </div>
+        <div class="up-next-vs">vs</div>
+        <div class="up-next-team side-b">
+          <div class="up-next-name">${esc(nB1?.name || '—')}</div>
+          <div class="up-next-name">${esc(nB2?.name || '—')}</div>
+          <div class="up-next-sub">avg ${avgB}</div>
+        </div>
+      </div>
+      <button class="up-next-regen" data-action="regen-next-match" data-court="${m.id}" title="Re-shuffle the Up Next lineup">
+        🔀 Re-shuffle Up Next
+      </button>
+    </div>`;
+}
 
 function nextRotationMatch(){
   const pool = selectionPool();
@@ -5660,6 +5888,7 @@ document.addEventListener('click', function(e){
       if (cur >= 10) { toast('Maximum of 10 courts.', 'warning'); break; }
       state.settings.numCourts = cur + 1;
       const filled = fillEmptyRotationCourts();
+      refreshAllNextMatchPreviews();
       saveAll(); renderAll();
       if (filled) toast(`Court ${cur + 1} is live.`, 'success');
       else toast(`Court ${cur + 1} added — waiting for enough free players to fill it.`, 'info');
@@ -5692,6 +5921,16 @@ document.addEventListener('click', function(e){
     case 'rc-undo-serve': rotationCourtUndoServe(t.dataset.court); break;
     case 'do-rc-undo-serve': doRotationCourtUndoServe(t.dataset.court); break;
     case 'confirm-rc-match': confirmRotationCourtMatch(t.dataset.court); break;
+    case 'regen-next-match': {
+      const rc = Array.isArray(state.rotationCourts) ? state.rotationCourts.find(c => c.id === t.dataset.court) : null;
+      if (rc) {
+        rc.nextMatch = csoPreviewNextMatch(rc.id);
+        saveAll(); renderAll();
+        if (rc.nextMatch) toast('Up Next lineup re-shuffled.', 'success');
+        else toast('Not enough free players to preview a next match right now.', 'info');
+      }
+      break;
+    }
     case 'skip-rc-match':
       openModal(`
         <div class="modal-title">Skip This Court Match?</div>
@@ -6239,6 +6478,7 @@ function initInstallBanner(){
   const viewEl = document.getElementById('view');
   if(viewEl) viewEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:60px 20px;color:var(--text-faint);font-size:13px;">Loading…</div>';
   await loadState();
+  refreshAllNextMatchPreviews();
   renderAll();
   initInstallBanner();
   maybeShowNavHint();
