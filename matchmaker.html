@@ -2344,11 +2344,11 @@ function csoGenerateMatchForCourt(courtNum, excludeIds) {
 // match object is only materialised when the current one is confirmed.
 // Returns { teamA:[id,id], teamB:[id,id] } or null if not enough free players.
 function csoPreviewNextMatch(courtId) {
-  // IDs already committed to live matches (excluding the finishing court itself,
-  // since those players will be free once it's done)
+  // IDs already committed to ANY live match, including this court's current
+  // players — they are still playing and won't be free until this match is
+  // confirmed, so they must not appear in the Up Next preview.
   const usedIds = new Set();
   (state.rotationCourts || []).forEach(c => {
-    if (c.id === courtId) return; // they'll be free after this match
     c.teamA.forEach(id => usedIds.add(id));
     c.teamB.forEach(id => usedIds.add(id));
   });
