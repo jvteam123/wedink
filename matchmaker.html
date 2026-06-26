@@ -1697,6 +1697,25 @@ function togglePlayerActive(id){
     p.sitOutPriority = 0;
     p.waitingRounds = 0;
   }
+
+  // Paddle Stack: priority check-in
+  // New arrivals go to the FRONT of the queue so they play immediately
+  // in the next open court rather than waiting at the back.
+  if (p.active && wasInactive && state.paddleStack) {
+    const ps = state.paddleStack;
+    const onCourt = ps.courts.some(c => c.teamA.includes(p.id) || c.teamB.includes(p.id));
+    const inQueue = ps.queue.some(e => e.id === p.id);
+    const inWBlock = ps.wBlock.some(e => e.id === p.id);
+    const inLBlock = ps.lBlock.some(e => e.id === p.id);
+    if (!onCourt && !inQueue && !inWBlock && !inLBlock) {
+      ps.queue.unshift({ id: p.id, tag: 'N' });
+      psFillCourts();
+      saveAll(); renderAll();
+      toast(p.name + ' checked in — moved to front of queue! 🆕', 'success');
+      return;
+    }
+  }
+
   saveAll();
   if(p.active && wasInactive) maybeAutoBalanceCheckIn(p);
   refreshAllNextMatchPreviews();
@@ -7154,6 +7173,29 @@ function psHandleResult(courtId, winnerTeam) {
   if (ps.lBlock.length >= 4) {
     ps.queue.push(...ps.lBlock.splice(0, 4));
   }
+
+  // ── Small-group fallback (e.g. 6 total players) ──────────────────────────
+  // If neither block alone will ever reach 4 (because there aren't enough
+  // players left off-court), combine whatever we have so play can continue.
+  // Condition: no court is currently running AND queue is empty AND the two
+  // blocks together have ≥ 4 players — flush them all so the next court fires.
+  const activePlCount = activePlayers().length;
+  const onCourtCount = ps.courts.length * 4;
+  const offCourtLeft = activePlCount - onCourtCount - ps.queue.length;
+  // If total waiting (blocks + queue) ≥ 4 but blocks alone are stuck below 4,
+  // AND there are not enough players arriving to ever fill either block to 4,
+  // merge the blocks into the queue so the next court can start.
+  const combinedBlocks = ps.wBlock.length + ps.lBlock.length;
+  if (
+    combinedBlocks >= 4 &&
+    ps.wBlock.length < 4 &&
+    ps.lBlock.length < 4 &&
+    offCourtLeft <= 0  // no one else is coming to help fill the blocks
+  ) {
+    // Flush winners first, then losers (mixed match, tagged accordingly)
+    ps.queue.push(...ps.wBlock.splice(0));
+    ps.queue.push(...ps.lBlock.splice(0));
+  }
 }
 
 // Confirm a paddle stack match result
@@ -7468,7 +7510,7 @@ function renderPaddleStackQueueView(el) {
 
   let html = `
     <div class="section-title">🏓 Paddle Stack Queue</div>
-    <p class="helper-text" style="margin:-4px 2px 10px;">Shared queue across all courts. Winners (🏆) and Losers (💀) stack in blocks of 4. When a block fills, it joins the queue. Next 4 from the front fill the next open court.</p>
+    <p class="helper-text" style="margin:-4px 2px 10px;">Shared queue across all courts. Winners (🏆) and Losers (💀) stack in blocks of 4. When a block fills, it joins the queue. Next 4 from the front fill the next open court. 🆕 New arrivals go straight to the front. With few players, partial blocks merge automatically so play never stalls.</p>
   `;
 
   // On-court section
