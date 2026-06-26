@@ -7174,27 +7174,22 @@ function psHandleResult(courtId, winnerTeam) {
     ps.queue.push(...ps.lBlock.splice(0, 4));
   }
 
-  // ── Small-group fallback (e.g. 6 total players) ──────────────────────────
-  // If neither block alone will ever reach 4, merge partial blocks so play
-  // can continue rather than stalling the session.
-  //
-  // NOTE: psHandleResult is called BEFORE the finished court is removed from
-  // ps.courts (that happens back in psConfirmMatch after this returns).
-  // So we subtract 1 from ps.courts.length to get the correct count of
-  // courts that are still actively running.
+  // ── Small-group fallback ────────────────────────────────────────────────
+  // Only merge partial W/L blocks when the total player count makes it
+  // impossible for either block to EVER reach 4 on its own (< 8 players).
+  // With 8 or 12 players the normal W×4 / L×4 rotation is always achievable
+  // and should be preserved.  With e.g. 5, 6, or 7 players neither block
+  // will ever fill, so we combine whatever is ready (≥ 4 combined) so the
+  // session doesn't stall.
   const activePlCount = activePlayers().length;
-  const remainingActiveCourts = Math.max(0, ps.courts.length - 1);
-  const onCourtCount = remainingActiveCourts * 4;
   const combinedBlocks = ps.wBlock.length + ps.lBlock.length;
-  // Players unaccounted for by on-court, queue, or blocks can't help fill either block.
-  const offCourtElsewhere = activePlCount - onCourtCount - ps.queue.length - combinedBlocks;
   if (
-    combinedBlocks >= 4 &&
-    ps.wBlock.length < 4 &&
-    ps.lBlock.length < 4 &&
-    offCourtElsewhere <= 0  // no extra players can bridge the gap
+    activePlCount < 8 &&           // session is genuinely small — normal rotation impossible
+    combinedBlocks >= 4 &&         // enough combined players for a match
+    ps.wBlock.length < 4 &&        // neither block is full on its own
+    ps.lBlock.length < 4
   ) {
-    // Flush winners first, then losers (creates a Mixed match)
+    // Flush winners first, then losers — labelled 🎾 Mixed on the match card
     ps.queue.push(...ps.wBlock.splice(0));
     ps.queue.push(...ps.lBlock.splice(0));
   }
