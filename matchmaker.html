@@ -845,7 +845,8 @@ const KEYS = {
   settings:'kl_settings', round:'kl_round', undo:'kl_undo', tab:'kl_tab',
   fixedDuos:'kl_fixedDuos', sitOutQueue:'kl_sitOutQueue',
   rotationCourts:'kl_rotationCourts',  // Continuous Smart Open Play: per-court state array
-  scheduledGenerations:'kl_scheduledGenerations' // Round Robin "one-time generation": every future round already built, waiting to be activated
+  scheduledGenerations:'kl_scheduledGenerations', // Round Robin "one-time generation": every future round already built, waiting to be activated
+  paddleStack:'kl_paddleStack'  // Paddle Stack Open Play queue state
 };
 
 const SESSIONS_KEY = 'kl_sessions'; // archived past sessions — stored separately, never wiped by reset
@@ -894,7 +895,8 @@ let state = {
   fixedDuos: [],
   sitOutQueue: [],
   rotationCourts: [],    // Continuous Smart Open Play: array of per-court match objects
-  scheduledGenerations: [] // Round Robin "one-time generation": pre-built future rounds waiting their turn
+  scheduledGenerations: [], // Round Robin "one-time generation": pre-built future rounds waiting their turn
+  paddleStack: null      // Paddle Stack Open Play queue state
 };
 
 // In-memory session flags (not persisted — intentionally reset each page load)
@@ -1065,6 +1067,8 @@ async function loadState(){
     if(Array.isArray(rc)) state.rotationCourts = rc;
     const sg = data[KEYS.scheduledGenerations];
     if(Array.isArray(sg)) state.scheduledGenerations = sg;
+    const ps = data[KEYS.paddleStack];
+    if(ps) state.paddleStack = ps;
   }catch(e){
     console.error('Failed to load saved data from IndexedDB, starting fresh.', e);
     toast("Couldn't open local storage — starting with a blank session. Your browser may be blocking IndexedDB (private/incognito mode, or storage disabled).", 'error');
@@ -1087,7 +1091,8 @@ function saveAll(){
       [KEYS.fixedDuos, state.fixedDuos || []],
       [KEYS.sitOutQueue, state.sitOutQueue || []],
       [KEYS.rotationCourts, state.rotationCourts || []],
-      [KEYS.scheduledGenerations, state.scheduledGenerations || []]
+      [KEYS.scheduledGenerations, state.scheduledGenerations || []],
+      [KEYS.paddleStack, state.paddleStack || null]
     ];
     idbSetMany(entries).catch(e => {
       console.error('IndexedDB save failed.', e);
@@ -1796,6 +1801,7 @@ function checkInResetAll(){
   state.current = null;
   state.currentGeneration = null;
   state.rotationCourts = [];
+  state.paddleStack = null;
   state.undo = null;
   state.settings.sessionPlan = null; // a fresh session means choosing session length again
   state.sitOutQueue = []; // fresh session — rebuilt from scratch as players check in
@@ -1844,6 +1850,7 @@ function resetPlayersAndStats(){
   state.current = null;
   state.currentGeneration = null;
   state.rotationCourts = [];
+  state.paddleStack = null;
   state.round = 0;
   state.undo = null;
   state.settings.sessionPlan = null;
@@ -1853,7 +1860,7 @@ function resetPlayersAndStats(){
 }
 
 function resetEverything(){
-  state = { players:[], matches:[], current:null, currentGeneration:null, rotationCourts:[], settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match', fixedDuos:[], sitOutQueue:[] };
+  state = { players:[], matches:[], current:null, currentGeneration:null, rotationCourts:[], paddleStack:null, settings:{...DEFAULT_SETTINGS}, round:0, undo:null, tab:'match', fixedDuos:[], sitOutQueue:[] };
   saveAll(); renderAll(); closeModal();
   toast('All data has been cleared.', 'success');
 }
@@ -4233,7 +4240,7 @@ function maybeOfferRaceToTwo(m, mode, matchId){
 }
 
 function acceptRaceToTwo(mode, matchId){
-  const ctx = (mode === 'rotation-court') ? liveRotationCourtCtx(matchId) : liveMatchCtx(mode, matchId);
+  const ctx = (mode === 'rotation-court') ? liveRotationCourtCtx(matchId) : (mode === 'ps-court') ? liveMatchCtxPS(matchId) : liveMatchCtx(mode, matchId);
   const m = ctx.getMatch();
   if(!m){ closeModal(); return; }
   m.scoreA = 0;
@@ -4324,7 +4331,7 @@ function sideOutMatch(ctx){
 function confirmUndoServeModal(ctx){
   const m = ctx.getMatch();
   if(!m || !m._serveUndoStack || !m._serveUndoStack.length){ toast('No serve decision to undo.', 'info'); return; }
-  const undoAction = ctx.mode === 'rr' ? 'do-rr-undo-serve' : 'do-rotation-undo-serve';
+  const undoAction = ctx.mode === 'rr' ? 'do-rr-undo-serve' : ctx.mode === 'ps-court' ? 'do-ps-undo-serve' : 'do-rotation-undo-serve';
   openModal(`
     <div class="modal-title">Undo Serve Decision?</div>
     <div class="modal-sub">This reverts the most recent serve action (1st server / serve 2 / side out). The score is not affected. ${m._serveUndoStack.length > 1 ? `You can undo ${m._serveUndoStack.length} steps in total.` : ''}</div>
@@ -5374,6 +5381,12 @@ function renderActiveView(){
    VIEW COMPONENT GENERATORS
    ============================================================ */
 function renderMatchView(el){
+  // Paddle Stack Open Play
+  if (state.settings.matchMode === 'PaddleStack' && state.paddleStack) {
+    renderPaddleStackView(el);
+    return;
+  }
+
   // No active session at all — show mode picker
   const hasRRSession = state.settings.matchMode === 'RoundRobin' && state.currentGeneration;
   const hasOpenPlaySession = state.settings.matchMode === 'Rotation' && Array.isArray(state.rotationCourts) && state.rotationCourts.some(c => c && c.status === 'active');
@@ -5386,7 +5399,7 @@ function renderMatchView(el){
         <p>How do you want to run today's session?</p>
         <button class="btn btn-primary" style="margin-top:14px; width:100%; padding:16px; display:flex; flex-direction:column; gap:4px; text-align:left;" data-action="pick-mode-openplay">
           <span style="font-size:16px; font-weight:700;">🏓 Open Play</span>
-          <span style="font-weight:400; font-size:12px; opacity:0.85;">Courts auto-generate new matches as they finish.</span>
+          <span style="font-weight:400; font-size:12px; opacity:0.85;">Paddle Stack queue or Smart Auto-Match — courts auto-rotate as they finish.</span>
         </button>
         <button class="btn btn-secondary" style="margin-top:10px; width:100%; padding:16px; display:flex; flex-direction:column; gap:4px; text-align:left;" data-action="pick-mode-roundrobin">
           <span style="font-size:16px; font-weight:700;">🔀 Round Robin</span>
@@ -5705,6 +5718,12 @@ function _renderMatchViewOriginalRotation(el) {
 // (Legacy single-court rotation kept for undo recovery — not used in CSOP flow)
 
 function renderQueueView(el){
+  // Paddle Stack mode — show the PS queue instead
+  if (state.settings.matchMode === 'PaddleStack' && state.paddleStack) {
+    renderPaddleStackQueueView(el);
+    return;
+  }
+
   const activeList = csoActivePlayers().slice();
   const now = state.round;
   activeList.forEach(p => {
@@ -6249,7 +6268,8 @@ document.addEventListener('click', function(e){
     case 'pick-mode-openplay': {
       const hasHistory = state.matches.length > 0;
       const hasActiveSession = (state.settings.matchMode === 'Rotation' && Array.isArray(state.rotationCourts) && state.rotationCourts.some(c => c && c.status === 'active'))
-        || (state.settings.matchMode === 'RoundRobin' && !!state.currentGeneration);
+        || (state.settings.matchMode === 'RoundRobin' && !!state.currentGeneration)
+        || (state.settings.matchMode === 'PaddleStack' && !!state.paddleStack);
       if(hasHistory && !hasActiveSession){
         openModal(`
           <div class="modal-title">🏓 Start New Session?</div>
@@ -6261,23 +6281,96 @@ document.addEventListener('click', function(e){
         `, false);
         break;
       }
+      // Show Open Play format picker (Paddle Stack vs Smart Auto-Match)
+      openOpenPlayModePicker();
+      break;
+    }
+    case 'pick-openplay-paddle-stack':
+      closeModal();
+      openPaddleStackSetupModal();
+      break;
+    case 'pick-openplay-csop':
+      closeModal();
       state.settings.matchMode = 'Rotation';
       saveAll();
-      closeModal();
       _courtCountNoticeDismissed = false;
       initRotationCourts();
       break;
+    case 'ps-pick-courts': {
+      const n = parseInt(t.dataset.courts, 10);
+      if (!isNaN(n)) {
+        state.settings.numCourts = clamp(n, 1, 10);
+        // Update visual selection
+        document.querySelectorAll('[data-action="ps-pick-courts"]').forEach(btn => {
+          const check = btn.querySelector('.session-opt-check');
+          const isSelected = parseInt(btn.dataset.courts, 10) === n;
+          btn.classList.toggle('recommended', isSelected);
+          if (check) {
+            check.style.borderColor = isSelected ? 'var(--ball)' : '';
+            check.style.background = isSelected ? 'var(--ball)' : '';
+          }
+        });
+      }
+      break;
     }
+    case 'ps-confirm-start': psConfirmStart(); break;
+    case 'ps-set-winner': psSetWinner(t.dataset.court, t.dataset.team); break;
+    case 'ps-score-adjust': adjustMatchScore(liveMatchCtxPS(t.dataset.court), t.dataset.team, parseInt(t.dataset.delta,10)); break;
+    case 'ps-set-server': setServingTeam(liveMatchCtxPS(t.dataset.court), t.dataset.team); break;
+    case 'ps-advance-server': advanceServer(liveMatchCtxPS(t.dataset.court)); break;
+    case 'ps-side-out': sideOutMatch(liveMatchCtxPS(t.dataset.court)); break;
+    case 'ps-undo-serve': confirmUndoServeModal(liveMatchCtxPS(t.dataset.court)); break;
+    case 'do-ps-undo-serve': undoServeMatch(liveMatchCtxPS(t.dataset.match)); break;
+    case 'ps-confirm-match': psConfirmMatch(t.dataset.court); break;
+    case 'ps-skip-confirm':
+      openModal(`
+        <div class="modal-title">Skip This Match?</div>
+        <div class="modal-sub">Players return to the front of the queue with their same tags. No result is recorded.</div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-secondary" data-action="ps-do-skip" data-court="${t.dataset.court}">Yes, Skip</button>
+        </div>
+      `);
+      break;
+    case 'ps-do-skip': psSkipMatch(t.dataset.court); break;
+    case 'ps-add-court': {
+      const ps = state.paddleStack;
+      if (!ps) break;
+      const cur = clamp(ps.numCourts, 1, 10);
+      if (cur >= 10) { toast('Maximum 10 courts.', 'warning'); break; }
+      ps.numCourts = cur + 1;
+      state.settings.numCourts = ps.numCourts;
+      psFillCourts();
+      saveAll(); renderAll();
+      toast(`Court ${ps.numCourts} added.`, 'success');
+      break;
+    }
+    case 'ps-end-session':
+      openModal(`
+        <div class="modal-title">End Open Play Session?</div>
+        <div class="modal-sub">This clears every live court and the queue. Matches already recorded stay in your history and stats.</div>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+          <button class="btn btn-danger" data-action="ps-do-end-session">Yes, End Session</button>
+        </div>
+      `);
+      break;
+    case 'ps-do-end-session':
+      state.paddleStack = null;
+      state.settings.matchMode = 'Rotation';
+      saveAll(); closeModal(); renderAll();
+      toast('Paddle Stack session ended.', 'success');
+      break;
     case 'do-new-session-openplay':
       archiveCurrentSession().then(() => {
         resetPlayersAndStats();
-        state.settings.matchMode = 'Rotation';
+        state.paddleStack = null;
         saveAll();
         closeModal();
         _courtCountNoticeDismissed = false;
         renderAll();
-        toast('Session saved. Starting fresh — choose your courts to begin.', 'success');
-        initRotationCourts();
+        toast('Session saved. Starting fresh — choose your Open Play format to begin.', 'success');
+        openOpenPlayModePicker();
       });
       break;
     case 'pick-mode-roundrobin': {
@@ -6520,6 +6613,7 @@ document.addEventListener('click', function(e){
     case 'do-end-open-play':
       state.current = null;
       state.rotationCourts = [];
+      state.paddleStack = null;
       state.settings.numCourts = 1; // reset court count so next session starts fresh
       _courtCountNoticeDismissed = false;
       saveAll();
@@ -6940,8 +7034,583 @@ function initInstallBanner(){
 }
 
 /* ============================================================
-   SYSTEM BOOT INITIALIZER EXECUTION
+   PADDLE STACK OPEN PLAY ENGINE
+   ------------------------------------------------------------
+   Implements the classic pickleball "paddle stack" rotation:
+   - One shared queue across all courts (W×4 / L×4 alternating blocks)
+   - Next 4 from front of queue fill the next available court
+   - After match: 2 winners → back of next W block, 2 losers → back of next L block
+   - When a W or L block hits 4 → flush entire block to the shared queue
+   - Leftover (< 4) players sit at the front of their respective next block
+   - First round: roster order, tagged 🆕 New
+   - Match card shows: 🏆 Winners vs Winners / 💀 Losers vs Losers / 🆕 New vs New
    ============================================================ */
+
+function psInit() {
+  // Build initial queue from active roster in check-in order (roster order)
+  const pool = activePlayers().slice();
+  if (pool.length < 4) { toast('Need at least 4 active players.', 'warning'); return false; }
+
+  // Initial queue: groups of 4 in roster order, all tagged 'N' (new)
+  const queue = [];
+  for (let i = 0; i < pool.length; i++) {
+    queue.push({ id: pool[i].id, tag: 'N' });
+  }
+
+  state.paddleStack = {
+    queue,          // [{id, tag:'W'|'L'|'N'}] — front is index 0
+    wBlock: [],     // accumulating winners (< 4) — will flush when full
+    lBlock: [],     // accumulating losers (< 4) — will flush when full
+    courts: [],     // active court matches [{id, courtNum, teamA, teamB, tags, ...scoring}]
+    numCourts: clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10),
+    winningScore: state.settings.winningScore || 11
+  };
+  // Fill courts from the queue
+  psFillCourts();
+  saveAll();
+  return true;
+}
+
+// Pull next 4 from queue and start a match on an available court
+function psFillCourts() {
+  const ps = state.paddleStack;
+  if (!ps) return;
+  const maxCourts = ps.numCourts;
+  while (ps.courts.length < maxCourts && ps.queue.length >= 4) {
+    const courtNum = ps.courts.length + 1;
+    const slot = ps.queue.splice(0, 4);
+    const [p1, p2, p3, p4] = slot;
+    const matchType = psMatchType([p1, p2], [p3, p4]);
+    ps.courts.push({
+      id: uid('ps'),
+      courtNum,
+      teamA: [p1.id, p2.id],
+      teamB: [p3.id, p4.id],
+      tagsA: [p1.tag, p2.tag],
+      tagsB: [p3.tag, p4.tag],
+      matchType,
+      scoreA: null, scoreB: null,
+      winner: null,
+      serving: 'A', serverNum: 1, firstServe: true,
+      _serveUndoStack: [],
+      raceActive: false, raceOffered: false,
+      status: 'active'
+    });
+  }
+}
+
+// Determine the label for a match based on team tags
+function psMatchType(teamA, teamB) {
+  // Each item is {id, tag}
+  const tagsA = teamA.map(p => p.tag);
+  const tagsB = teamB.map(p => p.tag);
+  const dominantTag = tags => {
+    if (tags.every(t => t === 'W')) return 'W';
+    if (tags.every(t => t === 'L')) return 'L';
+    if (tags.every(t => t === 'N')) return 'N';
+    // mixed — use majority
+    const wc = tags.filter(t => t === 'W').length;
+    const lc = tags.filter(t => t === 'L').length;
+    if (wc >= lc) return 'W'; else return 'L';
+  };
+  const dA = dominantTag(tagsA), dB = dominantTag(tagsB);
+  if (dA === 'W' && dB === 'W') return 'WW';
+  if (dA === 'L' && dB === 'L') return 'LL';
+  if (dA === 'N' && dB === 'N') return 'NN';
+  return 'MX'; // mixed
+}
+
+function psMatchTypeLabel(type) {
+  if (type === 'WW') return '🏆 Winners vs Winners';
+  if (type === 'LL') return '💀 Losers vs Losers';
+  if (type === 'NN') return '🆕 New vs New';
+  return '🎾 Mixed';
+}
+
+// After confirming a court result: route winners/losers to blocks
+function psHandleResult(courtId, winnerTeam) {
+  const ps = state.paddleStack;
+  if (!ps) return;
+  const m = ps.courts.find(c => c.id === courtId);
+  if (!m) return;
+
+  const winners = winnerTeam === 'A'
+    ? m.teamA.map((id, i) => ({ id, tag: 'W' }))
+    : m.teamB.map((id, i) => ({ id, tag: 'W' }));
+  const losers = winnerTeam === 'A'
+    ? m.teamB.map((id, i) => ({ id, tag: 'L' }))
+    : m.teamA.map((id, i) => ({ id, tag: 'L' }));
+
+  ps.wBlock.push(...winners);
+  ps.lBlock.push(...losers);
+
+  // When a block reaches 4, flush it to the queue.
+  // Blocks alternate W/L in the queue: we always flush both when they're ready,
+  // but if only one is ready we still flush it immediately so no court sits empty.
+  // The "alternating W×4 / L×4" pattern emerges naturally as blocks fill up.
+  if (ps.wBlock.length >= 4) {
+    ps.queue.push(...ps.wBlock.splice(0, 4));
+  }
+  if (ps.lBlock.length >= 4) {
+    ps.queue.push(...ps.lBlock.splice(0, 4));
+  }
+}
+
+// Confirm a paddle stack match result
+function psConfirmMatch(courtId) {
+  const ps = state.paddleStack;
+  if (!ps) return;
+  const m = ps.courts.find(c => c.id === courtId);
+  if (!m) return;
+  if (m.winner === null) { toast('Select the winning team before confirming.', 'warning'); return; }
+
+  // Save undo snapshot
+  state.undo = {
+    players: deepClone(state.players),
+    matches: deepClone(state.matches),
+    current: null,
+    currentGeneration: null,
+    rotationCourts: [],
+    round: state.round,
+    sitOutQueue: deepClone(state.sitOutQueue || []),
+    paddleStack: deepClone(ps)
+  };
+
+  const sA = parseInt(m.scoreA, 10) || 0;
+  const sB = parseInt(m.scoreB, 10) || 0;
+  const tA_win = m.winner === 'A';
+  state.round++;
+
+  const matchRecord = {
+    id: uid('m'),
+    round: state.round,
+    court: m.courtNum,
+    teamA: m.teamA, teamB: m.teamB,
+    scoreA: sA, scoreB: sB,
+    winners: tA_win ? [...m.teamA] : [...m.teamB],
+    losers: tA_win ? [...m.teamB] : [...m.teamA],
+    date: new Date().toISOString()
+  };
+  state.matches.push(matchRecord);
+
+  // Update stats
+  [...m.teamA, ...m.teamB].forEach(id => {
+    const p = getPlayer(id);
+    if (!p) return;
+    p.gamesPlayed++;
+    if (matchRecord.winners.includes(id)) {
+      p.wins++; p.results.push('W');
+      p.currentStreak = p.currentStreak > 0 ? p.currentStreak + 1 : 1;
+    } else {
+      p.losses++; p.results.push('L');
+      p.currentStreak = p.currentStreak < 0 ? p.currentStreak - 1 : -1;
+    }
+    if (Math.abs(p.currentStreak) > p.longestStreak) p.longestStreak = Math.abs(p.currentStreak);
+  });
+
+  // Teammate/opponent tracking
+  [[m.teamA[0], m.teamA[1]], [m.teamB[0], m.teamB[1]]].forEach(([p1, p2]) => {
+    const pl1 = getPlayer(p1), pl2 = getPlayer(p2);
+    if (pl1 && pl2) { bumpPair(pl1.teammates, p2); bumpPair(pl2.teammates, p1); }
+  });
+  m.teamA.forEach(idA => m.teamB.forEach(idB => {
+    const plA = getPlayer(idA), plB = getPlayer(idB);
+    if (plA && plB) { bumpPair(plA.opponents, idB); bumpPair(plB.opponents, idA); }
+  }));
+
+  // ELO
+  const rA = (getPlayer(m.teamA[0])?.rating||1000) + (getPlayer(m.teamA[1])?.rating||1000);
+  const rB = (getPlayer(m.teamB[0])?.rating||1000) + (getPlayer(m.teamB[1])?.rating||1000);
+  const expA = 1 / (1 + Math.pow(10, (rB - rA) / 400));
+  const change = Math.round(32 * ((tA_win ? 1 : 0) - expA));
+  m.teamA.forEach(id => { const p = getPlayer(id); if (p) p.rating += change; });
+  m.teamB.forEach(id => { const p = getPlayer(id); if (p) p.rating -= change; });
+
+  // Route to blocks
+  psHandleResult(courtId, m.winner);
+
+  // Remove finished court
+  ps.courts = ps.courts.filter(c => c.id !== courtId);
+
+  // Renumber courts
+  ps.courts.forEach((c, i) => { c.courtNum = i + 1; });
+
+  // Fill courts from queue
+  psFillCourts();
+
+  playGameWinSound();
+  saveAll(); renderAll();
+  toast('Match recorded — next match is up.', 'success');
+}
+
+// Skip a paddle stack court match (no result recorded)
+function psSkipMatch(courtId) {
+  const ps = state.paddleStack;
+  if (!ps) return;
+  const m = ps.courts.find(c => c.id === courtId);
+  if (!m) return;
+  // Return their slots to front of queue with same tags
+  const returned = [
+    ...m.teamA.map((id, i) => ({ id, tag: m.tagsA[i] || 'N' })),
+    ...m.teamB.map((id, i) => ({ id, tag: m.tagsB[i] || 'N' }))
+  ];
+  ps.queue.unshift(...returned);
+  ps.courts = ps.courts.filter(c => c.id !== courtId);
+  ps.courts.forEach((c, i) => { c.courtNum = i + 1; });
+  psFillCourts();
+  saveAll(); renderAll(); closeModal();
+  toast('Match skipped — players returned to front of queue.', 'info');
+}
+
+// Set winner on a PS court
+function psSetWinner(courtId, team) {
+  const ps = state.paddleStack;
+  if (!ps) return;
+  const m = ps.courts.find(c => c.id === courtId);
+  if (!m) return;
+  selectMatchWinner(liveMatchCtxPS(courtId), team);
+}
+
+// Live match context for PS courts
+function liveMatchCtxPS(courtId) {
+  return {
+    mode: 'ps-court',
+    matchId: courtId,
+    getMatch() { return state.paddleStack && state.paddleStack.courts.find(c => c.id === courtId); },
+    scoreInput(team) { return document.querySelector(`input[data-ps-score="${courtId}-${team}"]`); },
+    winBtn(team) { return document.querySelector(`.ps-win-btn[data-court="${courtId}"][data-team="${team}"]`); },
+    render() { renderActiveView(); }
+  };
+}
+
+// Render the full paddle stack match view
+function renderPaddleStackView(el) {
+  const ps = state.paddleStack;
+  if (!ps) {
+    el.innerHTML = `<div class="empty-state"><div class="big">🏓</div><div class="et">No Active Session</div><p>Start a new Open Play session from the Match tab.</p></div>`;
+    return;
+  }
+
+  const courts = ps.courts;
+  let html = `<div class="section-title">🏓 Open Play — ${courts.length} Court${courts.length !== 1 ? 's' : ''} Live</div>`;
+
+  courts.forEach(m => {
+    if (m.serving === undefined) m.serving = 'A';
+    if (m.serverNum === undefined) m.serverNum = 1;
+    if (m.firstServe === undefined) m.firstServe = true;
+    const pA1 = getPlayer(m.teamA[0]), pA2 = getPlayer(m.teamA[1]);
+    const pB1 = getPlayer(m.teamB[0]), pB2 = getPlayer(m.teamB[1]);
+    const activeA = m.winner === 'A', activeB = m.winner === 'B';
+    const servingA = m.serving === 'A', servingB = m.serving === 'B';
+    const serveLabel = m.firstServe ? '1st Serve' : `Serve ${m.serverNum}`;
+    const winTarget = (m.raceActive ? 2 : (ps.winningScore || 11));
+    const typeLabel = psMatchTypeLabel(m.matchType);
+
+    function nameTag(team, playerId) {
+      const p = getPlayer(playerId);
+      const justify = team === 'A' ? 'flex-end' : 'flex-start';
+      return `<span style="display:inline-flex; align-items:center; justify-content:${justify}; gap:4px; max-width:100%;">${esc(p?.name || '—')}</span>`;
+    }
+
+    html += `
+      <div class="scoreboard" style="margin-bottom:14px;">
+        <div class="sb-head">
+          <span class="sb-round">COURT <b>${m.courtNum}</b></span>
+          <span style="font-size:11px; font-weight:700; color:var(--ball); opacity:.85;">${typeLabel}</span>
+          ${m.raceActive ? `<span class="race-badge">🏁 Race to 2</span>` : ''}
+          <div class="live-dot"><div class="d"></div>Live</div>
+        </div>
+        <div class="sb-body">
+          <div class="sb-team team-a">
+            <span class="sb-tag">Team A</span>
+            <div class="sb-names">${nameTag('A', m.teamA[0])}<br>${nameTag('A', m.teamA[1])}</div>
+            <div class="sb-rating">Avg: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
+            ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="ps-set-server" data-court="${m.id}" data-team="A">Make 1st server</button>` : '')}
+            <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn ps-win-btn"
+              data-action="ps-set-winner" data-court="${m.id}" data-team="A">
+              ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
+            </button>
+          </div>
+          <div class="sb-divider"></div>
+          <div class="sb-team team-b">
+            <span class="sb-tag">Team B</span>
+            <div class="sb-names">${nameTag('B', m.teamB[0])}<br>${nameTag('B', m.teamB[1])}</div>
+            <div class="sb-rating">Avg: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
+            ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="ps-set-server" data-court="${m.id}" data-team="B">Make 1st server</button>` : '')}
+            <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn ps-win-btn"
+              data-action="ps-set-winner" data-court="${m.id}" data-team="B">
+              ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
+            </button>
+          </div>
+        </div>
+        <div class="sb-foot rr-score-foot">
+          <div class="score-stepper">
+            <button type="button" class="score-btn score-btn-minus rr-score-btn"
+              data-action="ps-score-adjust" data-court="${m.id}" data-team="A" data-delta="-1"
+              ${(m.winner || !servingA || (m.scoreA === null || m.scoreA <= 0)) ? 'disabled' : ''}>−</button>
+            <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="A"
+              class="cb-score-input rr-score-input"
+              data-ps-score="${m.id}-A"
+              min="0" max="${winTarget}"
+              value="${m.scoreA !== null ? m.scoreA : ''}"
+              oninput="window.updatePSScore('${m.id}', 'A', this.value)">
+            <button type="button" class="score-btn score-btn-plus rr-score-btn"
+              data-action="ps-score-adjust" data-court="${m.id}" data-team="A" data-delta="1"
+              ${(m.winner || !servingA || (m.scoreA !== null && m.scoreA >= winTarget)) ? 'disabled' : ''}>+</button>
+          </div>
+          <span class="rr-score-vs-sm">vs</span>
+          <div class="score-stepper">
+            <button type="button" class="score-btn score-btn-minus rr-score-btn"
+              data-action="ps-score-adjust" data-court="${m.id}" data-team="B" data-delta="-1"
+              ${(m.winner || !servingB || (m.scoreB === null || m.scoreB <= 0)) ? 'disabled' : ''}>−</button>
+            <input type="number" inputmode="numeric" pattern="[0-9]*" placeholder="B"
+              class="cb-score-input rr-score-input"
+              data-ps-score="${m.id}-B"
+              min="0" max="${winTarget}"
+              value="${m.scoreB !== null ? m.scoreB : ''}"
+              oninput="window.updatePSScore('${m.id}', 'B', this.value)">
+            <button type="button" class="score-btn score-btn-plus rr-score-btn"
+              data-action="ps-score-adjust" data-court="${m.id}" data-team="B" data-delta="1"
+              ${(m.winner || !servingB || (m.scoreB !== null && m.scoreB >= winTarget)) ? 'disabled' : ''}>+</button>
+          </div>
+        </div>
+        <div style="padding:0 14px 14px;">
+          <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <button class="btn btn-secondary btn-sm" style="flex:1;"
+              data-action="ps-advance-server" data-court="${m.id}"
+              ${(m.firstServe || m.serverNum===2) ? 'disabled' : ''}>🎾 Serve 2</button>
+            <button class="btn btn-secondary btn-sm sideout-btn" style="flex:1;"
+              data-action="ps-side-out" data-court="${m.id}"
+              ${(m.winner || (!m.firstServe && m.serverNum===1)) ? 'disabled' : ''}>🔁 Side Out</button>
+            <button class="btn btn-ghost btn-sm undo-serve-btn"
+              data-action="ps-undo-serve" data-court="${m.id}"
+              ${(!m._serveUndoStack || !m._serveUndoStack.length) ? 'disabled' : ''}>↩️${(m._serveUndoStack && m._serveUndoStack.length) ? ' '+m._serveUndoStack.length : ''}</button>
+          </div>
+          <button class="btn btn-primary btn-block"
+            data-action="ps-confirm-match" data-court="${m.id}">
+            ✅ Confirm Result &amp; Next Match
+          </button>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn btn-ghost btn-sm" style="flex:1;"
+              data-action="ps-skip-confirm" data-court="${m.id}"
+              ${hasMatchStarted(m) ? 'disabled' : ''}>⏭️ Skip</button>
+            <button class="btn btn-danger btn-sm" style="flex:1;"
+              data-action="undo-match" ${!state.undo ? 'disabled' : ''}>↩ Undo Last</button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  // Show queue preview
+  const queuePreview = ps.queue.slice(0, 12);
+  if (queuePreview.length) {
+    html += `<div class="section-title">Queue (${ps.queue.length} waiting)</div>`;
+    html += `<div class="card" style="padding:6px 4px;">`;
+    for (let i = 0; i < Math.min(queuePreview.length, 8); i++) {
+      const entry = queuePreview[i];
+      const p = getPlayer(entry.id);
+      const tagLabel = entry.tag === 'W' ? '🏆' : entry.tag === 'L' ? '💀' : '🆕';
+      const isNextGroup = i < 4;
+      html += `<div class="queue-row" style="${isNextGroup ? 'background:rgba(215,242,61,0.04);' : ''}">
+        <span class="qrank">${i + 1}</span>
+        <span style="font-size:13px;">${tagLabel} ${esc(p?.name || '—')}</span>
+        ${isNextGroup && i === 0 ? `<span style="font-size:10px; color:var(--ball); font-weight:700;">← ON DECK</span>` : ''}
+      </div>`;
+    }
+    if (ps.queue.length > 8) {
+      html += `<div style="text-align:center; font-size:11.5px; color:var(--text-faint); padding:6px 12px;">+${ps.queue.length - 8} more — see Queue tab</div>`;
+    }
+    html += `</div>`;
+  } else if (!courts.length) {
+    html += `<div class="card"><p class="helper-text" style="margin:0; text-align:center;">Queue is empty — add more players or end session.</p></div>`;
+  }
+
+  // Show accumulating blocks
+  if (ps.wBlock.length || ps.lBlock.length) {
+    html += `<div class="section-title">Accumulating</div><div class="card" style="padding:8px 14px; font-size:12.5px;">`;
+    if (ps.wBlock.length) {
+      html += `<div style="margin-bottom:4px;">🏆 Winners block: ${ps.wBlock.map(e => esc(getPlayer(e.id)?.name || '—')).join(', ')} <span style="color:var(--text-faint);">(${ps.wBlock.length}/4)</span></div>`;
+    }
+    if (ps.lBlock.length) {
+      html += `<div>💀 Losers block: ${ps.lBlock.map(e => esc(getPlayer(e.id)?.name || '—')).join(', ')} <span style="color:var(--text-faint);">(${ps.lBlock.length}/4)</span></div>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `
+    <div class="card" style="margin-top:14px;">
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary btn-sm" style="flex:1;" data-action="ps-add-court">➕ Add Court</button>
+        <button class="btn btn-danger btn-sm" style="flex:1;" data-action="ps-end-session">⏹️ End Session</button>
+      </div>
+    </div>
+  `;
+
+  el.innerHTML = html;
+
+  window.updatePSScore = function(courtId, team, val) {
+    updateMatchScore(liveMatchCtxPS(courtId), team, val);
+  };
+}
+
+// Render queue view for paddle stack mode
+function renderPaddleStackQueueView(el) {
+  const ps = state.paddleStack;
+  if (!ps) {
+    el.innerHTML = `<div class="empty-state"><div class="big">🏓</div><p>No active Open Play session.</p></div>`;
+    return;
+  }
+
+  const onCourtIds = new Set(ps.courts.flatMap(c => [...c.teamA, ...c.teamB]));
+  const tagLabel = t => t === 'W' ? '🏆 Winner' : t === 'L' ? '💀 Loser' : '🆕 New';
+  const tagColor = t => t === 'W' ? 'var(--win)' : t === 'L' ? 'var(--loss)' : 'var(--ball)';
+
+  let html = `
+    <div class="section-title">🏓 Paddle Stack Queue</div>
+    <p class="helper-text" style="margin:-4px 2px 10px;">Shared queue across all courts. Winners (🏆) and Losers (💀) stack in blocks of 4. When a block fills, it joins the queue. Next 4 from the front fill the next open court.</p>
+  `;
+
+  // On-court section
+  if (ps.courts.length) {
+    html += `<div class="section-title" style="color:var(--win);">▶ On Court (${ps.courts.length * 4})</div>`;
+    html += `<div class="card" style="padding:6px 4px;">`;
+    ps.courts.forEach(m => {
+      [...m.teamA.map((id, i) => ({id, tag: m.tagsA[i]})), ...m.teamB.map((id, i) => ({id, tag: m.tagsB[i]}))].forEach(entry => {
+        const p = getPlayer(entry.id);
+        html += `<div class="queue-row"><span class="qrank" style="background:rgba(62,213,152,0.15); color:var(--win);">C${m.courtNum}</span>
+          <span style="font-size:13px;">${esc(p?.name || '—')}</span>
+          <span style="font-size:11px; color:${tagColor(entry.tag)};">${tagLabel(entry.tag)}</span>
+        </div>`;
+      });
+    });
+    html += `</div>`;
+  }
+
+  // Accumulating blocks
+  if (ps.wBlock.length || ps.lBlock.length) {
+    html += `<div class="section-title">⏳ Accumulating Blocks</div><div class="card" style="padding:6px 14px;">`;
+    if (ps.wBlock.length) {
+      html += `<p style="font-size:12px; color:var(--text-faint); margin:6px 0 4px; font-weight:700;">🏆 Winners Block (${ps.wBlock.length}/4 — flushes to queue at 4)</p>`;
+      ps.wBlock.forEach((e, i) => {
+        const p = getPlayer(e.id);
+        html += `<div class="queue-row" style="border-left:3px solid var(--win); padding-left:10px;"><span class="qrank">${i+1}</span><span style="font-size:13px;">${esc(p?.name||'—')}</span></div>`;
+      });
+    }
+    if (ps.lBlock.length) {
+      html += `<p style="font-size:12px; color:var(--text-faint); margin:10px 0 4px; font-weight:700;">💀 Losers Block (${ps.lBlock.length}/4 — flushes to queue at 4)</p>`;
+      ps.lBlock.forEach((e, i) => {
+        const p = getPlayer(e.id);
+        html += `<div class="queue-row" style="border-left:3px solid var(--loss); padding-left:10px;"><span class="qrank">${i+1}</span><span style="font-size:13px;">${esc(p?.name||'—')}</span></div>`;
+      });
+    }
+    html += `</div>`;
+  }
+
+  // Main queue
+  if (ps.queue.length) {
+    html += `<div class="section-title">📋 Queue (${ps.queue.length})</div>`;
+    html += `<div class="card" style="padding:6px 4px;">`;
+    ps.queue.forEach((entry, i) => {
+      const p = getPlayer(entry.id);
+      const isNextFour = i < 4;
+      html += `<div class="queue-row" style="${isNextFour ? 'background:rgba(215,242,61,0.06);' : ''}">
+        <span class="qrank" style="${isNextFour ? 'background:var(--ball); color:#10150a;' : ''}">${i + 1}</span>
+        <span style="font-size:13px; font-weight:${isNextFour ? '700' : '400'};">${esc(p?.name || '—')}</span>
+        <span style="font-size:11px; color:${tagColor(entry.tag)};">${tagLabel(entry.tag)}</span>
+        ${isNextFour && i === 0 ? `<span style="font-size:10px; font-weight:800; color:var(--ball);">NEXT UP →</span>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  } else if (!ps.courts.length && !ps.wBlock.length && !ps.lBlock.length) {
+    html += `<div class="empty-state"><p>Queue empty — waiting for match results to accumulate.</p></div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// Open Play mode picker — now includes PaddleStack option
+function openOpenPlayModePicker() {
+  openModal(`
+    <div class="modal-title">🏓 Open Play Format</div>
+    <div class="modal-sub" style="line-height:1.6;">How do you want to manage court rotations?</div>
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+      <button class="btn btn-primary" style="padding:18px 16px; font-size:15px; text-align:left; display:flex; flex-direction:column; gap:4px;" data-action="pick-openplay-paddle-stack">
+        <span style="font-size:18px;">🎯 Paddle Stack Queue</span>
+        <span style="font-weight:400; font-size:12px; opacity:0.85;">Classic pickleball rotation. W×4 / L×4 blocks. Winners play winners, losers play losers. 🆕 First round in roster order.</span>
+      </button>
+      <button class="btn btn-secondary" style="padding:18px 16px; font-size:15px; text-align:left; display:flex; flex-direction:column; gap:4px;" data-action="pick-openplay-csop">
+        <span style="font-size:18px;">⚡ Smart Auto-Match</span>
+        <span style="font-weight:400; font-size:12px; opacity:0.85;">Algorithm-driven. Each court auto-generates balanced matches independently when it finishes.</span>
+      </button>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+    </div>
+  `, false);
+}
+
+// Start paddle stack session setup modal
+function openPaddleStackSetupModal() {
+  const pool = activePlayers();
+  const activeCount = pool.length;
+  const maxPossible = Math.min(Math.floor(activeCount / 4), 6);
+  const currentCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, maxPossible || 1);
+  const currentScore = state.settings.winningScore || 11;
+
+  const courtBtns = Array.from({length: maxPossible || 1}, (_, i) => i + 1).map(n => {
+    const playersNeeded = n * 4;
+    const waiting = activeCount - playersNeeded;
+    return `
+      <button type="button" class="session-opt ${n === currentCourts ? 'recommended' : ''}" data-action="ps-pick-courts" data-courts="${n}">
+        <div class="session-opt-count"><span class="n">${n}</span><span class="u">court${n>1?'s':''}</span></div>
+        <div class="session-opt-body">
+          <div class="session-opt-name">${n === 1 ? 'Single Court' : n + ' Courts'}${n === currentCourts ? '<span class="session-opt-tag">Current</span>' : ''}</div>
+          <div class="session-opt-sub">${playersNeeded} on court${waiting > 0 ? ` · ${waiting} in queue` : ' · everyone plays'}</div>
+        </div>
+        <div class="session-opt-check" style="${n === currentCourts ? 'border-color:var(--ball); background:var(--ball);' : ''}"></div>
+      </button>`;
+  }).join('');
+
+  openModal(`
+    <div class="modal-title">🎯 Paddle Stack Setup</div>
+    <div class="modal-sub" style="line-height:1.6;"><strong style="color:var(--text);">${activeCount} player${activeCount !== 1 ? 's' : ''}</strong> ready. Players queue in roster order — 🆕 tagged as New. Winners and Losers stack in blocks of 4.</div>
+
+    <div class="eyebrow" style="margin:14px 2px 8px;">How many courts?</div>
+    <div class="session-opt-list" id="psCourtsListPs">
+      ${courtBtns}
+      ${maxPossible < 1 ? '<p class="helper-text" style="color:var(--loss);">Need at least 4 active players.</p>' : ''}
+    </div>
+
+    <div class="eyebrow" style="margin:16px 2px 8px;">Winning Score</div>
+    <div class="card" style="margin:0 0 4px;">
+      <div class="field" style="margin:0;">
+        <input type="number" id="psWinScoreInput" min="1" max="99" value="${currentScore}" style="font-size:18px; font-weight:700; text-align:center;">
+        <p class="helper-text" style="margin:6px 2px 0;">First team to reach this score (win by 2) wins the match.</p>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-primary" data-action="ps-confirm-start">🚀 Start Paddle Stack</button>
+    </div>
+  `, false);
+}
+
+function psConfirmStart() {
+  const scoreEl = document.getElementById('psWinScoreInput');
+  if (scoreEl) {
+    const v = parseInt(scoreEl.value, 10);
+    state.settings.winningScore = (isNaN(v) || v < 1) ? 11 : v;
+  }
+  state.settings.matchMode = 'PaddleStack';
+  saveAll();
+  closeModal();
+  if (!psInit()) return;
+  saveAll(); renderAll();
+  toast(`Paddle Stack started — ${state.paddleStack.courts.length} court${state.paddleStack.courts.length !== 1 ? 's' : ''} live!`, 'success');
+}
+/* END PADDLE STACK ENGINE */
 /* ============================================================
    SYSTEM BOOT INITIALIZER EXECUTION
    ------------------------------------------------------------
