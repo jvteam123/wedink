@@ -7442,7 +7442,7 @@ function renderPaddleStackView(el) {
               : ps.queue.length
                 ? 'Replace an on-court player with someone from the queue'
                 : 'No players in queue to swap in';
-            const disabled = (hasMatchStarted(m) || (!isPartner && !ps.queue.length)) ? 'disabled' : '';
+            const disabled = (m.winner || hasMatchStarted(m) || (!isPartner && !ps.queue.length)) ? 'disabled' : '';
             return `<button class="btn btn-secondary btn-block" style="margin-top:8px;"
               data-action="ps-switch-player" data-court="${m.id}"
               title="${btnTitle}" ${disabled}>${btnLabel}</button>`;
@@ -7684,8 +7684,8 @@ function openPsSwitchPlayerModal(courtId) {
   const m = ps.courts.find(c => c.id === courtId);
   if (!m) return;
 
-  if (hasMatchStarted(m)) {
-    toast('Match already started — cannot switch players mid-game.', 'warning');
+  if (m.winner || hasMatchStarted(m)) {
+    toast('Match already decided — cannot switch players.', 'warning');
     return;
   }
 
