@@ -848,6 +848,8 @@ const KEYS = {
   scheduledGenerations:'kl_scheduledGenerations' // Round Robin "one-time generation": every future round already built, waiting to be activated
 };
 
+const SESSIONS_KEY = 'kl_sessions'; // archived past sessions — stored separately, never wiped by reset
+
 const DEFAULT_SETTINGS = {
   matchMode: 'Rotation', // 'Rotation' or 'RoundRobin'
   numCourts: 1,
@@ -5127,8 +5129,122 @@ window.handleImportFileSelect = function(input){
 };
 
 /* ============================================================
-   UI RENDERING CORE PIPELINE
+   SESSION ARCHIVE — auto-saved snapshots, browsable by date/time
+   ------------------------------------------------------------
+   Each time the user starts a fresh session, the current state
+   is archived under SESSIONS_KEY as an array of session objects:
+     { id, savedAt, label, players, matches, settings, round,
+       sitOutQueue, rotationCourts, scheduledGenerations,
+       current, currentGeneration }
+   Sessions are stored newest-first. The archive itself is never
+   wiped by reset/clear-all — it survives across sessions so the
+   user can always load any past day back.
    ============================================================ */
+async function archiveCurrentSession(){
+  if(!state.matches.length) return; // nothing to archive — skip silently
+  try{
+    const existing = await idbGet(SESSIONS_KEY) || [];
+    const d = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const label = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const snap = {
+      id: 'sess_' + Date.now().toString(36),
+      savedAt: d.toISOString(),
+      label,
+      matchCount: state.matches.length,
+      playerCount: state.players.filter(p => p.gamesPlayed > 0).length,
+      players: JSON.parse(JSON.stringify(state.players)),
+      matches: JSON.parse(JSON.stringify(state.matches)),
+      settings: JSON.parse(JSON.stringify(state.settings)),
+      round: state.round,
+      sitOutQueue: JSON.parse(JSON.stringify(state.sitOutQueue || [])),
+      rotationCourts: JSON.parse(JSON.stringify(state.rotationCourts || [])),
+      scheduledGenerations: JSON.parse(JSON.stringify(state.scheduledGenerations || [])),
+      current: state.current ? JSON.parse(JSON.stringify(state.current)) : null,
+      currentGeneration: state.currentGeneration ? JSON.parse(JSON.stringify(state.currentGeneration)) : null
+    };
+    // Newest first; cap at 30 sessions to avoid unbounded storage growth
+    const updated = [snap, ...existing].slice(0, 30);
+    await idbSet(SESSIONS_KEY, updated);
+  }catch(e){
+    console.error('Failed to archive session:', e);
+  }
+}
+
+async function loadArchivedSessions(){
+  try{
+    return (await idbGet(SESSIONS_KEY)) || [];
+  }catch(e){ return []; }
+}
+
+async function restoreArchivedSession(sessionId){
+  try{
+    const sessions = await idbGet(SESSIONS_KEY) || [];
+    const snap = sessions.find(s => s.id === sessionId);
+    if(!snap){ toast('Session not found.', 'error'); return; }
+    state.players = snap.players;
+    state.players.forEach(pl => {
+      if(typeof pl.isSub !== 'boolean') pl.isSub = false;
+      if(!pl.condition) pl.condition = 'ok';
+    });
+    state.matches = snap.matches || [];
+    state.settings = { ...DEFAULT_SETTINGS, ...snap.settings };
+    state.round = parseInt(snap.round, 10) || 0;
+    state.sitOutQueue = Array.isArray(snap.sitOutQueue) ? snap.sitOutQueue : [];
+    state.rotationCourts = Array.isArray(snap.rotationCourts) ? snap.rotationCourts : [];
+    state.scheduledGenerations = Array.isArray(snap.scheduledGenerations) ? snap.scheduledGenerations : [];
+    state.current = snap.current || null;
+    state.currentGeneration = snap.currentGeneration || null;
+    state.undo = null;
+    saveAll(); renderAll(); closeModal();
+    toast(`Session from ${snap.label} restored.`, 'success');
+  }catch(e){
+    toast("Couldn't restore that session.", 'error');
+    console.error(e);
+  }
+}
+
+async function deleteArchivedSession(sessionId){
+  try{
+    const sessions = await idbGet(SESSIONS_KEY) || [];
+    const updated = sessions.filter(s => s.id !== sessionId);
+    await idbSet(SESSIONS_KEY, updated);
+    openSessionHistoryModal(); // refresh the list in-place
+    toast('Session deleted.', 'success');
+  }catch(e){
+    toast("Couldn't delete that session.", 'error');
+  }
+}
+
+async function openSessionHistoryModal(){
+  const sessions = await loadArchivedSessions();
+  if(!sessions.length){
+    openModal(`
+      <div class="modal-title">📋 Session History</div>
+      <div class="modal-sub" style="color:var(--text-faint); text-align:center; padding:24px 0;">No saved sessions yet.<br>Sessions are auto-saved when you start a new one.</div>
+      <div class="modal-actions"><button class="btn btn-ghost btn-block" data-action="modal-close">Close</button></div>
+    `);
+    return;
+  }
+  const rows = sessions.map(s => `
+    <div style="display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft);">
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:700; font-size:13.5px; color:var(--text);">${esc(s.label)}</div>
+        <div style="font-size:11.5px; color:var(--text-faint); margin-top:2px;">${s.matchCount} match${s.matchCount!==1?'es':''} · ${s.playerCount} player${s.playerCount!==1?'s':''} active</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" data-action="restore-session" data-id="${esc(s.id)}">Load</button>
+      <button class="btn btn-ghost btn-sm" data-action="delete-session" data-id="${esc(s.id)}" style="color:var(--loss); border-color:var(--loss-dim);">✕</button>
+    </div>
+  `).join('');
+  openModal(`
+    <div class="modal-title">📋 Session History</div>
+    <div class="modal-sub" style="line-height:1.6;">Auto-saved sessions — tap <strong style="color:var(--text);">Load</strong> to restore any past session.</div>
+    <div style="margin-top:10px;">${rows}</div>
+    <div class="modal-actions" style="margin-top:16px;"><button class="btn btn-ghost btn-block" data-action="modal-close">Close</button></div>
+  `);
+}
+
+
 function renderAll(){
   updateDashStrip();
   updateCheckInBadge();
@@ -6044,6 +6160,7 @@ function renderSettingsView(el){
     <div class="section-title" style="margin-top:20px;">Session</div>
     <div class="card">
       <button class="btn btn-secondary btn-block" data-action="show-session-summary">🏆 View Session Summary</button>
+      <button class="btn btn-secondary btn-block" style="margin-top:8px;" data-action="open-session-history">📋 Session History</button>
     </div>
 
     <div class="section-title" style="margin-top:20px; color:var(--loss);">Danger Zone</div>
@@ -6130,17 +6247,15 @@ document.addEventListener('click', function(e){
     // Continuous Smart Open Play (Rotation Mode multi-court)
     case 'pick-match-mode': openModePickerModal(); break;
     case 'pick-mode-openplay': {
-      // If there's existing match data and no active session, prompt to save first
       const hasHistory = state.matches.length > 0;
       const hasActiveSession = (state.settings.matchMode === 'Rotation' && Array.isArray(state.rotationCourts) && state.rotationCourts.some(c => c && c.status === 'active'))
         || (state.settings.matchMode === 'RoundRobin' && !!state.currentGeneration);
       if(hasHistory && !hasActiveSession){
         openModal(`
-          <div class="modal-title">💾 Save Last Session?</div>
-          <div class="modal-sub" style="line-height:1.7;">You have <strong style="color:var(--text);">${state.matches.length} match${state.matches.length!==1?'es':''}</strong> recorded from a previous session. Starting a new match will keep that history and merge stats together.<br><br>Export a backup first if you'd like to keep this session separate.</div>
+          <div class="modal-title">🏓 Start New Session?</div>
+          <div class="modal-sub" style="line-height:1.7;">Your previous session (<strong style="color:var(--text);">${state.matches.length} match${state.matches.length!==1?'es':''}</strong>) will be <strong style="color:var(--win);">auto-saved</strong> and available to load from <em>Session History</em>. Stats and records will be wiped for a clean start.</div>
           <div class="modal-actions" style="flex-direction:column; gap:8px; margin-top:16px;">
-            <button class="btn btn-secondary btn-block" data-action="export-data-then-openplay">📥 Export Backup &amp; Continue</button>
-            <button class="btn btn-primary btn-block" data-action="do-pick-mode-openplay">Continue Without Saving</button>
+            <button class="btn btn-primary btn-block" data-action="do-new-session-openplay">✅ Save &amp; Start Fresh</button>
             <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
           </div>
         `, false);
@@ -6153,35 +6268,28 @@ document.addEventListener('click', function(e){
       initRotationCourts();
       break;
     }
-    case 'do-pick-mode-openplay':
-      state.settings.matchMode = 'Rotation';
-      saveAll();
-      closeModal();
-      _courtCountNoticeDismissed = false;
-      initRotationCourts();
+    case 'do-new-session-openplay':
+      archiveCurrentSession().then(() => {
+        resetPlayersAndStats();
+        state.settings.matchMode = 'Rotation';
+        saveAll();
+        closeModal();
+        _courtCountNoticeDismissed = false;
+        renderAll();
+        toast('Session saved. Starting fresh — choose your courts to begin.', 'success');
+        initRotationCourts();
+      });
       break;
-    case 'export-data-then-openplay': {
-      closeModal();
-      const fname = defaultExportFileName();
-      exportData(fname);
-      // After export, directly start the session
-      state.settings.matchMode = 'Rotation';
-      saveAll();
-      _courtCountNoticeDismissed = false;
-      initRotationCourts();
-      break;
-    }
     case 'pick-mode-roundrobin': {
       const hasHistory = state.matches.length > 0;
       const hasActiveSession = (state.settings.matchMode === 'Rotation' && Array.isArray(state.rotationCourts) && state.rotationCourts.some(c => c && c.status === 'active'))
         || (state.settings.matchMode === 'RoundRobin' && !!state.currentGeneration);
       if(hasHistory && !hasActiveSession){
         openModal(`
-          <div class="modal-title">💾 Save Last Session?</div>
-          <div class="modal-sub" style="line-height:1.7;">You have <strong style="color:var(--text);">${state.matches.length} match${state.matches.length!==1?'es':''}</strong> recorded from a previous session. Starting a new match will keep that history and merge stats together.<br><br>Export a backup first if you'd like to keep this session separate.</div>
+          <div class="modal-title">🔀 Start New Session?</div>
+          <div class="modal-sub" style="line-height:1.7;">Your previous session (<strong style="color:var(--text);">${state.matches.length} match${state.matches.length!==1?'es':''}</strong>) will be <strong style="color:var(--win);">auto-saved</strong> and available to load from <em>Session History</em>. Stats and records will be wiped for a clean start.</div>
           <div class="modal-actions" style="flex-direction:column; gap:8px; margin-top:16px;">
-            <button class="btn btn-secondary btn-block" data-action="export-data-then-roundrobin">📥 Export Backup &amp; Continue</button>
-            <button class="btn btn-primary btn-block" data-action="do-pick-mode-roundrobin">Continue Without Saving</button>
+            <button class="btn btn-primary btn-block" data-action="do-new-session-roundrobin">✅ Save &amp; Start Fresh</button>
             <button class="btn btn-ghost btn-block" data-action="modal-close">Cancel</button>
           </div>
         `, false);
@@ -6194,23 +6302,18 @@ document.addEventListener('click', function(e){
       generateRoundRobinGeneration();
       break;
     }
-    case 'do-pick-mode-roundrobin':
-      state.settings.matchMode = 'RoundRobin';
-      saveAll();
-      closeModal();
-      _courtCountNoticeDismissed = false;
-      generateRoundRobinGeneration();
+    case 'do-new-session-roundrobin':
+      archiveCurrentSession().then(() => {
+        resetPlayersAndStats();
+        state.settings.matchMode = 'RoundRobin';
+        saveAll();
+        closeModal();
+        _courtCountNoticeDismissed = false;
+        renderAll();
+        toast('Session saved. Starting fresh — set up your round robin to begin.', 'success');
+        generateRoundRobinGeneration();
+      });
       break;
-    case 'export-data-then-roundrobin': {
-      closeModal();
-      const fname = defaultExportFileName();
-      exportData(fname);
-      state.settings.matchMode = 'RoundRobin';
-      saveAll();
-      _courtCountNoticeDismissed = false;
-      generateRoundRobinGeneration();
-      break;
-    }
     case 'start-csop': initRotationCourts(); break;
     case 'add-csop-court': {
       const cur = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, 10);
@@ -6590,6 +6693,9 @@ document.addEventListener('click', function(e){
     }
     case 'do-import-data': importDataFromText(document.getElementById('importText').value); break;
     case 'modal-close': closeModal(); break;
+    case 'open-session-history': openSessionHistoryModal(); break;
+    case 'restore-session': restoreArchivedSession(t.dataset.id); break;
+    case 'delete-session': deleteArchivedSession(t.dataset.id); break;
     case 'open-player-profile': openPlayerProfile(t.dataset.id); break;
     case 'show-session-summary': showSessionSummary(); break;
 
