@@ -7175,24 +7175,26 @@ function psHandleResult(courtId, winnerTeam) {
   }
 
   // ── Small-group fallback (e.g. 6 total players) ──────────────────────────
-  // If neither block alone will ever reach 4 (because there aren't enough
-  // players left off-court), combine whatever we have so play can continue.
-  // Condition: no court is currently running AND queue is empty AND the two
-  // blocks together have ≥ 4 players — flush them all so the next court fires.
+  // If neither block alone will ever reach 4, merge partial blocks so play
+  // can continue rather than stalling the session.
+  //
+  // NOTE: psHandleResult is called BEFORE the finished court is removed from
+  // ps.courts (that happens back in psConfirmMatch after this returns).
+  // So we subtract 1 from ps.courts.length to get the correct count of
+  // courts that are still actively running.
   const activePlCount = activePlayers().length;
-  const onCourtCount = ps.courts.length * 4;
-  const offCourtLeft = activePlCount - onCourtCount - ps.queue.length;
-  // If total waiting (blocks + queue) ≥ 4 but blocks alone are stuck below 4,
-  // AND there are not enough players arriving to ever fill either block to 4,
-  // merge the blocks into the queue so the next court can start.
+  const remainingActiveCourts = Math.max(0, ps.courts.length - 1);
+  const onCourtCount = remainingActiveCourts * 4;
   const combinedBlocks = ps.wBlock.length + ps.lBlock.length;
+  // Players unaccounted for by on-court, queue, or blocks can't help fill either block.
+  const offCourtElsewhere = activePlCount - onCourtCount - ps.queue.length - combinedBlocks;
   if (
     combinedBlocks >= 4 &&
     ps.wBlock.length < 4 &&
     ps.lBlock.length < 4 &&
-    offCourtLeft <= 0  // no one else is coming to help fill the blocks
+    offCourtElsewhere <= 0  // no extra players can bridge the gap
   ) {
-    // Flush winners first, then losers (mixed match, tagged accordingly)
+    // Flush winners first, then losers (creates a Mixed match)
     ps.queue.push(...ps.wBlock.splice(0));
     ps.queue.push(...ps.lBlock.splice(0));
   }
