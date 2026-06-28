@@ -4160,40 +4160,11 @@ function showFullScheduleModal(){
 // new tab with a Print button (and auto-triggers the print dialog so
 // "Save as PDF" is one tap away); falls back to a direct file download if
 // the popup gets blocked by the browser.
-// Falls back to this whenever the organizer leaves the poster title blank —
-// the session plan's name if one was chosen, otherwise a generic label.
-function defaultPosterTitle(){
+function downloadFullSchedulePoster(){
+  const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
+  if(!allGens.length){ toast('No schedule to print yet.', 'info'); return; }
+
   const plan = state.settings.sessionPlan;
-  return plan && plan.label ? `${plan.label} Schedule` : 'Session Schedule';
-}
-
-// Lets the organizer rename the poster before it's generated — otherwise it
-// would always default to the session plan's name (e.g. "Balanced
-// Tournament Schedule") every single time, even across very different
-// sessions. Reached from the "Download / Print Schedule Poster" button.
-function openPosterTitleModal(){
-  const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
-  if(!allGens.length){ toast('No schedule to print yet.', 'info'); return; }
-
-  openModal(`
-    <div class="modal-title">🖨️ Poster Title</div>
-    <div class="modal-sub" style="line-height:1.6;">Give the printable poster a title — it won't just default to <b style="color:var(--text);">"${esc(defaultPosterTitle())}"</b> every time.</div>
-    <div class="field" style="margin-top:10px;">
-      <label>Poster Title</label>
-      <input type="text" id="posterTitleInput" maxlength="60" value="${esc(defaultPosterTitle())}" placeholder="e.g. Saturday Open Play">
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" data-action="back-to-full-schedule">Back</button>
-      <button class="btn btn-primary" data-action="do-download-full-schedule-poster">🖨️ Generate Poster</button>
-    </div>
-  `);
-}
-
-function downloadFullSchedulePoster(title){
-  const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
-  if(!allGens.length){ toast('No schedule to print yet.', 'info'); return; }
-
-  const posterTitle = (title || '').trim() || defaultPosterTitle();
   const allMatches = allGens.flatMap(g => g.matches);
   const totalMatches = allMatches.length;
   const playerIds = new Set();
