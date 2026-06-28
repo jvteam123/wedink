@@ -4160,11 +4160,40 @@ function showFullScheduleModal(){
 // new tab with a Print button (and auto-triggers the print dialog so
 // "Save as PDF" is one tap away); falls back to a direct file download if
 // the popup gets blocked by the browser.
-function downloadFullSchedulePoster(){
+// Falls back to this whenever the organizer leaves the poster title blank —
+// the session plan's name if one was chosen, otherwise a generic label.
+function defaultPosterTitle(){
+  const plan = state.settings.sessionPlan;
+  return plan && plan.label ? `${plan.label} Schedule` : 'Session Schedule';
+}
+
+// Lets the organizer rename the poster before it's generated — otherwise it
+// would always default to the session plan's name (e.g. "Balanced
+// Tournament Schedule") every single time, even across very different
+// sessions. Reached from the "Download / Print Schedule Poster" button.
+function openPosterTitleModal(){
   const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
   if(!allGens.length){ toast('No schedule to print yet.', 'info'); return; }
 
-  const plan = state.settings.sessionPlan;
+  openModal(`
+    <div class="modal-title">🖨️ Poster Title</div>
+    <div class="modal-sub" style="line-height:1.6;">Give the printable poster a title — it won't just default to <b style="color:var(--text);">"${esc(defaultPosterTitle())}"</b> every time.</div>
+    <div class="field" style="margin-top:10px;">
+      <label>Poster Title</label>
+      <input type="text" id="posterTitleInput" maxlength="60" value="${esc(defaultPosterTitle())}" placeholder="e.g. Saturday Open Play">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="back-to-full-schedule">Back</button>
+      <button class="btn btn-primary" data-action="do-download-full-schedule-poster">🖨️ Generate Poster</button>
+    </div>
+  `);
+}
+
+function downloadFullSchedulePoster(title){
+  const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
+  if(!allGens.length){ toast('No schedule to print yet.', 'info'); return; }
+
+  const posterTitle = (title || '').trim() || defaultPosterTitle();
   const allMatches = allGens.flatMap(g => g.matches);
   const totalMatches = allMatches.length;
   const playerIds = new Set();
@@ -4181,7 +4210,13 @@ function downloadFullSchedulePoster(){
         <td class="pp-num">${m.matchIndex + 1}</td>
         <td class="pp-court">${courtLabel}</td>
         <td class="pp-teams"><span class="pp-team">${a1} &amp; ${a2}</span><span class="pp-vs">vs</span><span class="pp-team">${b1} &amp; ${b2}</span></td>
-        <td class="pp-score">_____&nbsp;&nbsp;–&nbsp;&nbsp;_____</td>
+        <td class="pp-score">
+          <div class="pp-scorebox">
+            <div class="pp-scorebox-side"><span class="lbl">A</span><span class="box"></span></div>
+            <span class="dash">–</span>
+            <div class="pp-scorebox-side"><span class="lbl">B</span><span class="box"></span></div>
+          </div>
+        </td>
       </tr>`;
     }).join('');
     const sittingNames = (gen.sittingOut || []).map(id => esc(playerName(id))).join(', ');
@@ -4219,10 +4254,15 @@ function downloadFullSchedulePoster(){
   .pp-court{ width:70px; color:#555; }
   .pp-teams{ font-weight:600; }
   .pp-vs{ color:#aaa; margin:0 8px; font-weight:400; font-size:11px; text-transform:uppercase; }
-  .pp-score{ font-family:ui-monospace,Menlo,Consolas,monospace; width:130px; color:#aaa; }
+  .pp-score{ width:110px; }
+  .pp-scorebox{ display:flex; align-items:flex-end; justify-content:center; gap:7px; }
+  .pp-scorebox-side{ display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .pp-scorebox-side .lbl{ font-size:8px; color:#999; text-transform:uppercase; letter-spacing:.06em; font-weight:700; }
+  .pp-scorebox .box{ width:30px; height:26px; border:1.5px solid #111; border-radius:4px; background:#fff; }
+  .pp-scorebox .dash{ color:#bbb; font-weight:700; padding-bottom:5px; }
   .pp-sitting{ font-size:11.5px; color:#777; margin-top:6px; padding-left:2px; }
   .pp-footer{ margin-top:30px; text-align:center; font-size:11px; color:#999; border-top:1px solid #ddd; padding-top:10px; }
-  @media print{ .pp-print-bar{ display:none; } body{ padding:0; } }
+  @media print{ .pp-print-bar{ display:none; } body{ padding:0; } .pp-scorebox .box{ border-color:#000; } }
 </style>
 </head>
 <body>
