@@ -3161,7 +3161,7 @@ function renderRotationCourtScoreboard(m) {
       <div class="sb-body">
         <div class="sb-team team-a">
           <span class="sb-tag">Team A</span>
-          <div class="sb-names">${nameTag('A', m.teamA[0])} ${duprChip(pA1)}<br>${nameTag('A', m.teamA[1])} ${duprChip(pA2)}</div>
+          <div class="sb-names">${nameTag('A', m.teamA[0])}<br>${duprChip(pA1)}<br>${nameTag('A', m.teamA[1])}<br>${duprChip(pA2)}</div>
           <div class="sb-rating">Avg ELO: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
           ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rc-set-server" data-court="${m.id}" data-team="A">Make 1st server</button>` : '')}
           <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn csop-win-btn"
@@ -3172,7 +3172,7 @@ function renderRotationCourtScoreboard(m) {
         <div class="sb-divider"></div>
         <div class="sb-team team-b">
           <span class="sb-tag">Team B</span>
-          <div class="sb-names">${nameTag('B', m.teamB[0])} ${duprChip(pB1)}<br>${nameTag('B', m.teamB[1])} ${duprChip(pB2)}</div>
+          <div class="sb-names">${nameTag('B', m.teamB[0])}<br>${duprChip(pB1)}<br>${nameTag('B', m.teamB[1])}<br>${duprChip(pB2)}</div>
           <div class="sb-rating">Avg ELO: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
           ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rc-set-server" data-court="${m.id}" data-team="B">Make 1st server</button>` : '')}
           <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn csop-win-btn"
@@ -6048,7 +6048,7 @@ function renderMatchView(el){
           <div class="sb-body">
             <div class="sb-team team-a">
               <span class="sb-tag">Team A</span>
-              <div class="sb-names">${nameTag(m.id,'A',m.teamA[0])} ${duprChip(getPlayer(m.teamA[0]))}<br>${nameTag(m.id,'A',m.teamA[1])} ${duprChip(getPlayer(m.teamA[1]))}</div>
+              <div class="sb-names">${nameTag(m.id,'A',m.teamA[0])}<br>${duprChip(getPlayer(m.teamA[0]))}<br>${nameTag(m.id,'A',m.teamA[1])}<br>${duprChip(getPlayer(m.teamA[1]))}</div>
               <div class="sb-rating">Avg ELO: ${Math.round(((getPlayer(m.teamA[0])?.rating||1000)+(getPlayer(m.teamA[1])?.rating||1000))/2)}</div>
               ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rr-set-server" data-match="${m.id}" data-team="A">Make 1st server</button>` : '')}
               <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="A">
@@ -6060,7 +6060,7 @@ function renderMatchView(el){
 
             <div class="sb-team team-b">
               <span class="sb-tag">Team B</span>
-              <div class="sb-names">${nameTag(m.id,'B',m.teamB[0])} ${duprChip(getPlayer(m.teamB[0]))}<br>${nameTag(m.id,'B',m.teamB[1])} ${duprChip(getPlayer(m.teamB[1]))}</div>
+              <div class="sb-names">${nameTag(m.id,'B',m.teamB[0])}<br>${duprChip(getPlayer(m.teamB[0]))}<br>${nameTag(m.id,'B',m.teamB[1])}<br>${duprChip(getPlayer(m.teamB[1]))}</div>
               <div class="sb-rating">Avg ELO: ${Math.round(((getPlayer(m.teamB[0])?.rating||1000)+(getPlayer(m.teamB[1])?.rating||1000))/2)}</div>
               ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rr-set-server" data-match="${m.id}" data-team="B">Make 1st server</button>` : '')}
               <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="B">
@@ -6218,7 +6218,7 @@ function _renderMatchViewOriginalRotation(el) {
       <div class="sb-body">
         <div class="sb-team team-a">
           <span class="sb-tag">Team A</span>
-          <div class="sb-names">${curNameTag('A', c.teamA[0])} ${duprChip(pA1)}<br>${curNameTag('A', c.teamA[1])} ${duprChip(pA2)}</div>
+          <div class="sb-names">${curNameTag('A', c.teamA[0])}<br>${duprChip(pA1)}<br>${curNameTag('A', c.teamA[1])}<br>${duprChip(pA2)}</div>
           <div class="sb-rating">Avg ELO: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
           ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="A">Make 1st server</button>` : '')}
           <button id="rotationWinBtnA" class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rotation-winner" data-team="A">
@@ -6230,7 +6230,7 @@ function _renderMatchViewOriginalRotation(el) {
         
         <div class="sb-team team-b">
           <span class="sb-tag">Team B</span>
-          <div class="sb-names">${curNameTag('B', c.teamB[0])} ${duprChip(pB1)}<br>${curNameTag('B', c.teamB[1])} ${duprChip(pB2)}</div>
+          <div class="sb-names">${curNameTag('B', c.teamB[0])}<br>${duprChip(pB1)}<br>${curNameTag('B', c.teamB[1])}<br>${duprChip(pB2)}</div>
           <div class="sb-rating">Avg ELO: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
           ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="B">Make 1st server</button>` : '')}
           <button id="rotationWinBtnB" class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rotation-winner" data-team="B">
@@ -7963,7 +7963,7 @@ function renderPaddleStackView(el) {
         <div class="sb-body">
           <div class="sb-team team-a">
             <span class="sb-tag">Team A</span>
-            <div class="sb-names">${nameTag('A', m.teamA[0])} ${duprChip(pA1)}<br>${nameTag('A', m.teamA[1])} ${duprChip(pA2)}</div>
+            <div class="sb-names">${nameTag('A', m.teamA[0])}<br>${duprChip(pA1)}<br>${nameTag('A', m.teamA[1])}<br>${duprChip(pA2)}</div>
             <div class="sb-rating">Avg ELO: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
             ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="ps-set-server" data-court="${m.id}" data-team="A">Make 1st server</button>` : '')}
             <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn ps-win-btn"
@@ -7974,7 +7974,7 @@ function renderPaddleStackView(el) {
           <div class="sb-divider"></div>
           <div class="sb-team team-b">
             <span class="sb-tag">Team B</span>
-            <div class="sb-names">${nameTag('B', m.teamB[0])} ${duprChip(pB1)}<br>${nameTag('B', m.teamB[1])} ${duprChip(pB2)}</div>
+            <div class="sb-names">${nameTag('B', m.teamB[0])}<br>${duprChip(pB1)}<br>${nameTag('B', m.teamB[1])}<br>${duprChip(pB2)}</div>
             <div class="sb-rating">Avg ELO: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
             ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="ps-set-server" data-court="${m.id}" data-team="B">Make 1st server</button>` : '')}
             <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn ps-win-btn"
