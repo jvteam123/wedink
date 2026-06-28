@@ -668,52 +668,119 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 .session-progress-label{ font-size:11px; color:var(--text-faint); margin-top:6px; display:flex; justify-content:space-between; }
 
 /* ---------- Full Schedule Modal ---------- */
-.sched-summary{ display:flex; gap:8px; margin:2px 0 12px; }
+.sched-summary{ display:flex; gap:8px; margin:2px 0 14px; }
 .sched-summary .s-item{
   flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-md);
-  padding:10px 6px; text-align:center; min-width:0;
+  padding:12px 6px 10px; text-align:center; min-width:0;
 }
-.sched-summary .s-item .n{ font-family:var(--font-mono); font-size:18px; font-weight:800; color:var(--text); line-height:1; }
-.sched-summary .s-item .l{ font-size:8.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.05em; margin-top:4px; }
-.sched-round{ margin-bottom:14px; }
-.sched-round-head{ display:flex; align-items:baseline; justify-content:space-between; margin:0 2px 6px; gap:8px; }
-.sched-round-head .rt{ font-size:11.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--text); }
-.sched-round-head .rc{ font-size:11px; color:var(--text-faint); font-family:var(--font-mono); flex:none; }
-.sched-card{ background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-md); padding:2px 12px; }
-.sched-match{ display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid var(--line-soft); }
+.sched-summary .s-item .n{ font-family:var(--font-mono); font-size:20px; font-weight:800; color:var(--ball); line-height:1; }
+.sched-summary .s-item .l{ font-size:9px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.06em; margin-top:5px; }
+.sched-round{ margin-bottom:18px; }
+.sched-round-head{
+  display:flex; align-items:center; justify-content:space-between;
+  margin:0 2px 8px; gap:8px;
+  padding:6px 10px; background:var(--surface-3);
+  border-radius:var(--radius-sm); border:1px solid var(--line-soft);
+}
+.sched-round-head .rt{
+  font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ball); display:flex; align-items:center; gap:6px;
+}
+.sched-round-head .rt::before{
+  content:''; width:3px; height:14px; border-radius:2px;
+  background:var(--ball); display:inline-block;
+}
+.sched-round-head .rc{
+  font-size:11px; color:var(--text-faint); font-family:var(--font-mono);
+  flex:none; background:var(--surface-2); padding:2px 8px;
+  border-radius:999px; border:1px solid var(--line-soft);
+}
+.sched-card{
+  background:var(--surface-2); border:1px solid var(--line);
+  border-radius:var(--radius-md); padding:4px 14px;
+  box-shadow:0 2px 8px -4px rgba(0,0,0,0.4);
+}
+.sched-match{
+  display:flex; align-items:flex-start; gap:10px;
+  padding:12px 2px; border-bottom:1px solid var(--line-soft);
+}
 .sched-match:last-child{ border-bottom:none; }
 .sched-match-num{
-  flex:none; width:24px; height:24px; border-radius:7px; background:var(--surface-3);
+  flex:none; width:26px; height:26px; border-radius:8px; background:var(--surface-3);
   display:flex; align-items:center; justify-content:center; font-family:var(--font-mono);
   font-size:10.5px; font-weight:700; color:var(--text-faint);
+  border:1px solid var(--line-soft); margin-top:2px;
 }
 .sched-match-body{ flex:1; min-width:0; }
-.sched-match-teams{ font-size:13px; font-weight:700; color:var(--text); line-height:1.45; }
-.sched-match-teams .vs{ color:var(--text-faint); font-weight:400; margin:0 5px; font-size:10.5px; text-transform:uppercase; }
-.sched-status{ flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
-.sched-pill{
-  display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:999px;
-  font-size:10px; font-weight:700; font-family:var(--font-mono); white-space:nowrap;
+
+/* Two-line team layout: Team A on one line, VS divider, Team B on next */
+.sched-match-teams{
+  font-size:13.5px; font-weight:700; color:var(--text); line-height:1;
+  display:flex; flex-direction:column; gap:4px;
 }
-.sched-pill-played{ background:rgba(62,213,152,0.10); color:var(--win); }
-.sched-pill-live{ background:rgba(215,242,61,0.14); color:var(--ball); }
-.sched-pill-queued{ background:var(--surface-3); color:var(--text-faint); }
-.sched-score{ font-size:11px; color:var(--text-faint); font-family:var(--font-mono); }
+.sched-team-row{
+  display:flex; align-items:center; gap:5px; flex-wrap:wrap;
+}
+.sched-team-amp{
+  color:var(--text-faint); font-size:11px; font-weight:500;
+}
+.sched-vs-divider{
+  display:flex; align-items:center; gap:6px; padding:2px 0;
+}
+.sched-vs-divider::before,
+.sched-vs-divider::after{
+  content:''; flex:1; height:1px; background:var(--line-soft);
+}
+.sched-vs-label{
+  font-size:9.5px; font-weight:800; text-transform:uppercase;
+  letter-spacing:.1em; color:var(--text-faint);
+  font-family:var(--font-mono);
+}
+/* Legacy inline vs span (fallback) */
+.sched-match-teams .vs{ color:var(--text-faint); font-weight:400; margin:0 5px; font-size:10.5px; text-transform:uppercase; }
+
+.sched-status{ flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:3px; padding-top:2px; }
+.sched-pill{
+  display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:999px;
+  font-size:10px; font-weight:700; font-family:var(--font-mono); white-space:nowrap;
+  letter-spacing:.02em;
+}
+.sched-pill-played{ background:rgba(62,213,152,0.12); color:var(--win); border:1px solid rgba(62,213,152,0.2); }
+.sched-pill-live{ background:rgba(215,242,61,0.14); color:var(--ball); border:1px solid rgba(215,242,61,0.25); }
+.sched-pill-queued{ background:var(--surface-3); color:var(--text-faint); border:1px solid var(--line-soft); }
+.sched-score{ font-size:11px; color:var(--text-faint); font-family:var(--font-mono); text-align:right; margin-top:1px; }
 .sched-sitting{
-  display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; padding:8px 2px 4px;
-  font-size:11px; color:var(--text-faint); border-top:1px solid var(--line-soft); margin-top:2px;
+  display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;
+  padding:9px 2px 5px; font-size:11.5px; color:var(--text-faint);
+  border-top:1px solid var(--line-soft); margin-top:2px;
 }
 .sched-sitting b{ color:var(--text-dim); font-weight:700; }
+
+/* Player chip — tappable edit button for queued matches */
 .sched-player-chip{
-  display:inline-flex; align-items:center; gap:4px; background:var(--surface-3);
-  border:1px solid var(--line); border-radius:6px; padding:2px 7px; font-size:13px;
-  font-weight:700; color:var(--text); cursor:pointer; font-family:inherit;
-  transition:background .12s, border-color .12s, transform .08s;
+  display:inline-flex; align-items:center; gap:5px;
+  background:var(--surface-3); border:1px solid var(--line);
+  border-radius:8px; padding:4px 10px;
+  font-size:13.5px; font-weight:700; color:var(--text);
+  cursor:pointer; font-family:inherit;
+  transition:background .12s, border-color .12s, color .12s, transform .08s;
+  line-height:1.2;
 }
-.sched-player-chip:active{ transform:scale(0.96); }
-.sched-player-chip:hover{ background:var(--surface-2); border-color:var(--court); color:var(--court); }
-.sched-chip-edit{ font-size:10px; color:var(--text-faint); }
-.sched-match-hint{ font-size:10.5px; color:var(--text-faint); margin-top:3px; }
+.sched-player-chip:active{ transform:scale(0.95); }
+.sched-player-chip:hover{ background:rgba(79,168,255,0.10); border-color:var(--court); color:var(--court); }
+.sched-chip-edit{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:16px; height:16px; border-radius:4px;
+  background:rgba(215,242,61,0.15); color:var(--ball);
+  font-size:9px; font-style:normal; flex:none;
+  border:1px solid rgba(215,242,61,0.25);
+}
+.sched-match-hint{
+  font-size:10.5px; color:var(--court); margin-top:6px;
+  display:flex; align-items:center; gap:4px; font-weight:600;
+  opacity:.8;
+}
+.sched-match-hint::before{ content:'✦'; font-size:8px; }
 
 /* ---------- Up Next preview card (Open Play) ---------- */
 .up-next-card{
@@ -4141,13 +4208,13 @@ function showFullScheduleModal(){
           if(isQueued){
             return `<button class="sched-player-chip" data-action="sched-replace-player"
               data-match-id="${m.id}" data-gen="${gen.generation}" data-team="${team}" data-slot="${slot}"
-              title="Tap to replace ${p ? p.name : '?'}">${name} <span class="sched-chip-edit">✎</span></button>`;
+              title="Tap to replace ${p ? p.name : '?'}">${name} <span class="sched-chip-edit"><svg viewBox="0 0 12 12" width="10" height="10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.5 1.5L10.5 3.5L4 10H2V8L8.5 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></span></button>`;
           }
           return `<span>${name}</span>`;
         }
 
         const statusHtml = isDone
-          ? `<span class="sched-pill sched-pill-played">✅ Played</span>${m.scoreA!=null ? `<span class="sched-score">${m.scoreA}–${m.scoreB}</span>` : ''}`
+          ? `<span class="sched-pill sched-pill-played">✓ Played</span>${m.scoreA!=null ? `<span class="sched-score">${m.scoreA}–${m.scoreB}</span>` : ''}`
           : isActive
             ? `<span class="sched-pill sched-pill-live">🎾 Court ${m.court}</span>`
             : `<span class="sched-pill sched-pill-queued">⏳ Queued</span>`;
@@ -4157,9 +4224,17 @@ function showFullScheduleModal(){
             <div class="sched-match-num">#${m.matchIndex + 1}</div>
             <div class="sched-match-body">
               <div class="sched-match-teams">
-                ${playerChip(m.teamA[0],'A',0)} &amp; ${playerChip(m.teamA[1],'A',1)}
-                <span class="vs">vs</span>
-                ${playerChip(m.teamB[0],'B',0)} &amp; ${playerChip(m.teamB[1],'B',1)}
+                <div class="sched-team-row">
+                  ${playerChip(m.teamA[0],'A',0)}
+                  <span class="sched-team-amp">&amp;</span>
+                  ${playerChip(m.teamA[1],'A',1)}
+                </div>
+                <div class="sched-vs-divider"><span class="sched-vs-label">vs</span></div>
+                <div class="sched-team-row">
+                  ${playerChip(m.teamB[0],'B',0)}
+                  <span class="sched-team-amp">&amp;</span>
+                  ${playerChip(m.teamB[1],'B',1)}
+                </div>
               </div>
               ${isQueued ? `<div class="sched-match-hint">Tap a name to swap player</div>` : ''}
             </div>
@@ -4184,7 +4259,7 @@ function showFullScheduleModal(){
 
   openModal(`
     <div class="modal-title">📋 Full Session Schedule</div>
-    <div class="modal-sub" style="line-height:1.6;">${plan ? esc(plan.label) : 'Custom schedule'} — every round, planned up front. Tap any player name in a <b style="color:var(--text-faint);">⏳ Queued</b> match to swap them out.</div>
+    <div class="modal-sub" style="line-height:1.6;">${plan ? esc(plan.label) : 'Custom schedule'} — every round, planned up front. Tap any player name in a <b style="color:var(--court); background:rgba(79,168,255,0.1); padding:1px 5px; border-radius:4px;">⏳ Queued</b> match to swap them out.</div>
 
     <div class="sched-summary">
       <div class="s-item"><div class="n">${totalMatches}</div><div class="l">Matches</div></div>
@@ -4198,7 +4273,7 @@ function showFullScheduleModal(){
       <div class="session-progress-label"><span>${playedCount} of ${totalMatches} played</span><span>${pct}%</span></div>
     </div>
 
-    <div id="schedBodyWrap" style="max-height:50vh; overflow-y:auto; margin-top:14px;">
+    <div id="schedBodyWrap" style="max-height:55vh; overflow-y:auto; margin-top:16px; padding-right:2px;">
       ${buildScheduleRows()}
     </div>
     <div class="modal-actions" style="margin-top:16px; flex-direction:column; gap:8px;">
