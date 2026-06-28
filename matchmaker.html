@@ -704,6 +704,16 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   font-size:11px; color:var(--text-faint); border-top:1px solid var(--line-soft); margin-top:2px;
 }
 .sched-sitting b{ color:var(--text-dim); font-weight:700; }
+.sched-player-chip{
+  display:inline-flex; align-items:center; gap:4px; background:var(--surface-3);
+  border:1px solid var(--line); border-radius:6px; padding:2px 7px; font-size:13px;
+  font-weight:700; color:var(--text); cursor:pointer; font-family:inherit;
+  transition:background .12s, border-color .12s, transform .08s;
+}
+.sched-player-chip:active{ transform:scale(0.96); }
+.sched-player-chip:hover{ background:var(--surface-2); border-color:var(--court); color:var(--court); }
+.sched-chip-edit{ font-size:10px; color:var(--text-faint); }
+.sched-match-hint{ font-size:10.5px; color:var(--text-faint); margin-top:3px; }
 
 /* ---------- Up Next preview card (Open Play) ---------- */
 .up-next-card{
@@ -4115,43 +4125,66 @@ function showFullScheduleModal(){
   allMatches.forEach(m => { m.teamA.forEach(id => playerIds.add(id)); m.teamB.forEach(id => playerIds.add(id)); });
   const pct = totalMatches ? Math.round((playedCount / totalMatches) * 100) : 0;
 
-  const roundsHtml = allGens.map(gen => {
-    const genMatches = gen.matches.slice().sort((a,b) => a.matchIndex - b.matchIndex);
-    const genPlayed = genMatches.filter(m => m.status === 'done').length;
-    const rows = genMatches.map(m => {
-      const a1 = esc(playerName(m.teamA[0])), a2 = esc(playerName(m.teamA[1]));
-      const b1 = esc(playerName(m.teamB[0])), b2 = esc(playerName(m.teamB[1]));
-      const statusHtml = m.status === 'done'
-        ? `<span class="sched-pill sched-pill-played">✅ Played</span>${m.scoreA!=null ? `<span class="sched-score">${m.scoreA}–${m.scoreB}</span>` : ''}`
-        : m.status === 'active'
-          ? `<span class="sched-pill sched-pill-live">🎾 Court ${m.court}</span>`
-          : `<span class="sched-pill sched-pill-queued">⏳ Queued</span>`;
+  function buildScheduleRows(){
+    return allGens.map(gen => {
+      const genMatches = gen.matches.slice().sort((a,b) => a.matchIndex - b.matchIndex);
+      const genPlayed = genMatches.filter(m => m.status === 'done').length;
+      const rows = genMatches.map(m => {
+        const isQueued = m.status === 'queued';
+        const isActive = m.status === 'active';
+        const isDone   = m.status === 'done';
+
+        // For queued matches: render each player as a tappable chip
+        function playerChip(id, team, slot){
+          const p = getPlayer(id);
+          const name = p ? esc(p.name) : '—';
+          if(isQueued){
+            return `<button class="sched-player-chip" data-action="sched-replace-player"
+              data-match-id="${m.id}" data-gen="${gen.generation}" data-team="${team}" data-slot="${slot}"
+              title="Tap to replace ${p ? p.name : '?'}">${name} <span class="sched-chip-edit">✎</span></button>`;
+          }
+          return `<span>${name}</span>`;
+        }
+
+        const statusHtml = isDone
+          ? `<span class="sched-pill sched-pill-played">✅ Played</span>${m.scoreA!=null ? `<span class="sched-score">${m.scoreA}–${m.scoreB}</span>` : ''}`
+          : isActive
+            ? `<span class="sched-pill sched-pill-live">🎾 Court ${m.court}</span>`
+            : `<span class="sched-pill sched-pill-queued">⏳ Queued</span>`;
+
+        return `
+          <div class="sched-match">
+            <div class="sched-match-num">#${m.matchIndex + 1}</div>
+            <div class="sched-match-body">
+              <div class="sched-match-teams">
+                ${playerChip(m.teamA[0],'A',0)} &amp; ${playerChip(m.teamA[1],'A',1)}
+                <span class="vs">vs</span>
+                ${playerChip(m.teamB[0],'B',0)} &amp; ${playerChip(m.teamB[1],'B',1)}
+              </div>
+              ${isQueued ? `<div class="sched-match-hint">Tap a name to swap player</div>` : ''}
+            </div>
+            <div class="sched-status">${statusHtml}</div>
+          </div>`;
+      }).join('');
+
+      const sittingNames = (gen.sittingOut || []).map(id => esc(playerName(id))).join(', ');
       return `
-        <div class="sched-match">
-          <div class="sched-match-num">#${m.matchIndex + 1}</div>
-          <div class="sched-match-body">
-            <div class="sched-match-teams">${a1} &amp; ${a2}<span class="vs">vs</span>${b1} &amp; ${b2}</div>
+        <div class="sched-round">
+          <div class="sched-round-head">
+            <span class="rt">Round ${gen.generation}</span>
+            <span class="rc">${genPlayed}/${genMatches.length} played</span>
           </div>
-          <div class="sched-status">${statusHtml}</div>
+          <div class="sched-card">
+            ${rows}
+            ${sittingNames ? `<div class="sched-sitting">🪑 <b>Sitting out:</b> ${sittingNames}</div>` : ''}
+          </div>
         </div>`;
     }).join('');
-    const sittingNames = (gen.sittingOut || []).map(id => esc(playerName(id))).join(', ');
-    return `
-      <div class="sched-round">
-        <div class="sched-round-head">
-          <span class="rt">Round ${gen.generation}</span>
-          <span class="rc">${genPlayed}/${genMatches.length} played</span>
-        </div>
-        <div class="sched-card">
-          ${rows}
-          ${sittingNames ? `<div class="sched-sitting">🪑 <b>Sitting out:</b> ${sittingNames}</div>` : ''}
-        </div>
-      </div>`;
-  }).join('');
+  }
 
   openModal(`
     <div class="modal-title">📋 Full Session Schedule</div>
-    <div class="modal-sub" style="line-height:1.6;">${plan ? esc(plan.label) : 'Custom schedule'} — every round, planned up front.</div>
+    <div class="modal-sub" style="line-height:1.6;">${plan ? esc(plan.label) : 'Custom schedule'} — every round, planned up front. Tap any player name in a <b style="color:var(--text-faint);">⏳ Queued</b> match to swap them out.</div>
 
     <div class="sched-summary">
       <div class="s-item"><div class="n">${totalMatches}</div><div class="l">Matches</div></div>
@@ -4165,14 +4198,85 @@ function showFullScheduleModal(){
       <div class="session-progress-label"><span>${playedCount} of ${totalMatches} played</span><span>${pct}%</span></div>
     </div>
 
-    <div style="max-height:50vh; overflow-y:auto; margin-top:14px;">
-      ${roundsHtml}
+    <div id="schedBodyWrap" style="max-height:50vh; overflow-y:auto; margin-top:14px;">
+      ${buildScheduleRows()}
     </div>
     <div class="modal-actions" style="margin-top:16px; flex-direction:column; gap:8px;">
       <button class="btn btn-secondary btn-block" data-action="download-full-schedule-poster">🖨️ Download / Print Schedule Poster</button>
       <button class="btn btn-primary btn-block" data-action="modal-close">Close</button>
     </div>
   `);
+
+  // Store builder fn on window so the replace-player flow can refresh the list in-place
+  window._schedRebuild = function(){
+    const wrap = document.getElementById('schedBodyWrap');
+    if(wrap) wrap.innerHTML = buildScheduleRows();
+  };
+}
+
+// Opens a second sheet to pick a replacement for a player in a queued scheduled match.
+function openSchedReplaceModal(matchId, genNum, team, slot){
+  // Find the match across currentGeneration + scheduledGenerations
+  const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
+  const gen = allGens.find(g => g.generation === parseInt(genNum, 10));
+  if(!gen){ toast('Generation not found.', 'warning'); return; }
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status !== 'queued'){ toast('Can only swap players in queued matches.', 'warning'); return; }
+
+  const outId = team === 'A' ? m.teamA[parseInt(slot,10)] : m.teamB[parseInt(slot,10)];
+  const outPlayer = getPlayer(outId);
+
+  // All 4 players currently in this match (to exclude from picker)
+  const inMatchIds = new Set([...m.teamA, ...m.teamB]);
+
+  // Build candidate list: all players not already in this match
+  const candidates = state.players
+    .filter(p => !inMatchIds.has(p.id))
+    .sort((a,b) => a.name.localeCompare(b.name));
+
+  if(!candidates.length){
+    toast('No other players available to swap in.', 'warning');
+    return;
+  }
+
+  const listHtml = candidates.map(p => `
+    <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between; text-align:left;"
+      data-action="sched-do-replace" data-match-id="${matchId}" data-gen="${genNum}"
+      data-team="${team}" data-slot="${slot}" data-new-id="${p.id}">
+      <span>${esc(p.name)}</span>
+      <span style="font-size:11px; color:var(--text-faint);">DUPR ${duprStr(p)} · ELO ${p.rating}</span>
+    </button>`).join('');
+
+  openModal(`
+    <div class="modal-title">Swap Player</div>
+    <div class="modal-sub">Replacing <b style="color:var(--loss);">${esc(outPlayer?.name || '—')}</b> in Match #${m.matchIndex + 1} (${team === 'A' ? 'Team A' : 'Team B'}). Pick a replacement:</div>
+    <div style="max-height:52vh; overflow-y:auto; padding-bottom:4px;">
+      ${listHtml}
+    </div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="btn btn-ghost btn-block" data-action="sched-back-to-schedule">← Back to Schedule</button>
+    </div>
+  `);
+}
+
+// Executes the swap in state, then refreshes the schedule view.
+function schedDoReplace(matchId, genNum, team, slot, newId){
+  const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
+  const gen = allGens.find(g => g.generation === parseInt(genNum, 10));
+  if(!gen) return;
+  const m = gen.matches.find(x => x.id === matchId);
+  if(!m || m.status !== 'queued'){ toast('Can only edit queued matches.', 'warning'); return; }
+
+  const slotIdx = parseInt(slot, 10);
+  const oldId = team === 'A' ? m.teamA[slotIdx] : m.teamB[slotIdx];
+  if(team === 'A') m.teamA[slotIdx] = newId;
+  else             m.teamB[slotIdx] = newId;
+
+  saveAll();
+  toast(`${playerName(oldId)} → ${playerName(newId)} in Match #${m.matchIndex + 1}.`, 'success');
+
+  // Re-open the full schedule modal (refreshes everything cleanly)
+  showFullScheduleModal();
 }
 
 // Builds a standalone, print-friendly HTML "poster" of the whole session
@@ -6938,6 +7042,15 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'view-full-schedule': showFullScheduleModal(); break;
+    case 'sched-replace-player':
+      openSchedReplaceModal(t.dataset.matchId, t.dataset.gen, t.dataset.team, t.dataset.slot);
+      break;
+    case 'sched-do-replace':
+      schedDoReplace(t.dataset.matchId, t.dataset.gen, t.dataset.team, t.dataset.slot, t.dataset.newId);
+      break;
+    case 'sched-back-to-schedule':
+      showFullScheduleModal();
+      break;
     case 'download-full-schedule-poster': downloadFullSchedulePoster(); break;
     case 'do-download-schedule-poster': {
       const inp = document.getElementById('tournamentTitleInput');
