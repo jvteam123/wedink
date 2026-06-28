@@ -5540,9 +5540,20 @@ function updateDashStrip(){
   const total = state.players.length;
   const activeCount = activePlayers().length;
   const matchesCount = state.matches.length;
-  const activeCourts = state.settings.matchMode === 'Rotation'
-    ? (Array.isArray(state.rotationCourts) ? state.rotationCourts.filter(c=>c&&c.status==='active').length : 0)
-    : (state.currentGeneration ? state.currentGeneration.matches.filter(m=>m.status==='active').length : 0);
+  const mode = state.settings.matchMode;
+  // Each match mode keeps its live courts in a different place — Rotation in
+  // state.rotationCourts, Round Robin in state.currentGeneration.matches, and
+  // Paddle Stack in state.paddleStack.courts. The old version here only ever
+  // checked Rotation vs. currentGeneration, so a live Paddle Stack session
+  // (which uses neither) always fell through to 0.
+  let activeCourts;
+  if(mode === 'Rotation'){
+    activeCourts = Array.isArray(state.rotationCourts) ? state.rotationCourts.filter(c=>c&&c.status==='active').length : 0;
+  } else if(mode === 'PaddleStack'){
+    activeCourts = (state.paddleStack && Array.isArray(state.paddleStack.courts)) ? state.paddleStack.courts.filter(c=>c&&c.status==='active').length : 0;
+  } else {
+    activeCourts = state.currentGeneration ? state.currentGeneration.matches.filter(m=>m.status==='active').length : 0;
+  }
   ds.innerHTML = `
     <div class="d-item"><span class="eyebrow">Players:</span><span class="v">${total}</span></div>
     <div class="d-item"><span class="eyebrow">Active:</span><span class="v">${activeCount}</span></div>
@@ -6574,6 +6585,17 @@ document.addEventListener('click', function(e){
             check.style.background = isSelected ? 'var(--ball)' : '';
           }
         });
+        // Clear the custom input — picking a preset takes over as the source of truth.
+        const customInput = document.getElementById('psCustomCourtsInput');
+        const customCheck = document.getElementById('psCustomCourtsCheck');
+        const customPreview = document.getElementById('psCustomCourtsPreview');
+        if (customInput) customInput.value = '';
+        if (customCheck) { customCheck.style.borderColor = ''; customCheck.style.background = ''; }
+        if (customPreview) {
+          const activeCount = activePlayers().length;
+          const hardMax = Math.max(1, Math.min(Math.floor(activeCount / 4), 10));
+          customPreview.textContent = `Up to ${hardMax} court${hardMax!==1?'s':''} possible with ${activeCount} players`;
+        }
       }
       break;
     }
@@ -7859,21 +7881,33 @@ function openOpenPlayModePicker() {
 function openPaddleStackSetupModal() {
   const pool = activePlayers();
   const activeCount = pool.length;
-  const maxPossible = Math.min(Math.floor(activeCount / 4), 6);
-  const currentCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, maxPossible || 1);
+  // hardMax mirrors the real ceiling used everywhere else (psInit clamps
+  // numCourts to 1-10) — maxPossible is just how many preset buttons to
+  // show (capped at 6 so the list doesn't get unwieldy). Custom court count
+  // lets anyone with enough players reach past that 6-button visual cap, up
+  // to hardMax, by typing a number instead.
+  const hardMax = Math.max(1, Math.min(Math.floor(activeCount / 4), 10));
+  const maxPossible = Math.min(hardMax, 6);
+  const currentCourts = clamp(parseInt(state.settings.numCourts, 10) || 1, 1, hardMax);
   const currentScore = state.settings.winningScore || 11;
+  const isCustomValue = currentCourts > maxPossible;
 
-  const courtBtns = Array.from({length: maxPossible || 1}, (_, i) => i + 1).map(n => {
+  const courtPreviewText = n => {
     const playersNeeded = n * 4;
     const waiting = activeCount - playersNeeded;
+    return `${playersNeeded} on court${waiting > 0 ? ` · ${waiting} in queue` : ' · everyone plays'}`;
+  };
+
+  const courtBtns = Array.from({length: maxPossible || 1}, (_, i) => i + 1).map(n => {
+    const isSelected = n === currentCourts && !isCustomValue;
     return `
-      <button type="button" class="session-opt ${n === currentCourts ? 'recommended' : ''}" data-action="ps-pick-courts" data-courts="${n}">
+      <button type="button" class="session-opt ${isSelected ? 'recommended' : ''}" data-action="ps-pick-courts" data-courts="${n}">
         <div class="session-opt-count"><span class="n">${n}</span><span class="u">court${n>1?'s':''}</span></div>
         <div class="session-opt-body">
-          <div class="session-opt-name">${n === 1 ? 'Single Court' : n + ' Courts'}${n === currentCourts ? '<span class="session-opt-tag">Current</span>' : ''}</div>
-          <div class="session-opt-sub">${playersNeeded} on court${waiting > 0 ? ` · ${waiting} in queue` : ' · everyone plays'}</div>
+          <div class="session-opt-name">${n === 1 ? 'Single Court' : n + ' Courts'}${isSelected ? '<span class="session-opt-tag">Current</span>' : ''}</div>
+          <div class="session-opt-sub">${courtPreviewText(n)}</div>
         </div>
-        <div class="session-opt-check" style="${n === currentCourts ? 'border-color:var(--ball); background:var(--ball);' : ''}"></div>
+        <div class="session-opt-check" style="${isSelected ? 'border-color:var(--ball); background:var(--ball);' : ''}"></div>
       </button>`;
   }).join('');
 
@@ -7885,6 +7919,18 @@ function openPaddleStackSetupModal() {
     <div class="session-opt-list" id="psCourtsListPs">
       ${courtBtns}
       ${maxPossible < 1 ? '<p class="helper-text" style="color:var(--loss);">Need at least 4 active players.</p>' : ''}
+      <div class="session-opt custom-opt" id="psCustomCourtsRow" style="cursor:default; align-items:flex-start;">
+        <div class="session-opt-count"><span class="n">✏️</span></div>
+        <div class="session-opt-body">
+          <div class="session-opt-name" id="psCustomCourtsName">Custom${isCustomValue ? '<span class="session-opt-tag">Current</span>' : ''}</div>
+          <input type="number" id="psCustomCourtsInput" inputmode="numeric" pattern="[0-9]*" min="1" max="${hardMax}"
+            placeholder="e.g. ${Math.min(hardMax, maxPossible + 1)}" value="${isCustomValue ? currentCourts : ''}"
+            style="margin-top:8px; max-width:120px; font-weight:700; text-align:center;"
+            oninput="window.psPickCustomCourts(this.value)">
+          <div class="session-opt-sub" id="psCustomCourtsPreview" style="margin-top:6px;">${isCustomValue ? courtPreviewText(currentCourts) : `Up to ${hardMax} court${hardMax!==1?'s':''} possible with ${activeCount} players`}</div>
+        </div>
+        <div class="session-opt-check" id="psCustomCourtsCheck" style="${isCustomValue ? 'border-color:var(--ball); background:var(--ball);' : ''}"></div>
+      </div>
     </div>
 
     <div class="eyebrow" style="margin:16px 2px 8px;">Winning Score</div>
@@ -7900,6 +7946,30 @@ function openPaddleStackSetupModal() {
       <button class="btn btn-primary" data-action="ps-confirm-start">🚀 Start Paddle Stack</button>
     </div>
   `, false);
+
+  // Typing a custom court count deselects the preset buttons and applies the
+  // typed value live (clamped to hardMax — the real 1-10 ceiling psInit
+  // enforces, same as every other "how many courts" picker in the app).
+  window.psPickCustomCourts = function(val){
+    const previewEl = document.getElementById('psCustomCourtsPreview');
+    const checkEl = document.getElementById('psCustomCourtsCheck');
+    const raw = parseInt(val, 10);
+    if(isNaN(raw) || raw < 1){
+      if(previewEl) previewEl.textContent = `Up to ${hardMax} court${hardMax!==1?'s':''} possible with ${activeCount} players`;
+      if(checkEl){ checkEl.style.borderColor = ''; checkEl.style.background = ''; }
+      return;
+    }
+    const n = clamp(raw, 1, hardMax);
+    state.settings.numCourts = n;
+    if(previewEl) previewEl.textContent = courtPreviewText(n);
+    if(checkEl){ checkEl.style.borderColor = 'var(--ball)'; checkEl.style.background = 'var(--ball)'; }
+    // Clear any preset button's selected look — the typed value is now the source of truth.
+    document.querySelectorAll('[data-action="ps-pick-courts"]').forEach(btn => {
+      const check = btn.querySelector('.session-opt-check');
+      btn.classList.remove('recommended');
+      if(check){ check.style.borderColor = ''; check.style.background = ''; }
+    });
+  };
 }
 
 // Peek at what match type the NEXT court fill would produce for a given court
