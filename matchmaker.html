@@ -4182,7 +4182,7 @@ function showFullScheduleModal(){
 // new tab with a Print button (and auto-triggers the print dialog so
 // "Save as PDF" is one tap away); falls back to a direct file download if
 // the popup gets blocked by the browser.
-function downloadFullSchedulePoster(customTitle){
+function downloadFullSchedulePoster(customTitle, paperSize){
   const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
   if(!allGens.length){ toast('No schedule to print yet.', 'info'); return; }
 
@@ -4191,9 +4191,45 @@ function downloadFullSchedulePoster(customTitle){
     const plan = state.settings.sessionPlan;
     const defaultTitle = (plan && plan.label) ? plan.label : 'Pickleball Session';
     openModal(`
-      <div class="modal-title">Name Your Tournament</div>
-      <div class="modal-sub">This title will appear at the top of the printed schedule.</div>
-      <input type="text" id="tournamentTitleInput" value="${esc(defaultTitle)}" placeholder="e.g. Sunday Open Play" style="margin-top:4px;">
+      <div class="modal-title">Download Schedule</div>
+      <div class="modal-sub">Set your tournament title and paper size before printing.</div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Tournament Title</label>
+        <input type="text" id="tournamentTitleInput" value="${esc(defaultTitle)}" placeholder="e.g. Sunday Open Play">
+      </div>
+      <div class="field" style="margin-bottom:4px;">
+        <label>Paper / Poster Size</label>
+        <div style="display:flex; flex-direction:column; gap:7px; margin-top:2px;">
+          <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px;">
+            <input type="radio" name="ppSize" value="letter" checked style="margin-top:2px; accent-color:var(--court);">
+            <span>
+              <span style="font-weight:700; font-size:13.5px;">Letter (8.5×11 in)</span>
+              <span style="display:block; font-size:11.5px; color:var(--text-faint); margin-top:1px;">Standard US paper — good for up to ~8 players</span>
+            </span>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px;">
+            <input type="radio" name="ppSize" value="legal" style="margin-top:2px; accent-color:var(--court);">
+            <span>
+              <span style="font-weight:700; font-size:13.5px;">Legal (8.5×14 in)</span>
+              <span style="display:block; font-size:11.5px; color:var(--text-faint); margin-top:1px;">More rows per page — fits ~12 players comfortably</span>
+            </span>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px;">
+            <input type="radio" name="ppSize" value="A4" style="margin-top:2px; accent-color:var(--court);">
+            <span>
+              <span style="font-weight:700; font-size:13.5px;">A4 (210×297 mm)</span>
+              <span style="display:block; font-size:11.5px; color:var(--text-faint); margin-top:1px;">International standard — similar to Letter</span>
+            </span>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px;">
+            <input type="radio" name="ppSize" value="tabloid" style="margin-top:2px; accent-color:var(--court);">
+            <span>
+              <span style="font-weight:700; font-size:13.5px;">Tabloid / Poster (11×17 in)</span>
+              <span style="display:block; font-size:11.5px; color:var(--text-faint); margin-top:1px;">Large poster format — best for big tournaments, wall posting</span>
+            </span>
+          </label>
+        </div>
+      </div>
       <div class="modal-actions" style="margin-top:14px;">
         <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
         <button class="btn btn-primary" data-action="do-download-schedule-poster">Download Schedule</button>
@@ -4206,8 +4242,10 @@ function downloadFullSchedulePoster(customTitle){
         inp.addEventListener('keydown', e => {
           if(e.key === 'Enter'){
             const title = inp.value.trim() || 'Pickleball Session';
+            const sizeEl = document.querySelector('input[name="ppSize"]:checked');
+            const size = sizeEl ? sizeEl.value : 'letter';
             closeModal();
-            downloadFullSchedulePoster(title);
+            downloadFullSchedulePoster(title, size);
           }
         });
       }
@@ -4253,11 +4291,19 @@ function downloadFullSchedulePoster(customTitle){
       </section>`;
   }).join('');
 
+  const pageSizeMap = {
+    letter:  'letter portrait',
+    legal:   'legal portrait',
+    A4:      'A4 portrait',
+    tabloid: 'tabloid portrait'
+  };
+  const pageSize = pageSizeMap[paperSize] || 'letter portrait';
+
   const posterHtml = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <title>Kitchen Ladder — Full Schedule</title>
 <style>
-  @page{ size:letter portrait; margin:0.5in; }
+  @page{ size:${pageSize}; margin:0.5in; }
   *{box-sizing:border-box;}
   body{font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#111; margin:0; padding:28px; background:#fff;}
   .pp-print-bar{ text-align:center; margin-bottom:22px; }
@@ -4269,12 +4315,14 @@ function downloadFullSchedulePoster(customTitle){
   .pp-meta b{ font-size:17px; display:block; color:#111; letter-spacing:0; text-transform:none; }
   .pp-round{ margin-bottom:24px; page-break-inside:avoid; }
   .pp-round h2{ font-size:16px; margin:0 0 8px; background:#111; color:#fff; display:inline-block; padding:4px 14px; border-radius:4px; }
-  table.pp-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.pp-table{ width:100%; border-collapse:collapse; font-size:13px; border-spacing:0; }
   table.pp-table th{ text-align:left; border-bottom:2px solid #111; padding:6px 8px; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:#444; }
   table.pp-table td{ padding:9px 8px; border-bottom:1px solid #ddd; vertical-align:middle; }
+  table.pp-table tr{ page-break-inside:avoid; break-inside:avoid; }
   .pp-num{ font-weight:700; width:28px; color:#555; }
   .pp-court{ width:70px; color:#555; }
   .pp-teams{ font-weight:600; }
+  .pp-team{ white-space:nowrap; }
   .pp-vs{ color:#aaa; margin:0 8px; font-weight:400; font-size:11px; text-transform:uppercase; }
   .pp-score{ width:110px; }
   .pp-scorebox{ display:flex; align-items:flex-end; justify-content:center; gap:7px; }
@@ -4291,7 +4339,7 @@ function downloadFullSchedulePoster(customTitle){
   <div class="pp-print-bar"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>
   <div class="pp-header">
     <h1>🏆 ${esc(customTitle)}</h1>
-    <div class="sub">Kitchen Ladder — Generated ${dateStr}</div>
+    <div class="sub">Kitchen Ladder — Generated ${dateStr} · ${paperSize ? paperSize.toUpperCase() : 'LETTER'}</div>
     <div class="pp-meta">
       <div><b>${totalMatches}</b>Matches</div>
       <div><b>${allGens.length}</b>Round${allGens.length!==1?'s':''}</div>
@@ -6894,8 +6942,10 @@ document.addEventListener('click', function(e){
     case 'do-download-schedule-poster': {
       const inp = document.getElementById('tournamentTitleInput');
       const title = (inp && inp.value.trim()) ? inp.value.trim() : 'Pickleball Session';
+      const sizeEl = document.querySelector('input[name="ppSize"]:checked');
+      const size = sizeEl ? sizeEl.value : 'letter';
       closeModal();
-      downloadFullSchedulePoster(title);
+      downloadFullSchedulePoster(title, size);
       break;
     }
     case 'pick-session-plan': pickSessionPlan(t.dataset.plan); break;
