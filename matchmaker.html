@@ -1322,6 +1322,13 @@ function scoreCallText(m){
   const servingScore = m.serving === 'A' ? safeScore(m.scoreA) : safeScore(m.scoreB);
   const otherScore = m.serving === 'A' ? safeScore(m.scoreB) : safeScore(m.scoreA);
 
+  // Real pickleball exception: the very first serve of a new game is the one
+  // time the serving team only gets a single serve before side-out, and it's
+  // called as server number "2" (not "1") to flag that exception — so a
+  // brand-new game's first score call is "0-0-2", never "0-0-1". Every other
+  // point in the game calls the actual m.serverNum (1 or 2) as normal.
+  const callServerNum = m.firstServe ? 2 : m.serverNum;
+
   // 10 is always called "Love" instead of the bare digits, on EITHER side of
   // the score (the server's own score, the other team's score, or both if
   // tied at 10-10). Some speech engines misread a literal "10" sitting next
@@ -1330,15 +1337,15 @@ function scoreCallText(m){
   // how the score got there: scoring up, backing down via a correction, a
   // side-out (where the team that just lost serve can be the one sitting at
   // 10), or coming back up to 10 again.
-  if(servingScore === 10 && otherScore === 10) return `All Love ${speakScoreNumber(m.serverNum)}`;
-  if(servingScore === 10) return `Love, ${speakScoreNumber(otherScore)} ${speakScoreNumber(m.serverNum)}`;
-  if(otherScore === 10) return `${speakScoreNumber(servingScore)} Love ${speakScoreNumber(m.serverNum)}`;
+  if(servingScore === 10 && otherScore === 10) return `All Love ${speakScoreNumber(callServerNum)}`;
+  if(servingScore === 10) return `Love, ${speakScoreNumber(otherScore)} ${speakScoreNumber(callServerNum)}`;
+  if(otherScore === 10) return `${speakScoreNumber(servingScore)} Love ${speakScoreNumber(callServerNum)}`;
 
   // Tied scores (not at 10) get the standard pickleball "All" call instead of
   // saying the same number twice — e.g. "All 3 1" rather than "3 3 1".
-  if(servingScore === otherScore) return `All ${speakScoreNumber(servingScore)} ${speakScoreNumber(m.serverNum)}`;
+  if(servingScore === otherScore) return `All ${speakScoreNumber(servingScore)} ${speakScoreNumber(callServerNum)}`;
 
-  return `${speakScoreNumber(servingScore)} ${speakScoreNumber(otherScore)} ${speakScoreNumber(m.serverNum)}`;
+  return `${speakScoreNumber(servingScore)} ${speakScoreNumber(otherScore)} ${speakScoreNumber(callServerNum)}`;
 }
 
 // Special call for switching to serve 2 while the serving team is at 10 —
