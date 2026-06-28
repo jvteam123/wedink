@@ -667,6 +667,44 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 .session-progress-fill{ height:100%; background:var(--ball); border-radius:999px; transition:width .25s ease; }
 .session-progress-label{ font-size:11px; color:var(--text-faint); margin-top:6px; display:flex; justify-content:space-between; }
 
+/* ---------- Full Schedule Modal ---------- */
+.sched-summary{ display:flex; gap:8px; margin:2px 0 12px; }
+.sched-summary .s-item{
+  flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-md);
+  padding:10px 6px; text-align:center; min-width:0;
+}
+.sched-summary .s-item .n{ font-family:var(--font-mono); font-size:18px; font-weight:800; color:var(--text); line-height:1; }
+.sched-summary .s-item .l{ font-size:8.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.05em; margin-top:4px; }
+.sched-round{ margin-bottom:14px; }
+.sched-round-head{ display:flex; align-items:baseline; justify-content:space-between; margin:0 2px 6px; gap:8px; }
+.sched-round-head .rt{ font-size:11.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--text); }
+.sched-round-head .rc{ font-size:11px; color:var(--text-faint); font-family:var(--font-mono); flex:none; }
+.sched-card{ background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-md); padding:2px 12px; }
+.sched-match{ display:flex; align-items:center; gap:10px; padding:9px 2px; border-bottom:1px solid var(--line-soft); }
+.sched-match:last-child{ border-bottom:none; }
+.sched-match-num{
+  flex:none; width:24px; height:24px; border-radius:7px; background:var(--surface-3);
+  display:flex; align-items:center; justify-content:center; font-family:var(--font-mono);
+  font-size:10.5px; font-weight:700; color:var(--text-faint);
+}
+.sched-match-body{ flex:1; min-width:0; }
+.sched-match-teams{ font-size:13px; font-weight:700; color:var(--text); line-height:1.45; }
+.sched-match-teams .vs{ color:var(--text-faint); font-weight:400; margin:0 5px; font-size:10.5px; text-transform:uppercase; }
+.sched-status{ flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+.sched-pill{
+  display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:999px;
+  font-size:10px; font-weight:700; font-family:var(--font-mono); white-space:nowrap;
+}
+.sched-pill-played{ background:rgba(62,213,152,0.10); color:var(--win); }
+.sched-pill-live{ background:rgba(215,242,61,0.14); color:var(--ball); }
+.sched-pill-queued{ background:var(--surface-3); color:var(--text-faint); }
+.sched-score{ font-size:11px; color:var(--text-faint); font-family:var(--font-mono); }
+.sched-sitting{
+  display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; padding:8px 2px 4px;
+  font-size:11px; color:var(--text-faint); border-top:1px solid var(--line-soft); margin-top:2px;
+}
+.sched-sitting b{ color:var(--text-dim); font-weight:700; }
+
 /* ---------- Up Next preview card (Open Play) ---------- */
 .up-next-card{
   background:var(--surface-2); border:1px dashed var(--line);
@@ -4048,40 +4086,172 @@ function showFullScheduleModal(){
   if(!allGens.length){ toast('No schedule to show yet.', 'info'); return; }
 
   const plan = state.settings.sessionPlan;
+  const allMatches = allGens.flatMap(g => g.matches);
+  const totalMatches = allMatches.length;
+  const playedCount = allMatches.filter(m => m.status === 'done').length;
+  const playerIds = new Set();
+  allMatches.forEach(m => { m.teamA.forEach(id => playerIds.add(id)); m.teamB.forEach(id => playerIds.add(id)); });
+  const pct = totalMatches ? Math.round((playedCount / totalMatches) * 100) : 0;
+
   const roundsHtml = allGens.map(gen => {
-    const rows = gen.matches.slice().sort((a,b) => a.matchIndex - b.matchIndex).map(m => {
+    const genMatches = gen.matches.slice().sort((a,b) => a.matchIndex - b.matchIndex);
+    const genPlayed = genMatches.filter(m => m.status === 'done').length;
+    const rows = genMatches.map(m => {
       const a1 = esc(playerName(m.teamA[0])), a2 = esc(playerName(m.teamA[1]));
       const b1 = esc(playerName(m.teamB[0])), b2 = esc(playerName(m.teamB[1]));
-      const tag = m.status === 'done'
-        ? `<span style="color:var(--text-faint);">Played${m.scoreA!=null ? ` · ${m.scoreA}–${m.scoreB}` : ''}</span>`
+      const statusHtml = m.status === 'done'
+        ? `<span class="sched-pill sched-pill-played">✅ Played</span>${m.scoreA!=null ? `<span class="sched-score">${m.scoreA}–${m.scoreB}</span>` : ''}`
         : m.status === 'active'
-          ? `<span style="color:var(--ball); font-weight:600;">Court ${m.court}</span>`
-          : `<span style="color:var(--text-faint);">Queued</span>`;
+          ? `<span class="sched-pill sched-pill-live">🎾 Court ${m.court}</span>`
+          : `<span class="sched-pill sched-pill-queued">⏳ Queued</span>`;
       return `
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 2px; border-bottom:1px solid var(--line-soft); font-size:12.5px;">
-          <span>${a1} / ${a2} <span style="color:var(--text-faint);">vs</span> ${b1} / ${b2}</span>
-          <span class="mono" style="font-size:11px; white-space:nowrap;">${tag}</span>
+        <div class="sched-match">
+          <div class="sched-match-num">#${m.matchIndex + 1}</div>
+          <div class="sched-match-body">
+            <div class="sched-match-teams">${a1} &amp; ${a2}<span class="vs">vs</span>${b1} &amp; ${b2}</div>
+          </div>
+          <div class="sched-status">${statusHtml}</div>
         </div>`;
     }).join('');
     const sittingNames = (gen.sittingOut || []).map(id => esc(playerName(id))).join(', ');
     return `
-      <div class="eyebrow" style="margin:14px 2px 6px;">Round ${gen.generation}</div>
-      <div class="card" style="margin:0 0 8px; padding:2px 12px;">
-        ${rows}
-        ${sittingNames ? `<div style="padding:7px 2px 2px; font-size:11.5px; color:var(--text-faint);">Sitting out: ${sittingNames}</div>` : ''}
+      <div class="sched-round">
+        <div class="sched-round-head">
+          <span class="rt">Round ${gen.generation}</span>
+          <span class="rc">${genPlayed}/${genMatches.length} played</span>
+        </div>
+        <div class="sched-card">
+          ${rows}
+          ${sittingNames ? `<div class="sched-sitting">🪑 <b>Sitting out:</b> ${sittingNames}</div>` : ''}
+        </div>
       </div>`;
   }).join('');
 
   openModal(`
     <div class="modal-title">📋 Full Session Schedule</div>
-    <div class="modal-sub" style="line-height:1.6;">${plan ? `${esc(plan.label)} · ${plan.totalMatches} matches across ${allGens.length} round${allGens.length!==1?'s':''}.` : `${allGens.length} round${allGens.length!==1?'s':''} generated.`}</div>
-    <div style="max-height:55vh; overflow-y:auto; margin-top:4px;">
+    <div class="modal-sub" style="line-height:1.6;">${plan ? esc(plan.label) : 'Custom schedule'} — every round, planned up front.</div>
+
+    <div class="sched-summary">
+      <div class="s-item"><div class="n">${totalMatches}</div><div class="l">Matches</div></div>
+      <div class="s-item"><div class="n">${allGens.length}</div><div class="l">Round${allGens.length!==1?'s':''}</div></div>
+      <div class="s-item"><div class="n">${playerIds.size}</div><div class="l">Player${playerIds.size!==1?'s':''}</div></div>
+      <div class="s-item"><div class="n">${state.settings.numCourts||1}</div><div class="l">Court${(state.settings.numCourts||1)!==1?'s':''}</div></div>
+    </div>
+
+    <div class="session-progress-wrap">
+      <div class="session-progress-track"><div class="session-progress-fill" style="width:${pct}%;"></div></div>
+      <div class="session-progress-label"><span>${playedCount} of ${totalMatches} played</span><span>${pct}%</span></div>
+    </div>
+
+    <div style="max-height:50vh; overflow-y:auto; margin-top:14px;">
       ${roundsHtml}
     </div>
-    <div class="modal-actions" style="margin-top:16px;">
+    <div class="modal-actions" style="margin-top:16px; flex-direction:column; gap:8px;">
+      <button class="btn btn-secondary btn-block" data-action="download-full-schedule-poster">🖨️ Download / Print Schedule Poster</button>
       <button class="btn btn-primary btn-block" data-action="modal-close">Close</button>
     </div>
   `);
+}
+
+// Builds a standalone, print-friendly HTML "poster" of the whole session
+// schedule — light background (so it doesn't waste ink), large readable
+// type, a blank line next to each match for writing the final score by
+// hand, and a court board organizers can tape up at the venue. Opens in a
+// new tab with a Print button (and auto-triggers the print dialog so
+// "Save as PDF" is one tap away); falls back to a direct file download if
+// the popup gets blocked by the browser.
+function downloadFullSchedulePoster(){
+  const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
+  if(!allGens.length){ toast('No schedule to print yet.', 'info'); return; }
+
+  const plan = state.settings.sessionPlan;
+  const allMatches = allGens.flatMap(g => g.matches);
+  const totalMatches = allMatches.length;
+  const playerIds = new Set();
+  allMatches.forEach(m => { m.teamA.forEach(id => playerIds.add(id)); m.teamB.forEach(id => playerIds.add(id)); });
+  const dateStr = new Date().toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' });
+
+  const roundsHtml = allGens.map(gen => {
+    const genMatches = gen.matches.slice().sort((a,b) => a.matchIndex - b.matchIndex);
+    const rows = genMatches.map(m => {
+      const a1 = esc(playerName(m.teamA[0])), a2 = esc(playerName(m.teamA[1]));
+      const b1 = esc(playerName(m.teamB[0])), b2 = esc(playerName(m.teamB[1]));
+      const courtLabel = m.court ? `Court ${m.court}` : '—';
+      return `<tr>
+        <td class="pp-num">${m.matchIndex + 1}</td>
+        <td class="pp-court">${courtLabel}</td>
+        <td class="pp-teams"><span class="pp-team">${a1} &amp; ${a2}</span><span class="pp-vs">vs</span><span class="pp-team">${b1} &amp; ${b2}</span></td>
+        <td class="pp-score">_____&nbsp;&nbsp;–&nbsp;&nbsp;_____</td>
+      </tr>`;
+    }).join('');
+    const sittingNames = (gen.sittingOut || []).map(id => esc(playerName(id))).join(', ');
+    return `
+      <section class="pp-round">
+        <h2>Round ${gen.generation}</h2>
+        <table class="pp-table">
+          <thead><tr><th>#</th><th>Court</th><th>Matchup</th><th>Score</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${sittingNames ? `<div class="pp-sitting">Sitting out: ${sittingNames}</div>` : ''}
+      </section>`;
+  }).join('');
+
+  const posterHtml = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Kitchen Ladder — Full Schedule</title>
+<style>
+  @page{ size:letter portrait; margin:0.5in; }
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#111; margin:0; padding:28px; background:#fff;}
+  .pp-print-bar{ text-align:center; margin-bottom:22px; }
+  .pp-print-bar button{ font-size:14px; font-weight:700; padding:10px 22px; border-radius:8px; border:none; background:#111; color:#fff; cursor:pointer; }
+  .pp-header{ text-align:center; border-bottom:3px solid #111; padding-bottom:14px; margin-bottom:18px; }
+  .pp-header h1{ font-size:30px; margin:0 0 4px; letter-spacing:0.02em; }
+  .pp-header .sub{ font-size:13px; color:#555; }
+  .pp-meta{ display:flex; justify-content:center; gap:28px; margin-top:12px; font-size:11px; color:#444; flex-wrap:wrap; text-transform:uppercase; letter-spacing:.04em; }
+  .pp-meta b{ font-size:17px; display:block; color:#111; letter-spacing:0; text-transform:none; }
+  .pp-round{ margin-bottom:24px; page-break-inside:avoid; }
+  .pp-round h2{ font-size:16px; margin:0 0 8px; background:#111; color:#fff; display:inline-block; padding:4px 14px; border-radius:4px; }
+  table.pp-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.pp-table th{ text-align:left; border-bottom:2px solid #111; padding:6px 8px; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:#444; }
+  table.pp-table td{ padding:9px 8px; border-bottom:1px solid #ddd; vertical-align:middle; }
+  .pp-num{ font-weight:700; width:28px; color:#555; }
+  .pp-court{ width:70px; color:#555; }
+  .pp-teams{ font-weight:600; }
+  .pp-vs{ color:#aaa; margin:0 8px; font-weight:400; font-size:11px; text-transform:uppercase; }
+  .pp-score{ font-family:ui-monospace,Menlo,Consolas,monospace; width:130px; color:#aaa; }
+  .pp-sitting{ font-size:11.5px; color:#777; margin-top:6px; padding-left:2px; }
+  .pp-footer{ margin-top:30px; text-align:center; font-size:11px; color:#999; border-top:1px solid #ddd; padding-top:10px; }
+  @media print{ .pp-print-bar{ display:none; } body{ padding:0; } }
+</style>
+</head>
+<body>
+  <div class="pp-print-bar"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>
+  <div class="pp-header">
+    <h1>🏆 ${plan ? esc(plan.label) : 'Session'} Schedule</h1>
+    <div class="sub">Kitchen Ladder — Generated ${dateStr}</div>
+    <div class="pp-meta">
+      <div><b>${totalMatches}</b>Matches</div>
+      <div><b>${allGens.length}</b>Round${allGens.length!==1?'s':''}</div>
+      <div><b>${playerIds.size}</b>Players</div>
+      <div><b>${state.settings.numCourts||1}</b>Court${(state.settings.numCourts||1)!==1?'s':''}</div>
+    </div>
+  </div>
+  ${roundsHtml}
+  <div class="pp-footer">Kitchen Ladder · Pickleball 2v2 Matchmaker</div>
+</body></html>`;
+
+  const blob = new Blob([posterHtml], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if(!win){
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kitchen-ladder-schedule-${Date.now()}.html`;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('Pop-up blocked — downloaded the schedule as a file instead. Open it and tap Print.', 'info');
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 // Pulls the next queued match(es) onto any court that just freed up.
@@ -6628,6 +6798,7 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'view-full-schedule': showFullScheduleModal(); break;
+    case 'download-full-schedule-poster': downloadFullSchedulePoster(); break;
     case 'pick-session-plan': pickSessionPlan(t.dataset.plan); break;
     case 'pick-session-plan-custom': openCustomSessionLengthModal(); break;
     case 'confirm-custom-session-length': confirmCustomSessionLength(); break;
