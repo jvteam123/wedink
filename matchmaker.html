@@ -652,6 +652,9 @@ tr.rank-1 .rankbadge{color:var(--ball);}
   flex:none; width:20px; height:20px; border-radius:50%; border:1.5px solid var(--line); 
 }
 .session-opt.recommended .session-opt-check{ border-color:var(--ball); }
+.session-opt.custom-opt{ border-style:dashed; background:transparent; }
+.session-opt.custom-opt .session-opt-count{ background:var(--surface-2); font-size:18px; }
+.session-opt.custom-opt .session-opt-name{ color:var(--text-dim); }
 .session-confirm-row{
   display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line-soft);
   font-size:13px; gap:12px;
@@ -3523,7 +3526,17 @@ function openSessionLengthPicker(){
   openModal(`
     <div class="modal-title">🏆 Choose Session Length</div>
     <div class="modal-sub" style="line-height:1.6;">With <b style="color:var(--text);">${playerCount} active player${playerCount!==1?'s':''}</b>, here's how each option breaks down so games stay equally played.</div>
-    <div class="session-opt-list">${optsHtml}</div>
+    <div class="session-opt-list">
+      ${optsHtml}
+      <button type="button" class="session-opt custom-opt" data-action="pick-session-plan-custom">
+        <div class="session-opt-count"><span class="n">✏️</span></div>
+        <div class="session-opt-body">
+          <div class="session-opt-name">Custom</div>
+          <div class="session-opt-sub">Type in your own total match count</div>
+        </div>
+        <div class="session-opt-check"></div>
+      </button>
+    </div>
     <button class="btn btn-ghost" style="margin-top:10px; width:100%;" data-action="back-to-session-setup">Back to Courts &amp; Scoring</button>
   `, false);
 }
@@ -3535,6 +3548,61 @@ function pickSessionPlan(planId){
   const scaled = scaledPlanMatches(opt, playerCount);
   const gpp = actualGamesPerPlayer(scaled, playerCount);
   openSessionConfirmModal(opt, scaled, gpp, playerCount);
+}
+
+// Custom session length: lets the organizer type in their own total match
+// count instead of picking one of the 5 named plans. Still rounds to the
+// nearest full generation (matchesPerGeneration) so the equal-play guarantee
+// that every other plan relies on — nobody left mid-rotation when the
+// session ends — holds for custom lengths too.
+function openCustomSessionLengthModal(){
+  const playerCount = activePlayers().length;
+  const perGen = matchesPerGeneration(playerCount);
+  const balancedOpt = SESSION_PLAN_OPTIONS.find(o => o.id === 'balanced');
+  const suggested = balancedOpt ? scaledPlanMatches(balancedOpt, playerCount) : perGen;
+
+  openModal(`
+    <div class="modal-title">✏️ Custom Session Length</div>
+    <div class="modal-sub" style="line-height:1.6;">With <b style="color:var(--text);">${playerCount} active player${playerCount!==1?'s':''}</b>, matches run ${perGen} at a time per generation — whatever you enter rounds to the nearest full generation so everyone keeps getting equal play.</div>
+    <div class="field">
+      <label>Total Matches</label>
+      <input type="number" id="customSessionMatchesInput" inputmode="numeric" pattern="[0-9]*" min="${perGen}" max="300" step="1" value="${suggested}" oninput="window.updateCustomSessionPreview(this.value)">
+    </div>
+    <p class="helper-text" id="customSessionPreview" style="text-align:center;"></p>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn btn-ghost" data-action="back-to-session-picker">Back</button>
+      <button class="btn btn-primary" data-action="confirm-custom-session-length">Continue</button>
+    </div>
+  `, false);
+
+  window.updateCustomSessionPreview = function(val){
+    const previewEl = document.getElementById('customSessionPreview');
+    if(!previewEl) return;
+    const raw = parseInt(val, 10);
+    if(isNaN(raw) || raw < 1){ previewEl.textContent = 'Enter a number to see how it breaks down.'; return; }
+    const rounded = Math.max(perGen, Math.round(raw / perGen) * perGen);
+    const gpp = actualGamesPerPlayer(rounded, playerCount);
+    const gens = Math.round(rounded / perGen);
+    previewEl.textContent = `Rounds to ${rounded} match${rounded!==1?'es':''} · ${gpp} game${gpp!==1?'s':''} per player · ${gens} generation${gens!==1?'s':''}`;
+  };
+  window.updateCustomSessionPreview(suggested);
+}
+
+function confirmCustomSessionLength(){
+  const input = document.getElementById('customSessionMatchesInput');
+  const playerCount = activePlayers().length;
+  const perGen = matchesPerGeneration(playerCount);
+  const raw = parseInt(input ? input.value : '', 10);
+
+  if(isNaN(raw) || raw < 1){
+    toast('Enter a valid number of matches.', 'warning');
+    return;
+  }
+
+  const totalMatches = Math.max(perGen, Math.round(raw / perGen) * perGen);
+  const gpp = actualGamesPerPlayer(totalMatches, playerCount);
+  const customOpt = { id: 'custom', label: 'Custom Session', gamesPerPlayer: gpp, tag: '' };
+  openSessionConfirmModal(customOpt, totalMatches, gpp, playerCount);
 }
 
 function openSessionConfirmModal(opt, totalMatches, gpp, playerCount){
@@ -3635,7 +3703,7 @@ function confirmSessionPlanAndGenerate(planId, totalMatches, gpp){
 
   state.settings.sessionPlan = {
     id: planId,
-    label: opt ? opt.label : 'Session',
+    label: opt ? opt.label : 'Custom Session',
     totalMatches: totalMatches,
     gamesPerPlayer: gpp,
     matchesAtStart: state.matches.length
@@ -6561,6 +6629,8 @@ document.addEventListener('click', function(e){
     }
     case 'view-full-schedule': showFullScheduleModal(); break;
     case 'pick-session-plan': pickSessionPlan(t.dataset.plan); break;
+    case 'pick-session-plan-custom': openCustomSessionLengthModal(); break;
+    case 'confirm-custom-session-length': confirmCustomSessionLength(); break;
     case 'back-to-session-picker': openSessionLengthPicker(); break;
     case 'back-to-session-setup': openSessionSetupModal(); break;
     case 'confirm-session-setup': confirmSessionSetup(); break;
