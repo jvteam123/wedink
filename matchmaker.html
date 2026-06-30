@@ -5455,16 +5455,15 @@ function showFullScheduleModal(){
       <button class="btn btn-primary btn-block" data-action="modal-close">Close</button>
     </div>
   `);
-
-  // Store builder fn on window so the replace-player flow can refresh the list in-place
-  window._schedRebuild = function(){
-    const wrap = document.getElementById('schedBodyWrap');
-    if(wrap) wrap.innerHTML = buildScheduleRows();
-  };
 }
 
 // Opens a second sheet to pick a replacement for a player in a queued scheduled match.
 function openSchedReplaceModal(matchId, genNum, team, slot){
+  // Remember how far down the schedule list we'd scrolled, so we can
+  // restore it after the swap instead of snapping back to the top.
+  const wrapEl = document.getElementById('schedBodyWrap');
+  if(wrapEl) window._schedScrollTop = wrapEl.scrollTop;
+
   // Find the match across currentGeneration + scheduledGenerations
   const allGens = [state.currentGeneration].concat(state.scheduledGenerations || []).filter(Boolean);
   const gen = allGens.find(g => g.generation === parseInt(genNum, 10));
@@ -5581,8 +5580,17 @@ function schedDoReplace(matchId, genNum, team, slot, newId){
     toast(`${playerName(oldId)} → ${playerName(newId)} in Match #${m.matchIndex + 1}.`, 'success');
   }
 
-  // Re-open the full schedule modal (refreshes everything cleanly)
+  // The "Swap Player" sub-sheet replaced the schedule modal's DOM, so
+  // reopen the schedule view and restore the scroll position we had before
+  // the swap — keeps it from jumping back to the top after every edit.
   showFullScheduleModal();
+  const savedTop = window._schedScrollTop;
+  if(savedTop){
+    requestAnimationFrame(() => {
+      const wrap = document.getElementById('schedBodyWrap');
+      if(wrap) wrap.scrollTop = savedTop;
+    });
+  }
 }
 
 // Builds a standalone, print-friendly HTML "poster" of the whole session
@@ -8406,6 +8414,13 @@ document.addEventListener('click', function(e){
       break;
     case 'sched-back-to-schedule':
       showFullScheduleModal();
+      if(window._schedScrollTop){
+        const savedTop = window._schedScrollTop;
+        requestAnimationFrame(() => {
+          const wrap = document.getElementById('schedBodyWrap');
+          if(wrap) wrap.scrollTop = savedTop;
+        });
+      }
       break;
     case 'download-full-schedule-poster': downloadFullSchedulePoster(); break;
     case 'do-download-schedule-poster': {
