@@ -5479,36 +5479,41 @@ function openSchedReplaceModal(matchId, genNum, team, slot){
   // All 4 players currently in this match (to exclude from picker)
   const inMatchIds = new Set([...m.teamA, ...m.teamB]);
 
-  // Also exclude anyone else already playing in *this same round* (a player
-  // can't be on two courts at once within one generation) — but players
-  // scheduled in other rounds are fair game, since this tool is for freely
-  // customizing the whole schedule.
-  const busyThisRoundIds = new Set();
+  // Find anyone else already playing in *this same round* — not to exclude
+  // them, but to flag them, since picking one will pull them out of their
+  // other match (a straight position swap) to keep the round consistent.
+  const busyThisRoundMap = new Map(); // playerId -> { match, team, slot }
   gen.matches.forEach(other => {
     if(other.id === m.id || other.status === 'done') return;
-    other.teamA.forEach(id => busyThisRoundIds.add(id));
-    other.teamB.forEach(id => busyThisRoundIds.add(id));
+    other.teamA.forEach((id, i) => busyThisRoundMap.set(id, { match: other, team: 'A', slot: i }));
+    other.teamB.forEach((id, i) => busyThisRoundMap.set(id, { match: other, team: 'B', slot: i }));
   });
 
-  // Build candidate list: any checked-in player not already in this match
-  // and not already playing elsewhere this same round. Includes players
-  // sitting out this round and players assigned to other rounds.
+  // Build candidate list: every checked-in player except the 3 already in
+  // this match. Players busy elsewhere this round are included but flagged —
+  // picking one swaps them out of their other slot automatically.
   const candidates = state.players
-    .filter(p => p.active && !inMatchIds.has(p.id) && !busyThisRoundIds.has(p.id))
+    .filter(p => p.active && !inMatchIds.has(p.id))
     .sort((a,b) => a.name.localeCompare(b.name));
 
   if(!candidates.length){
-    toast('No other players available to swap in.', 'warning');
+    toast('No other checked-in players available to swap in.', 'warning');
     return;
   }
 
-  const listHtml = candidates.map(p => `
+  const listHtml = candidates.map(p => {
+    const busy = busyThisRoundMap.get(p.id);
+    const busyNote = busy
+      ? `<span style="font-size:11px; color:var(--court);">Court ${busy.match.matchIndex + 1} this round — will swap</span>`
+      : `<span style="font-size:11px; color:var(--text-faint);">DUPR ${duprStr(p)} · ELO ${p.rating}</span>`;
+    return `
     <button class="btn btn-secondary btn-block" style="margin-top:6px; justify-content:space-between; text-align:left;"
       data-action="sched-do-replace" data-match-id="${matchId}" data-gen="${genNum}"
       data-team="${team}" data-slot="${slot}" data-new-id="${p.id}">
       <span>${esc(p.name)}</span>
-      <span style="font-size:11px; color:var(--text-faint);">DUPR ${duprStr(p)} · ELO ${p.rating}</span>
-    </button>`).join('');
+      ${busyNote}
+    </button>`;
+  }).join('');
 
   openModal(`
     <div class="modal-title">Swap Player</div>
@@ -5533,6 +5538,32 @@ function schedDoReplace(matchId, genNum, team, slot, newId){
 
   const slotIdx = parseInt(slot, 10);
   const oldId = team === 'A' ? m.teamA[slotIdx] : m.teamB[slotIdx];
+
+  // If the incoming player is already playing in another match this same
+  // round, pull them out of that slot and put the outgoing player there
+  // instead — a clean position swap, so the round stays fully staffed
+  // instead of leaving a hole.
+  let displacedFrom = null;
+  let displaceBlocked = false;
+  gen.matches.forEach(other => {
+    if(other.id === m.id || other.status === 'done' || displacedFrom || displaceBlocked) return;
+    const idxA = other.teamA.indexOf(newId);
+    const idxB = idxA === -1 ? other.teamB.indexOf(newId) : -1;
+    if(idxA === -1 && idxB === -1) return;
+    if(other.status === 'active' && hasMatchStarted(other)){
+      // That match is already underway — can't pull a player out mid-score.
+      displaceBlocked = true;
+      return;
+    }
+    if(idxA !== -1){ other.teamA[idxA] = oldId; displacedFrom = other; }
+    else { other.teamB[idxB] = oldId; displacedFrom = other; }
+  });
+
+  if(displaceBlocked){
+    toast("That player's other match has already started scoring — can't swap them out of it.", 'warning');
+    return;
+  }
+
   if(team === 'A') m.teamA[slotIdx] = newId;
   else             m.teamB[slotIdx] = newId;
 
@@ -5544,7 +5575,11 @@ function schedDoReplace(matchId, genNum, team, slot, newId){
   }
 
   saveAll();
-  toast(`${playerName(oldId)} → ${playerName(newId)} in Match #${m.matchIndex + 1}.`, 'success');
+  if(displacedFrom){
+    toast(`${playerName(oldId)} ↔ ${playerName(newId)} swapped between Match #${m.matchIndex + 1} and Match #${displacedFrom.matchIndex + 1}.`, 'success');
+  } else {
+    toast(`${playerName(oldId)} → ${playerName(newId)} in Match #${m.matchIndex + 1}.`, 'success');
+  }
 
   // Re-open the full schedule modal (refreshes everything cleanly)
   showFullScheduleModal();
