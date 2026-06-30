@@ -5770,6 +5770,50 @@ function liveMatchCtx(mode, matchId){
   };
 }
 
+// Shows a confirmation modal before locking in a winner, to prevent mis-taps.
+// Calls selectMatchWinner after user confirms.
+function confirmSelectWinner(ctx, winningTeam) {
+  const m = ctx.getMatch();
+  if (!m || m.status === 'done') return;
+
+  // If flipping an existing winner selection just do it immediately — they
+  // already confirmed once; this is a correction, not a first-time pick.
+  if (m.winner && m.winner !== winningTeam) {
+    selectMatchWinner(ctx, winningTeam);
+    return;
+  }
+
+  // Build team display names for the modal
+  const teamKey = winningTeam === 'A' ? 'teamA' : 'teamB';
+  const ids = m[teamKey] || [];
+  const names = ids.map(id => esc(playerName(id))).join(' &amp; ') || ('Team ' + winningTeam);
+  const teamLabel = winningTeam === 'A' ? 'Team A' : 'Team B';
+  const teamColor = winningTeam === 'A' ? 'var(--ball)' : 'var(--court)';
+
+  openModal(`
+    <div class="modal-title">Confirm Winner?</div>
+    <div class="modal-sub" style="line-height:1.6;">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${teamColor};">${teamLabel}</span><br>
+      <strong style="color:var(--text);font-size:17px;">${names}</strong>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
+      <button class="btn btn-primary" data-action="modal-close" id="confirmWinnerBtn">🏆 Confirm Win</button>
+    </div>
+  `);
+
+  // Attach one-time click handler on the confirm button
+  requestAnimationFrame(() => {
+    const btn = document.getElementById('confirmWinnerBtn');
+    if (btn) {
+      btn.addEventListener('click', function handler() {
+        btn.removeEventListener('click', handler);
+        selectMatchWinner(ctx, winningTeam);
+      }, { once: true });
+    }
+  });
+}
+
 // Tapping a "Team X Wins" button: locks in the winner, and snaps the
 // scoreline to a valid winning score if it hasn't gotten there yet (or
 // swaps the scores back if the selection is being flipped to the other team).
@@ -8070,7 +8114,7 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'ps-confirm-start': psConfirmStart(); break;
-    case 'ps-set-winner': psSetWinner(t.dataset.court, t.dataset.team); break;
+    case 'ps-set-winner': confirmSelectWinner(liveMatchCtxPS(t.dataset.court), t.dataset.team); break;
     case 'ps-score-adjust': adjustMatchScore(liveMatchCtxPS(t.dataset.court), t.dataset.team, parseInt(t.dataset.delta,10)); break;
     case 'ps-set-server': setServingTeam(liveMatchCtxPS(t.dataset.court), t.dataset.team); break;
     case 'ps-advance-server': advanceServer(liveMatchCtxPS(t.dataset.court)); break;
@@ -8198,7 +8242,7 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'do-close-rc-court': closeRotationCourt(t.dataset.court); break;
-    case 'rc-set-winner': setRotationCourtWinner(t.dataset.court, t.dataset.team); break;
+    case 'rc-set-winner': confirmSelectWinner(liveRotationCourtCtx(t.dataset.court), t.dataset.team); break;
     case 'rc-score-adjust': adjustRotationCourtScore(t.dataset.court, t.dataset.team, parseInt(t.dataset.delta,10)); break;
     case 'rc-set-server': setRotationCourtServer(t.dataset.court, t.dataset.team); break;
     case 'rc-advance-server': rotationCourtAdvanceServer(t.dataset.court); break;
@@ -8266,7 +8310,7 @@ document.addEventListener('click', function(e){
       recordRotationMatch(document.getElementById('scoreA').value, document.getElementById('scoreB').value);
       break;
     case 'rotation-score-adjust': adjustMatchScore(liveMatchCtx('rotation', null), t.dataset.team, parseInt(t.dataset.delta,10)); break;
-    case 'set-rotation-winner': selectMatchWinner(liveMatchCtx('rotation', null), t.dataset.team); break;
+    case 'set-rotation-winner': confirmSelectWinner(liveMatchCtx('rotation', null), t.dataset.team); break;
     case 'rotation-set-server': setServingTeam(liveMatchCtx('rotation', null), t.dataset.team); break;
     case 'rotation-advance-server': advanceServer(liveMatchCtx('rotation', null)); break;
     case 'rotation-side-out': sideOutMatch(liveMatchCtx('rotation', null)); break;
@@ -8333,7 +8377,7 @@ document.addEventListener('click', function(e){
     case 'start-new-session-plan': startNewSessionPlan(); break;
     case 'continue-match-cycle': continueMatchCycle(); break;
     case 'set-rr-winner':
-      selectMatchWinner(liveMatchCtx('rr', t.dataset.match), t.dataset.team);
+      confirmSelectWinner(liveMatchCtx('rr', t.dataset.match), t.dataset.team);
       break;
     case 'rr-score-adjust': adjustMatchScore(liveMatchCtx('rr', t.dataset.match), t.dataset.team, parseInt(t.dataset.delta,10)); break;
     case 'rr-set-server': setServingTeam(liveMatchCtx('rr', t.dataset.match), t.dataset.team); break;
