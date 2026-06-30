@@ -846,6 +846,1196 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 .summary-card .sc-name{ font-size:15px; font-weight:800; color:var(--text); }
 .summary-card .sc-val{ font-family:var(--font-mono); font-size:13px; color:var(--court); margin-top:3px; }
 
+/* ================================================================
+   KITCHEN LADDER — ENHANCED UI v2
+   Glassmorphism · Light/Dark Mode · FAB · Upgraded Toasts & Modals
+   ================================================================ */
+
+/* ---- Google Fonts import ---- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+/* ---- Override font stack to use Inter ---- */
+:root {
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* Glassmorphism tokens — dark mode */
+  --glass-bg: rgba(24, 30, 37, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: blur(18px);
+  --glass-highlight: rgba(255, 255, 255, 0.04);
+
+  /* Extended pickleball palette */
+  --pk-yellow: #D7F23D;
+  --pk-yellow-glow: rgba(215, 242, 61, 0.25);
+  --pk-blue: #4FA8FF;
+  --pk-blue-glow: rgba(79, 168, 255, 0.2);
+  --pk-green: #3ED598;
+  --pk-green-glow: rgba(62, 213, 152, 0.2);
+  --pk-red: #FF6B6B;
+
+  /* Elevation shadows — dark */
+  --shadow-float: 0 8px 32px -8px rgba(0,0,0,0.7), 0 2px 8px -2px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.04) inset;
+  --shadow-card: 0 4px 16px -6px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04) inset;
+  --shadow-fab: 0 8px 28px -4px rgba(215,242,61,0.45), 0 4px 12px -4px rgba(0,0,0,0.6);
+  --shadow-toast: 0 8px 32px -6px rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.4);
+
+  /* Transition defaults */
+  --t-fast: 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+  --t-med: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --t-spring: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---- Light mode token overrides ---- */
+html.light-mode {
+  --bg: #F0F4F8;
+  --surface: #FFFFFF;
+  --surface-2: #F5F7FA;
+  --surface-3: #E8EDF3;
+  --line: #D0D8E4;
+  --line-soft: #E4EAF2;
+  --ball: #7A9A00;
+  --ball-dim: #9BBD00;
+  --court: #1A6FC4;
+  --court-dim: #2980D8;
+  --win: #1A8C5E;
+  --win-dim: #2AAB74;
+  --loss: #CC4040;
+  --loss-dim: #E05555;
+  --text: #1A2333;
+  --text-dim: #4A5568;
+  --text-faint: #8A96A8;
+  --pk-yellow-glow: rgba(120, 150, 0, 0.18);
+  --pk-blue-glow: rgba(26, 111, 196, 0.15);
+  --pk-green-glow: rgba(26, 140, 94, 0.15);
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
+  --shadow-float: 0 8px 32px -8px rgba(0,0,0,0.15), 0 2px 8px -2px rgba(0,0,0,0.08);
+  --shadow-card: 0 2px 8px -2px rgba(0,0,0,0.1), 0 1px 0 rgba(255,255,255,0.9) inset;
+  --shadow-fab: 0 8px 28px -4px rgba(100,130,0,0.45), 0 4px 12px -4px rgba(0,0,0,0.2);
+  --shadow-toast: 0 8px 32px -6px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-1: 0 1px 0 rgba(255,255,255,0.9) inset, 0 8px 24px -12px rgba(0,0,0,0.15);
+}
+
+/* ---- Smooth theme transition ---- */
+html { transition: background-color var(--t-med); }
+body { transition: background-color var(--t-med), color var(--t-med); }
+
+/* ---- Enhanced glass cards ---- */
+.card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--t-fast), box-shadow var(--t-fast), background var(--t-med);
+}
+.card:has(button:hover) {
+  box-shadow: var(--shadow-float);
+}
+
+/* ---- Enhanced topbar — glassmorphism ---- */
+.topbar {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  box-shadow: 0 1px 0 var(--glass-highlight), 0 4px 20px -8px rgba(0,0,0,0.3);
+}
+
+/* ---- Enhanced tabs ---- */
+.tabs-row { background: transparent !important; }
+.tabs {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+.tab-btn {
+  border-radius: 10px !important;
+  transition: all var(--t-fast) !important;
+  position: relative;
+  overflow: hidden;
+}
+.tab-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--pk-yellow-glow);
+  opacity: 0;
+  transition: opacity var(--t-fast);
+  border-radius: inherit;
+}
+.tab-btn.active::before { opacity: 1; }
+.tab-btn.active {
+  background: transparent !important;
+  color: var(--ball) !important;
+  border-color: rgba(215,242,61,0.3) !important;
+  box-shadow: 0 0 0 1px rgba(215,242,61,0.15) inset;
+}
+
+/* ---- Enhanced buttons ---- */
+.btn {
+  border-radius: 12px !important;
+  letter-spacing: 0.01em;
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--t-fast), filter var(--t-fast), box-shadow var(--t-fast) !important;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0);
+  transition: background var(--t-fast);
+  border-radius: inherit;
+}
+.btn:hover::after { background: rgba(255,255,255,0.06); }
+.btn:active { transform: scale(0.96) !important; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--ball) 0%, var(--ball-dim) 100%) !important;
+  box-shadow: 0 4px 14px -4px var(--pk-yellow-glow), 0 1px 0 rgba(255,255,255,0.15) inset;
+}
+.btn-primary:hover {
+  box-shadow: 0 6px 20px -4px var(--pk-yellow-glow), 0 1px 0 rgba(255,255,255,0.15) inset !important;
+  filter: brightness(1.08) !important;
+}
+.btn-court {
+  background: linear-gradient(135deg, var(--court) 0%, var(--court-dim) 100%) !important;
+  box-shadow: 0 4px 14px -4px var(--pk-blue-glow);
+}
+.btn-secondary {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+/* ---- Enhanced scoreboard — glow effect ---- */
+.scoreboard {
+  background: radial-gradient(ellipse at 20% 0%, rgba(79,168,255,0.12), transparent 60%),
+              radial-gradient(ellipse at 80% 100%, rgba(215,242,61,0.07), transparent 55%),
+              var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-float) !important;
+  transition: box-shadow var(--t-fast);
+}
+
+/* ---- Enhanced modal — glass bottom sheet ---- */
+.modal-bg {
+  background: rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  animation: modalBgIn var(--t-med) ease !important;
+}
+@keyframes modalBgIn { from { opacity: 0; backdrop-filter: blur(0); } to { opacity: 1; } }
+
+.modal-sheet {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-bottom: none !important;
+  box-shadow: 0 -8px 40px -8px rgba(0,0,0,0.5), 0 -1px 0 var(--glass-highlight) inset !important;
+  animation: sheetSpring var(--t-spring) forwards !important;
+  border-radius: 24px 24px 0 0 !important;
+}
+@keyframes sheetSpring {
+  from { transform: translateY(32px); opacity: 0.7; }
+  to { transform: translateY(0); opacity: 1; }
+}
+/* Modal drag handle */
+.modal-sheet::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  background: var(--line);
+  border-radius: 2px;
+  margin: -6px auto 16px;
+  opacity: 0.6;
+}
+.modal-title {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  background: linear-gradient(135deg, var(--text) 0%, var(--text-dim) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* ---- Upgraded Toast system ---- */
+#toast-root {
+  top: auto !important;
+  bottom: 100px !important;
+  right: 12px !important;
+  left: 12px !important;
+  max-width: 420px !important;
+  margin: 0 auto;
+  align-items: stretch !important;
+}
+.toast {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--shadow-toast) !important;
+  border-radius: 14px !important;
+  padding: 13px 16px 13px 14px !important;
+  font-size: 13.5px !important;
+  animation: toastSlideUp 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), toastOut .22s ease 2.8s forwards !important;
+}
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast.toast-success { border-left: 3px solid var(--win) !important; }
+.toast.toast-warning { border-left: 3px solid var(--ball) !important; }
+.toast.toast-error { border-left: 3px solid var(--loss) !important; }
+.toast.toast-info { border-left: 3px solid var(--court) !important; }
+
+/* ---- Live dot pulse — enhanced ---- */
+.live-dot .d {
+  animation: livePulse 1.4s ease-in-out infinite !important;
+}
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(62,213,152,0.5); transform: scale(1); }
+  50% { box-shadow: 0 0 0 6px rgba(62,213,152,0); transform: scale(1.1); }
+}
+
+/* ---- Floating Action Button ---- */
+#fab-add-player {
+  position: fixed;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  right: 16px;
+  z-index: 50;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--ball) 0%, var(--ball-dim) 100%);
+  color: #0E1208;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-fab);
+  transition: transform var(--t-spring), box-shadow var(--t-fast), opacity var(--t-fast);
+  animation: fabEntrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+}
+@keyframes fabEntrance {
+  from { transform: scale(0) rotate(-30deg); opacity: 0; }
+  to { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+#fab-add-player:hover {
+  transform: scale(1.07) translateY(-2px);
+  box-shadow: 0 12px 36px -6px var(--pk-yellow-glow), 0 4px 12px -4px rgba(0,0,0,0.5);
+}
+#fab-add-player:active {
+  transform: scale(0.94);
+  box-shadow: 0 4px 14px -4px var(--pk-yellow-glow);
+}
+#fab-add-player svg { width: 24px; height: 24px; transition: transform var(--t-spring); }
+#fab-add-player:hover svg { transform: rotate(90deg); }
+#fab-add-player.fab-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.6) translateY(16px);
+}
+
+/* FAB tooltip label */
+#fab-add-player::before {
+  content: attr(data-label);
+  position: absolute;
+  right: calc(100% + 10px);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  transform: translateX(6px);
+  pointer-events: none;
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+#fab-add-player:hover::before {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ---- Theme toggle button (topbar) ---- */
+#theme-toggle-btn {
+  width: 34px; height: 34px; border-radius: 10px; flex: none;
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+  color: var(--text); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+}
+#theme-toggle-btn:active { transform: scale(0.93); }
+#theme-toggle-btn svg { width: 17px; height: 17px; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+#theme-toggle-btn:active svg { transform: rotate(30deg); }
+html.light-mode #theme-toggle-btn { color: var(--ball); border-color: rgba(120,150,0,0.3); background: rgba(120,150,0,0.08); }
+
+/* ---- Enhanced avatar ---- */
+.avatar {
+  background: linear-gradient(135deg, var(--surface-3) 0%, var(--surface-2) 100%) !important;
+  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.06) inset;
+  transition: transform var(--t-fast), box-shadow var(--t-fast);
+}
+.player-row:hover .avatar {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px -2px var(--pk-yellow-glow);
+}
+
+/* ---- Enhanced player rows ---- */
+.player-row {
+  border-radius: 10px;
+  padding: 11px 10px !important;
+  transition: background var(--t-fast), transform var(--t-fast) !important;
+  margin: 0 -2px;
+}
+.player-row:hover {
+  background: var(--glass-highlight) !important;
+}
+
+/* ---- Enhanced pills ---- */
+.pill {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all var(--t-fast) !important;
+}
+.pill:hover { filter: brightness(1.15); }
+
+/* ---- Enhanced control bar ---- */
+.controlbar-inner {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-top: 1px solid var(--glass-border) !important;
+  box-shadow: 0 -4px 24px -8px rgba(0,0,0,0.4), 0 -1px 0 var(--glass-highlight) inset !important;
+}
+
+/* ---- Score buttons enhanced ---- */
+.score-btn {
+  border-radius: 12px !important;
+  transition: transform var(--t-spring), filter var(--t-fast), box-shadow var(--t-fast) !important;
+}
+.score-btn-plus:hover { box-shadow: 0 4px 12px -4px var(--pk-green-glow); filter: brightness(1.12); }
+.score-btn-minus:hover { box-shadow: 0 4px 12px -4px rgba(255,107,107,0.3); filter: brightness(1.12); }
+
+/* ---- Enhanced input fields ---- */
+input[type=text],input[type=number],textarea,select {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 10px !important;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast) !important;
+}
+input:focus,textarea:focus,select:focus {
+  border-color: var(--court) !important;
+  box-shadow: 0 0 0 3px var(--pk-blue-glow) !important;
+}
+
+/* ---- Enhanced toggle switch ---- */
+.switch .track {
+  transition: background var(--t-med), border-color var(--t-med) !important;
+}
+.switch .thumb {
+  transition: transform var(--t-spring), background var(--t-med) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.switch input:checked + .track { background: linear-gradient(90deg, var(--win-dim), var(--win)) !important; }
+
+/* ---- Section titles enhanced ---- */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px !important;
+  letter-spacing: 0.12em !important;
+}
+.section-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  background: var(--ball);
+  border-radius: 2px;
+  flex: none;
+}
+
+/* ---- Stat boxes enhanced ---- */
+.stat-box {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid var(--glass-border) !important;
+  transition: transform var(--t-fast), box-shadow var(--t-fast) !important;
+}
+.stat-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px -6px rgba(0,0,0,0.4);
+}
+.stat-box .sv { background: linear-gradient(135deg, var(--ball), var(--court)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* ---- Nav menu items enhanced ---- */
+.nav-menu-item {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--glass-border) !important;
+  transition: all var(--t-fast) !important;
+}
+.nav-menu-item:hover {
+  border-color: rgba(215,242,61,0.25) !important;
+  transform: translateX(2px);
+}
+.nav-menu-item.active {
+  border-color: rgba(215,242,61,0.4) !important;
+  background: rgba(215,242,61,0.08) !important;
+}
+
+/* ---- Queue rank badges enhanced ---- */
+.qrank {
+  background: linear-gradient(135deg, var(--surface-3), var(--surface-2)) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2) inset;
+}
+
+/* ---- Checkin chips enhanced ---- */
+.checkin-chip {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  transition: all var(--t-spring) !important;
+}
+.checkin-chip.arrived {
+  box-shadow: 0 4px 14px -4px var(--pk-green-glow) !important;
+}
+
+/* ---- Loading skeleton shimmer ---- */
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to { background-position: 200% center; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 37%, var(--surface-2) 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 8px;
+}
+
+/* ---- Score input enhanced ---- */
+.cb-score-input {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: 12px !important;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast) !important;
+}
+.cb-score-input:focus {
+  border-color: var(--ball) !important;
+  box-shadow: 0 0 0 3px var(--pk-yellow-glow) !important;
+}
+
+/* ---- Icon buttons enhanced ---- */
+.topbar-icon-btn, .icon-btn {
+  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast) !important;
+}
+.topbar-icon-btn:hover, .icon-btn:hover {
+  background: var(--surface-3) !important;
+  border-color: var(--line) !important;
+}
+
+/* ---- Session option cards enhanced ---- */
+.session-opt {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1.5px solid var(--glass-border) !important;
+  transition: all var(--t-fast) !important;
+}
+.session-opt.recommended {
+  border-color: rgba(215,242,61,0.35) !important;
+  box-shadow: 0 4px 16px -6px var(--pk-yellow-glow) !important;
+}
+.session-opt:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px -6px rgba(0,0,0,0.4);
+}
+
+/* ---- Enhanced brand mark ---- */
+.brand-mark {
+  background: linear-gradient(135deg, var(--surface-3), var(--surface-2)) !important;
+  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.3), 0 1px 0 rgba(255,255,255,0.08) inset;
+}
+
+/* ---- Page load entrance ---- */
+#app { animation: appFadeIn 0.4s ease; }
+@keyframes appFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---- View transition ---- */
+.view { animation: viewIn 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---- Ripple effect for tappable items ---- */
+@keyframes ripple {
+  from { transform: scale(0); opacity: 0.3; }
+  to { transform: scale(4); opacity: 0; }
+}
+.btn-primary::after, .tab-btn.active::after {
+  background: rgba(255,255,255,0.2);
+}
+
+/* ---- Rank #1 special treatment ---- */
+tr.rank-1 td { background: rgba(215,242,61,0.04); }
+
+/* ---- Progress bars animated ---- */
+.session-progress-fill {
+  background: linear-gradient(90deg, var(--ball), var(--court)) !important;
+  box-shadow: 0 0 8px var(--pk-yellow-glow);
+}
+
+/* ---- Sched pill live — animated ---- */
+.sched-pill-live {
+  animation: pillPulse 2s ease infinite !important;
+}
+@keyframes pillPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ---- Enhanced onboarding hint ---- */
+.nav-hint {
+  background: rgba(79,168,255,0.08) !important;
+  border: 1px solid rgba(79,168,255,0.28) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* ---- Confirmation dialog overlay ---- */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.15s ease;
+}
+.confirm-dialog {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 24px 20px 20px;
+  max-width: 340px;
+  width: 100%;
+  box-shadow: var(--shadow-float);
+  animation: dialogPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: center;
+}
+@keyframes dialogPop {
+  from { transform: scale(0.88); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.confirm-icon { font-size: 40px; margin-bottom: 12px; }
+.confirm-title { font-size: 17px; font-weight: 800; margin-bottom: 6px; color: var(--text); }
+.confirm-msg { font-size: 13.5px; color: var(--text-dim); line-height: 1.5; margin-bottom: 18px; }
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-actions .btn { flex: 1; border-radius: 12px !important; }
+
+/* ---- Empty state enhanced ---- */
+.empty-state {
+  padding: 48px 20px !important;
+  animation: fadeIn 0.3s ease;
+}
+.empty-state .big {
+  font-size: 48px !important;
+  margin-bottom: 10px !important;
+  display: block;
+  animation: emptyBounce 2s ease-in-out infinite;
+}
+@keyframes emptyBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* ---- Summary trophy ---- */
+.summary-trophy { animation: trophyEntrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both; }
+@keyframes trophyEntrance {
+  from { transform: scale(0) rotate(-15deg); opacity: 0; }
+  to { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* ---- Up next card enhanced ---- */
+.up-next-card {
+  background: linear-gradient(135deg, rgba(79,168,255,0.06), rgba(215,242,61,0.04)) !important;
+  border: 1px dashed rgba(79,168,255,0.3) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* ---- Scrollbar styling ---- */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+/* ---- Mobile safe areas ---- */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #fab-add-player {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ---- Desktop breakpoint enhancements ---- */
+@media (min-width: 560px) {
+  #app {
+    padding: 0 0 100px;
+  }
+  .modal-sheet {
+    border-radius: 20px !important;
+    margin: 0 auto;
+    max-width: 540px;
+    bottom: 20px;
+  }
+  .card { border-radius: 20px !important; }
+  .scoreboard { border-radius: 20px !important; }
+  #fab-add-player { right: calc(50% - 260px); }
+}
+
+/* ---- Reduced motion overrides ---- */
+@media (prefers-reduced-motion: reduce) {
+  .empty-state .big { animation: none !important; }
+  .summary-trophy { animation: none !important; }
+  #fab-add-player { animation: none !important; }
+  .live-dot .d { animation: none !important; box-shadow: 0 0 0 2px rgba(62,213,152,0.5); }
+  .sched-pill-live { animation: none !important; }
+}
+
+/* Light mode surface overrides for glassmorphism legibility */
+html.light-mode .card,
+html.light-mode .scoreboard,
+html.light-mode .modal-sheet,
+html.light-mode .controlbar-inner,
+html.light-mode .topbar,
+html.light-mode .tabs {
+  background: rgba(255,255,255,0.82) !important;
+  border-color: rgba(0,0,0,0.1) !important;
+  box-shadow: 0 2px 16px -4px rgba(0,0,0,0.12), 0 1px 0 rgba(255,255,255,0.95) inset !important;
+}
+html.light-mode .toast {
+  background: rgba(255,255,255,0.9) !important;
+  border-color: rgba(0,0,0,0.1) !important;
+}
+html.light-mode .btn-primary {
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+html.light-mode .btn-court { color: #fff !important; }
+html.light-mode .stat-box .sv { -webkit-text-fill-color: var(--ball); color: var(--ball); background: none; }
+html.light-mode .section-title::before { background: var(--ball); }
+
+/* ================================================================
+   KITCHEN LADDER — FULL RESPONSIVE SYSTEM
+   ================================================================ */
+/* ================================================================
+   KITCHEN LADDER — FULL RESPONSIVE SYSTEM
+   Breakpoints: 280 · 360 · 480 · 560 · 768 · 1024 · 1280 · 1440 · 1920
+   Strategy: mobile-first base → progressive enhancement upward.
+   ================================================================ */
+
+/* ---- Base fluid tokens ---- */
+:root {
+  --fs-2xs : clamp(8px,  1.8vw, 9px);
+  --fs-xs  : clamp(9px,  2vw,  10px);
+  --fs-sm  : clamp(10px, 2.4vw, 11px);
+  --fs-base: clamp(11px, 2.8vw, 13px);
+  --fs-md  : clamp(12px, 3vw,  14px);
+  --fs-lg  : clamp(13px, 3.4vw, 16px);
+  --fs-xl  : clamp(15px, 4vw,  18px);
+  --fs-2xl : clamp(17px, 4.5vw, 22px);
+  --fs-3xl : clamp(20px, 5.5vw, 28px);
+  --sp-1: clamp(4px,  1vw,  6px);
+  --sp-2: clamp(6px,  1.5vw, 8px);
+  --sp-3: clamp(8px,  2vw,  10px);
+  --sp-4: clamp(10px, 2.5vw, 14px);
+  --sp-5: clamp(12px, 3vw,  18px);
+  --sp-6: clamp(16px, 3.5vw, 24px);
+  --app-max   : 560px;
+  --topbar-pad: clamp(10px, 3vw, 16px);
+  --view-pad  : clamp(10px, 4vw, 16px);
+  --touch-sm  : clamp(36px, 9vw, 44px);
+  --touch-md  : clamp(40px, 10vw, 48px);
+}
+
+/* ---- Global overflow prevention ---- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: hidden; max-width: 100vw; }
+img, svg { max-width: 100%; }
+
+/* ---- App shell ---- */
+#app {
+  max-width: var(--app-max);
+  padding-bottom: clamp(80px, 18vw, 100px);
+}
+
+/* ---- Topbar ---- */
+.topbar {
+  padding: var(--topbar-pad) var(--topbar-pad) clamp(6px, 2vw, 10px);
+}
+.brand-row { gap: clamp(6px, 2vw, 10px); flex-wrap: nowrap; min-width: 0; }
+.brand-mark { width: var(--touch-sm); height: var(--touch-sm); flex-shrink: 0; }
+.brand-name { font-size: clamp(14px, 4vw, 17px); }
+.brand-sub { font-size: clamp(9px, 2.2vw, 11px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-icon-btn, #theme-toggle-btn { width: var(--touch-sm); height: var(--touch-sm); flex-shrink: 0; }
+.topbar-icon-btn svg { width: clamp(14px, 4vw, 17px); height: clamp(14px, 4vw, 17px); }
+.dash-strip { font-size: clamp(10px, 2.8vw, 12px); gap: clamp(10px, 3vw, 14px); margin-top: clamp(6px, 2vw, 10px); }
+.dash-strip .d-item .v { font-size: clamp(11px, 3vw, 13px); }
+
+/* ---- Tabs ---- */
+.tabs { padding: clamp(6px, 2vw, 10px) var(--view-pad); gap: clamp(4px, 1.5vw, 6px); }
+.tab-btn { padding: clamp(6px, 1.8vw, 8px) clamp(8px, 2.5vw, 12px); font-size: clamp(11px, 2.8vw, 13px); min-height: 36px; }
+.tab-btn svg { width: clamp(13px, 3.5vw, 15px); height: clamp(13px, 3.5vw, 15px); }
+
+/* ---- Main view ---- */
+.view { padding: clamp(10px, 3vw, 14px) var(--view-pad) clamp(8px, 2vw, 12px); }
+
+/* ---- Cards ---- */
+.card { padding: clamp(12px, 3.5vw, 16px); }
+.card + .card { margin-top: clamp(8px, 2vw, 10px); }
+
+/* ---- Section titles ---- */
+.section-title { font-size: clamp(10px, 2.8vw, 13px); margin: clamp(12px, 3.5vw, 18px) 2px clamp(6px, 2vw, 8px); }
+
+/* ---- Buttons ---- */
+.btn { font-size: clamp(12px, 3.5vw, 14px); padding: clamp(10px, 2.8vw, 12px) clamp(12px, 3.5vw, 16px); min-height: var(--touch-sm); white-space: normal; text-align: center; }
+.btn-sm { font-size: clamp(11px, 2.8vw, 12.5px); padding: clamp(6px, 2vw, 8px) clamp(8px, 2.5vw, 12px); min-height: 36px; }
+.icon-btn { width: var(--touch-sm); height: var(--touch-sm); min-width: var(--touch-sm); }
+.icon-btn svg { width: clamp(14px, 4vw, 16px); height: clamp(14px, 4vw, 16px); }
+.icon-btn-tiny { width: clamp(28px, 8vw, 32px); height: clamp(28px, 8vw, 32px); min-width: clamp(28px, 8vw, 32px); }
+.icon-btn-tiny svg { width: clamp(12px, 3.5vw, 14px); height: clamp(12px, 3.5vw, 14px); }
+
+/* ---- Forms ---- */
+.field label { font-size: clamp(10px, 2.4vw, 11.5px); }
+input[type=text], input[type=number], textarea, select { font-size: max(16px, 1em); padding: clamp(9px, 2.5vw, 11px) clamp(10px, 3vw, 12px); }
+textarea { min-height: clamp(70px, 18vw, 90px); }
+
+/* ---- Player list ---- */
+.player-row { gap: clamp(8px, 3vw, 12px); padding: clamp(9px, 2.8vw, 12px) clamp(6px, 2vw, 8px); }
+.avatar { width: clamp(34px, 9vw, 40px); height: clamp(34px, 9vw, 40px); border-radius: clamp(8px, 2.5vw, 12px); font-size: clamp(12px, 3.5vw, 14px); flex-shrink: 0; }
+.player-row .pname { font-size: clamp(12px, 3.5vw, 14px); gap: clamp(4px, 1.5vw, 6px); }
+.player-row .pmeta { font-size: clamp(10px, 2.6vw, 11.5px); gap: clamp(5px, 1.8vw, 8px); }
+.pill { font-size: clamp(9.5px, 2.4vw, 11px); padding: clamp(2px, 0.6vw, 3px) clamp(6px, 2vw, 8px); }
+
+/* ---- Scoreboard ---- */
+.sb-head { padding: clamp(10px, 2.8vw, 12px) clamp(12px, 3.5vw, 16px); }
+.sb-round { font-size: clamp(11px, 3vw, 13px); }
+.sb-round b { font-size: clamp(12px, 3.5vw, 15px); }
+.live-dot { font-size: clamp(9px, 2.5vw, 11px); }
+.sb-team { padding: clamp(12px, 3.5vw, 16px) clamp(10px, 3vw, 14px); gap: clamp(7px, 2vw, 10px); }
+.sb-names { font-size: clamp(13px, 4vw, 16px); line-height: 1.5; }
+.sb-tag { font-size: clamp(9px, 2.4vw, 10.5px); }
+.sb-rating { font-size: clamp(10px, 2.6vw, 12px); }
+.sb-foot { padding: clamp(10px, 2.8vw, 12px) clamp(12px, 3.5vw, 16px); gap: clamp(6px, 2vw, 8px); flex-wrap: wrap; }
+.sb-foot .btn { flex: 1 1 auto; min-width: clamp(80px, 20vw, 120px); }
+
+/* ---- Control bar ---- */
+.controlbar-inner { padding: clamp(8px, 2.5vw, 10px) clamp(10px, 3vw, 12px) calc(clamp(8px, 2.5vw, 10px) + env(safe-area-inset-bottom)); }
+.cb-top { gap: clamp(6px, 2vw, 8px); flex-wrap: wrap; }
+.cb-top .btn { flex: 1 1 auto; padding: clamp(10px, 2.8vw, 13px) clamp(6px, 2vw, 10px); font-size: clamp(11px, 3vw, 13px); min-width: clamp(72px, 18vw, 100px); }
+.cb-bottom { gap: clamp(6px, 2vw, 8px); margin-top: clamp(6px, 2vw, 8px); flex-wrap: wrap; }
+.cb-bottom .btn { flex: 1 1 auto; min-width: clamp(80px, 20vw, 120px); }
+
+/* Score inputs */
+.cb-score-row { gap: clamp(6px, 2vw, 8px); margin-bottom: clamp(6px, 2vw, 8px); }
+.cb-score-label { font-size: clamp(9px, 2.3vw, 10px); }
+.cb-score-input { width: clamp(54px, 14vw, 70px) !important; font-size: clamp(18px, 5vw, 22px); padding: clamp(6px, 2vw, 8px) clamp(4px, 1.5vw, 6px); }
+.rr-score-input { width: clamp(46px, 12vw, 60px) !important; font-size: clamp(15px, 4vw, 18px); padding: clamp(5px, 1.8vw, 7px) clamp(3px, 1.2vw, 4px); }
+.cb-score-vs { font-size: clamp(13px, 3.5vw, 16px); padding-top: clamp(14px, 4vw, 18px); }
+.score-btn { width: clamp(32px, 9vw, 36px); height: clamp(32px, 9vw, 36px); font-size: clamp(16px, 4.5vw, 19px); border-radius: clamp(8px, 2.5vw, 10px); flex-shrink: 0; }
+.rr-score-btn { width: clamp(26px, 7.5vw, 30px); height: clamp(26px, 7.5vw, 30px); font-size: clamp(13px, 3.5vw, 15px); }
+.serve-badge, .race-badge, .serve-set-btn { font-size: clamp(8px, 2.2vw, 9.5px); padding: clamp(2px, 0.6vw, 2px) clamp(5px, 1.8vw, 7px); }
+
+/* ---- Tables ---- */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 calc(-1 * var(--view-pad)); padding: 0 var(--view-pad); }
+.table-wrap table { min-width: 380px; }
+table { font-size: clamp(11px, 2.8vw, 12.5px); }
+th { font-size: clamp(9px, 2.2vw, 10.5px); padding: 0 clamp(5px, 1.8vw, 8px) clamp(6px, 2vw, 8px); }
+td { padding: clamp(7px, 2vw, 9px) clamp(5px, 1.8vw, 8px); font-size: clamp(11px, 2.8vw, 12.5px); }
+td.namecell { font-size: clamp(11.5px, 3vw, 13px); }
+.rank-name-btn { font-size: clamp(11.5px, 3vw, 13px); }
+.sort-bar { gap: clamp(4px, 1.5vw, 6px); margin-bottom: clamp(8px, 2.5vw, 10px); }
+.sort-chip { font-size: clamp(10.5px, 2.6vw, 12px); padding: clamp(5px, 1.5vw, 6px) clamp(9px, 2.5vw, 11px); }
+.streak-chip { font-size: clamp(9.5px, 2.4vw, 11px); padding: 2px clamp(5px, 1.8vw, 7px); }
+
+/* ---- History ---- */
+.hist-item { padding: clamp(9px, 2.8vw, 12px) 4px; }
+.hist-teams { font-size: clamp(12px, 3.2vw, 13.5px); gap: clamp(5px, 1.8vw, 8px); }
+.hist-round { font-size: clamp(9.5px, 2.4vw, 11px); }
+
+/* ---- Queue ---- */
+.queue-row { gap: clamp(7px, 2.5vw, 10px); padding: clamp(8px, 2.5vw, 10px) 4px; }
+.qrank { width: clamp(20px, 6vw, 24px); height: clamp(20px, 6vw, 24px); font-size: clamp(9.5px, 2.6vw, 11px); }
+.queue-row .qmeta { font-size: clamp(9.5px, 2.4vw, 11px); }
+
+/* ---- Modal ---- */
+.modal-sheet { padding: clamp(14px, 4vw, 18px) clamp(12px, 4vw, 16px) calc(clamp(14px, 4vw, 18px) + env(safe-area-inset-bottom)); max-height: clamp(60vh, 85vh, 92vh); }
+.modal-title { font-size: clamp(14px, 4vw, 16px); }
+.modal-sub { font-size: clamp(11px, 2.8vw, 12.5px); }
+.modal-actions { gap: clamp(6px, 2vw, 8px); margin-top: clamp(10px, 3vw, 14px); flex-wrap: wrap; }
+.modal-actions .btn { flex: 1 1 auto; min-width: clamp(100px, 28vw, 140px); }
+
+/* ---- Nav menu ---- */
+.nav-menu-item { gap: clamp(8px, 3vw, 12px); padding: clamp(9px, 2.8vw, 11px) clamp(10px, 3vw, 12px); }
+.nav-menu-item .nmi-ico { width: clamp(30px, 8vw, 34px); height: clamp(30px, 8vw, 34px); flex-shrink: 0; }
+.nav-menu-item .nmi-ico svg { width: clamp(14px, 4vw, 16px); height: clamp(14px, 4vw, 16px); }
+.nav-menu-item .nmi-label { font-size: clamp(12px, 3.5vw, 14px); }
+.nav-menu-item .nmi-desc { font-size: clamp(10px, 2.6vw, 11.5px); }
+
+/* ---- Schedule modal ---- */
+.sched-summary { gap: clamp(5px, 1.8vw, 8px); }
+.sched-summary .s-item { padding: clamp(9px, 2.5vw, 12px) clamp(4px, 1.5vw, 6px) clamp(7px, 2vw, 10px); }
+.sched-summary .s-item .n { font-size: clamp(16px, 4.5vw, 20px); }
+.sched-summary .s-item .l { font-size: clamp(7.5px, 2vw, 9px); }
+.sched-card { padding: clamp(2px, 1vw, 4px) clamp(10px, 3vw, 14px); }
+.sched-match { gap: clamp(7px, 2.5vw, 10px); padding: clamp(9px, 2.8vw, 12px) 2px; }
+.sched-match-num { width: clamp(22px, 6vw, 26px); height: clamp(22px, 6vw, 26px); font-size: clamp(9px, 2.4vw, 10.5px); }
+.sched-match-teams { font-size: clamp(12px, 3.2vw, 13.5px); gap: clamp(3px, 1vw, 4px); }
+.sched-pill { font-size: clamp(8.5px, 2.2vw, 10px); padding: clamp(3px, 1vw, 4px) clamp(7px, 2.2vw, 9px); }
+.sched-score { font-size: clamp(9.5px, 2.4vw, 11px); }
+.sched-sitting { font-size: clamp(10px, 2.6vw, 11.5px); gap: clamp(4px, 1.5vw, 6px); }
+.sched-player-chip { font-size: clamp(12px, 3.2vw, 13.5px); padding: clamp(3px, 1.2vw, 4px) clamp(7px, 2.5vw, 10px); }
+
+/* ---- Profile modal ---- */
+.profile-avatar { width: clamp(44px, 11vw, 52px); height: clamp(44px, 11vw, 52px); font-size: clamp(16px, 4.5vw, 20px); }
+.profile-name { font-size: clamp(15px, 4.5vw, 18px); }
+.profile-rating { font-size: clamp(11px, 3vw, 13px); }
+.profile-stat .psv { font-size: clamp(15px, 4.5vw, 18px); }
+.profile-stat .psl { font-size: clamp(9px, 2.4vw, 10.5px); }
+.profile-pair-row { font-size: clamp(11px, 3vw, 12.5px); }
+
+/* ---- Session opts ---- */
+.session-opt { gap: clamp(8px, 3vw, 12px); padding: clamp(10px, 3vw, 12px) clamp(11px, 3.5vw, 14px); }
+.session-opt-count { width: clamp(42px, 11vw, 50px); height: clamp(42px, 11vw, 50px); flex-shrink: 0; }
+.session-opt-count .n { font-size: clamp(14px, 4vw, 17px); }
+.session-opt-name { font-size: clamp(12px, 3.5vw, 13.5px); }
+.session-opt-sub { font-size: clamp(10px, 2.6vw, 11.5px); }
+.session-confirm-row { font-size: clamp(11px, 3vw, 13px); }
+
+/* ---- Stat boxes ---- */
+.stat-grid { gap: clamp(6px, 2vw, 8px); }
+.stat-box { padding: clamp(8px, 2.5vw, 10px); }
+.stat-box .sv { font-size: clamp(14px, 4.5vw, 17px); }
+.stat-box .sl { font-size: clamp(8.5px, 2.2vw, 10px); }
+.summary-grid { gap: clamp(8px, 2.5vw, 10px); margin: clamp(12px, 3.5vw, 16px) 0; }
+.summary-card { padding: clamp(10px, 3vw, 14px); }
+.summary-card .sc-name { font-size: clamp(13px, 3.5vw, 15px); }
+.summary-title { font-size: clamp(17px, 5vw, 20px); }
+.summary-trophy { font-size: clamp(38px, 10vw, 48px); }
+
+/* ---- Check-in ---- */
+.checkin-chip { font-size: clamp(12px, 3.2vw, 13.5px); padding: clamp(7px, 2.2vw, 9px) clamp(10px, 3vw, 13px); }
+.checkin-grid { gap: clamp(6px, 2vw, 8px); max-height: clamp(40vh, 46vh, 52vh); }
+
+/* ---- Up-next ---- */
+.up-next-card { padding: clamp(8px, 2.5vw, 10px) clamp(10px, 3.5vw, 14px); }
+.up-next-label { font-size: clamp(8.5px, 2.2vw, 10px); margin-bottom: clamp(5px, 1.8vw, 7px); }
+.up-next-name { font-size: clamp(11px, 3vw, 13px); }
+.up-next-sub { font-size: clamp(9px, 2.4vw, 10.5px); }
+
+/* ---- Toasts ---- */
+#toast-root { right: clamp(8px, 3vw, 16px); left: clamp(8px, 3vw, 16px); bottom: clamp(88px, 22vw, 108px); max-width: min(420px, calc(100vw - 16px)); }
+.toast { font-size: clamp(12px, 3vw, 13.5px); padding: clamp(10px, 3vw, 13px) clamp(12px, 3.5vw, 16px) clamp(10px, 3vw, 13px) clamp(10px, 3vw, 14px); }
+
+/* ---- FAB ---- */
+#fab-add-player { width: clamp(48px, 12vw, 56px); height: clamp(48px, 12vw, 56px); border-radius: clamp(14px, 4vw, 18px); bottom: calc(clamp(70px, 18vw, 88px) + env(safe-area-inset-bottom)); right: clamp(12px, 4vw, 16px); }
+#fab-add-player svg { width: clamp(20px, 5.5vw, 24px); height: clamp(20px, 5.5vw, 24px); }
+
+/* ---- Misc ---- */
+.helper-text { font-size: clamp(10.5px, 2.6vw, 12px); }
+.eyebrow { font-size: clamp(9.5px, 2.4vw, 11px); }
+.badge-count { font-size: clamp(8.5px, 2.2vw, 10px); min-width: clamp(14px, 4vw, 16px); height: clamp(14px, 4vw, 16px); }
+.toggle-row .t-label { font-size: clamp(12px, 3.2vw, 13.5px); }
+.toggle-row .t-hint { font-size: clamp(10px, 2.6vw, 11.5px); }
+.radio-box-btn { font-size: clamp(12px, 3.2vw, 13.5px); padding: clamp(10px, 3vw, 12px); }
+
+/* ================================================================
+   360px — smallest phones
+   ================================================================ */
+@media (max-width: 360px) {
+  :root { --app-max: 100vw; --view-pad: 10px; --topbar-pad: 10px; }
+  .brand-sub { display: none; }
+  .sb-team { padding: 10px 8px; }
+  .sb-names { font-size: 13px; line-height: 1.45; }
+  .cb-score-input { width: 50px !important; font-size: 17px; }
+  .rr-score-input { width: 44px !important; font-size: 15px; }
+  .score-btn { width: 30px; height: 30px; font-size: 15px; }
+  .rr-score-btn { width: 25px; height: 25px; font-size: 13px; }
+  .tab-btn { padding: 6px 8px; font-size: 10.5px; }
+  .btn { font-size: 12px; padding: 9px 10px; }
+  .stat-grid { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .checkin-grid { gap: 5px; }
+  .checkin-chip { font-size: 11.5px; padding: 7px 9px; }
+  .rr-score-foot { gap: 5px !important; }
+}
+
+/* ================================================================
+   480px — large phones
+   ================================================================ */
+@media (min-width: 480px) and (max-width: 559px) {
+  :root { --app-max: 100vw; --view-pad: 14px; }
+  .cb-score-input { width: 66px !important; }
+  .score-btn { width: 35px; height: 35px; }
+}
+
+/* ================================================================
+   560px — phablets (existing breakpoint, extended)
+   ================================================================ */
+@media (min-width: 560px) {
+  :root { --app-max: 560px; }
+  .view { padding: 14px 18px 12px; }
+  .card { padding: 18px; }
+  .cb-top .btn { min-width: 100px; }
+  .modal-sheet { max-width: 540px; }
+}
+
+/* ================================================================
+   768px — tablets portrait
+   ================================================================ */
+@media (min-width: 768px) {
+  :root { --app-max: 640px; --view-pad: 20px; --topbar-pad: 20px; }
+  #app { border-left: 1px solid var(--line-soft); border-right: 1px solid var(--line-soft); }
+  .view { padding: 16px 20px 14px; }
+  .card { padding: 20px; border-radius: 16px; }
+  .scoreboard { border-radius: 16px; }
+  .modal-sheet { max-width: 600px; border-radius: 24px 24px 0 0; }
+  .stat-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .profile-stat-row { gap: 10px; }
+  .session-opt { padding: 14px 16px; }
+  .btn { padding: 12px 18px; min-height: 46px; }
+  .btn-sm { padding: 9px 14px; min-height: 38px; }
+  .topbar-icon-btn, #theme-toggle-btn { width: 38px; height: 38px; }
+  .score-btn { width: 40px; height: 40px; font-size: 20px; }
+  .rr-score-btn { width: 34px; height: 34px; font-size: 16px; }
+  .cb-score-input { width: 76px !important; font-size: 24px; }
+  .rr-score-input { width: 64px !important; font-size: 20px; }
+  .table-wrap { margin: 0; padding: 0; background: none; }
+  .table-wrap table { min-width: unset; }
+  td, th { padding: 10px 10px; }
+  #fab-add-player { right: calc(50% - 308px); bottom: calc(80px + env(safe-area-inset-bottom)); }
+  #toast-root { max-width: 380px; right: calc(50% - 300px); left: auto; }
+}
+
+/* ================================================================
+   1024px — tablets landscape / small laptops
+   ================================================================ */
+@media (min-width: 1024px) {
+  :root { --app-max: 720px; --view-pad: 24px; }
+  body { display: grid; grid-template-columns: 1fr minmax(auto, 720px) 1fr; }
+  #app { grid-column: 2; min-height: 100vh; border-left: 1px solid var(--line-soft); border-right: 1px solid var(--line-soft); box-shadow: 0 0 60px rgba(0,0,0,0.4); }
+  #toast-root { right: calc(50% - 346px); left: auto; max-width: 340px; bottom: 100px; }
+  #fab-add-player { right: calc(50% - 348px); }
+  .controlbar { display: flex; justify-content: center; }
+  .controlbar-inner { max-width: 720px; }
+  .modal-sheet { max-width: 680px; }
+  .table-wrap { overflow-x: visible; }
+  .cb-top { flex-wrap: nowrap; }
+  .cb-bottom { flex-wrap: nowrap; }
+}
+
+/* ================================================================
+   1280px — standard laptops
+   ================================================================ */
+@media (min-width: 1280px) {
+  :root { --app-max: 760px; }
+  .view { padding: 20px 28px 16px; }
+  .card { padding: 22px; border-radius: 18px; }
+  .btn { font-size: 14px; padding: 13px 20px; }
+  .tab-btn { padding: 9px 14px; font-size: 13px; }
+  .sb-names { font-size: 17px; }
+  .stat-box .sv { font-size: 18px; }
+}
+
+/* ================================================================
+   1440px — large desktops
+   ================================================================ */
+@media (min-width: 1440px) {
+  :root { --app-max: 800px; }
+  .view { padding: 24px 32px 20px; }
+  .card { padding: 24px; border-radius: 20px; }
+  .modal-sheet { max-width: 760px; }
+  .btn { padding: 14px 22px; min-height: 50px; font-size: 15px; }
+  .tab-btn { padding: 10px 16px; font-size: 14px; }
+  .topbar { padding: 18px 28px 12px; }
+  .topbar-icon-btn, #theme-toggle-btn { width: 40px; height: 40px; }
+  .topbar-icon-btn svg { width: 18px; height: 18px; }
+  #toast-root { right: calc(50% - 380px); max-width: 360px; }
+  #fab-add-player { right: calc(50% - 388px); width: 60px; height: 60px; }
+}
+
+/* ================================================================
+   1920px — 4K / large TVs
+   ================================================================ */
+@media (min-width: 1920px) {
+  :root { --app-max: 900px; }
+  body { font-size: 16px; }
+  .topbar { padding: 22px 36px 16px; }
+  .view { padding: 28px 40px 24px; }
+  .card { padding: 28px; border-radius: 22px; }
+}
+
+/* ================================================================
+   LANDSCAPE — phones (tall-but-narrow)
+   ================================================================ */
+@media (orientation: landscape) and (max-height: 500px) {
+  .topbar { padding: 6px var(--topbar-pad) 4px; }
+  .dash-strip { display: none; }
+  #app { padding-bottom: clamp(60px, 14vw, 80px); }
+  .controlbar-inner { padding-top: 6px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  .cb-top .btn { padding: 8px 10px; }
+  .modal-sheet { max-height: 95vh; }
+  .view { padding-top: 8px; }
+  .sb-team { padding: 8px 10px; gap: 6px; }
+  .section-title { margin-top: 10px; margin-bottom: 5px; }
+  #fab-add-player { bottom: calc(56px + env(safe-area-inset-bottom)); }
+  #toast-root { bottom: calc(66px + env(safe-area-inset-bottom)); }
+}
+
+/* ================================================================
+   LANDSCAPE — tablets
+   ================================================================ */
+@media (orientation: landscape) and (min-height: 500px) and (max-width: 1024px) {
+  .modal-sheet { max-height: 88vh; }
+  .checkin-grid { max-height: 50vh; }
+}
+
+/* ================================================================
+   SAFE AREA INSETS
+   ================================================================ */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #app { padding-bottom: calc(clamp(80px, 18vw, 100px) + env(safe-area-inset-bottom)); }
+  .controlbar-inner { padding-bottom: calc(clamp(8px, 2.5vw, 10px) + env(safe-area-inset-bottom)); }
+  .modal-sheet { padding-bottom: calc(clamp(14px, 4vw, 18px) + env(safe-area-inset-bottom)); }
+}
+@supports (padding-left: env(safe-area-inset-left)) {
+  .topbar, .tabs, .view, .controlbar-inner {
+    padding-left: max(var(--view-pad), env(safe-area-inset-left));
+    padding-right: max(var(--view-pad), env(safe-area-inset-right));
+  }
+}
+
+/* ================================================================
+   FOLDABLES — Galaxy Fold closed (280px)
+   ================================================================ */
+@media (max-width: 280px) {
+  :root { --view-pad: 8px; --topbar-pad: 8px; }
+  .brand-name { font-size: 13px; }
+  .brand-sub { display: none; }
+  .brand-mark { width: 28px; height: 28px; }
+  .topbar-icon-btn, #theme-toggle-btn { width: 28px; height: 28px; }
+  .tab-btn { padding: 5px 7px; font-size: 10px; }
+  .tab-btn svg { width: 12px; height: 12px; }
+  .btn { font-size: 11px; padding: 8px 9px; }
+  .sb-names { font-size: 12px; }
+  .cb-score-input { width: 44px !important; font-size: 15px; }
+  .score-btn { width: 28px; height: 28px; font-size: 14px; }
+  .rr-score-btn { width: 24px; height: 24px; font-size: 12px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .summary-grid { grid-template-columns: 1fr; }
+  .profile-stat-row { grid-template-columns: 1fr 1fr; }
+  .checkin-chip { font-size: 11px; padding: 6px 8px; }
+}
+
+/* ================================================================
+   PRINT
+   ================================================================ */
+@media print {
+  .topbar, .tabs-row, .controlbar, #fab-add-player, #toast-root, #modal-root { display: none !important; }
+  #app { max-width: 100%; padding: 0; }
+  .view { padding: 16px; }
+  .card, .scoreboard { border: 1px solid #ccc !important; box-shadow: none !important; break-inside: avoid; }
+  body { background: #fff !important; color: #000 !important; }
+}
+
+/* ================================================================
+   FORCED COLORS (accessibility)
+   ================================================================ */
+@media (forced-colors: active) {
+  .btn, .card, .scoreboard, .modal-sheet, .toast { border: 2px solid ButtonText !important; }
+  .btn-primary { background: Highlight !important; color: HighlightText !important; }
+}
+
+/* ================================================================
+   SECURITY CSS — anti-screenshot, watermark overlay
+   ================================================================ */
+/* Subtle watermark via CSS only — visible on screenshot/print */
+body::after {
+  content: "© 2026 Renzku · Kitchen Ladder · Unauthorized copy";
+  position: fixed;
+  bottom: 50%;
+  left: 50%;
+  transform: translate(-50%, 50%) rotate(-35deg);
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(215, 242, 61, 0.04);
+  pointer-events: none;
+  z-index: 9999;
+  white-space: nowrap;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  user-select: none;
+}
+/* Make watermark more visible on print */
+@media print {
+  body::after {
+    color: rgba(0,0,0,0.12) !important;
+    font-size: 22px !important;
+  }
+}
+/* DevTools warning overlay (shown via JS class) */
+#kl-devtools-warning {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(8,10,13,0.97);
+  z-index: 99999;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 40px;
+  gap: 14px;
+  font-family: var(--font-ui);
+}
+#kl-devtools-warning.show { display: flex; }
+#kl-devtools-warning .dw-icon { font-size: 52px; }
+#kl-devtools-warning .dw-title { font-size: 22px; font-weight: 900; color: var(--ball); }
+#kl-devtools-warning .dw-msg { font-size: 14px; color: var(--text-dim); line-height: 1.6; max-width: 380px; }
+#kl-devtools-warning .dw-close { margin-top: 8px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text-dim); border-radius: 10px; padding: 10px 24px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+/* Disable text selection on game elements */
+.scoreboard, .controlbar-inner, .brand-name, .brand-sub, .topbar {
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Allow selection on input/form fields */
+input, textarea, select { -webkit-user-select: text; user-select: text; }
+
 </style>
 </head>
 <body>
@@ -870,6 +2060,10 @@ tr.rank-1 .rankbadge{color:var(--ball);}
       <button class="topbar-icon-btn" data-action="tab" data-tab="settings" aria-label="Settings" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
+      <button id="theme-toggle-btn" aria-label="Toggle light/dark mode" title="Toggle theme">
+        <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg id="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
       <button id="topbar-install-btn" style="display:none; flex:none; align-items:center; gap:5px; background:var(--surface-2); border:1px solid var(--ball); color:var(--ball); border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Install
@@ -889,6 +2083,11 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 
 </div>
 
+<!-- Floating Action Button — Add Player -->
+<button id="fab-add-player" data-label="Add Player" aria-label="Add player" style="display:none;" data-action="fab-add-player">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
 <div id="toast-root"></div>
 <div id="modal-root"></div>
 
@@ -897,62 +2096,14 @@ tr.rank-1 .rankbadge{color:var(--ball);}
 "use strict";
 
 /* ============================================================
-   INTEGRITY CHECK — verifies authorship signature on load
-   DISABLED FOR TESTING (re-enable by uncommenting the IIFE body
-   below before shipping to production).
+   INTEGRITY CHECK — DISABLED
    ============================================================ */
-(function(){
-  const sig = "KL-RENZKU-2026-ORIGINAL";
-  // Clear any stale sig from a previous version so a legitimate update doesn't false-trigger
-  const knownSigs = ["KL-RENZKU-2025-ORIGINAL", "KL-RENZKU-2026-ORIGINAL"];
-  const stored = sessionStorage.getItem('_kl_sig');
-  if(stored && !knownSigs.includes(stored)){
-    document.body.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;
-        height:100vh;background:#11151A;color:#FF6B6B;text-align:center;
-        font-family:sans-serif;padding:40px;">
-        <div>
-          <div style="font-size:48px;margin-bottom:12px;">⚠️</div>
-          <h2 style="color:#F1F4F0;margin-bottom:8px;">Unauthorized Copy Detected</h2>
-          <p style="color:#9AA5B1;line-height:1.6;">Kitchen Ladder is an original app by Renzku.<br>
-          This copy has been tampered with.</p>
-        </div>
-      </div>`;
-    throw new Error("Integrity check failed.");
-  }
-  sessionStorage.setItem('_kl_sig', sig);
-})();
+// (disabled)
 
 /* ============================================================
-   DOMAIN LOCK — only authorized domains can run this app
-   DISABLED FOR TESTING (re-enable by uncommenting the IIFE body
-   below before shipping to production, and add your test domain
-   to allowedDomains if you want to keep this on while testing).
+   DOMAIN LOCK — DISABLED
    ============================================================ */
-(function(){
-  const allowedDomains = [
-    'localhost',
-    '127.0.0.1',
-    'wedink.vercel.app',
-    'jvteam123.github.io',
-  ];
-  const host = window.location.hostname;
-  const allowed = allowedDomains.some(d => host === d || host.endsWith('.' + d));
-  if(!allowed){
-    document.body.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;
-        height:100vh;background:#11151A;text-align:center;
-        font-family:sans-serif;padding:40px;">
-        <div>
-          <div style="font-size:48px;margin-bottom:12px;">🔒</div>
-          <h2 style="color:#D7F23D;margin-bottom:8px;">Kitchen Ladder</h2>
-          <p style="color:#9AA5B1;line-height:1.6;">Original app by <strong style="color:#F1F4F0;">Renzku</strong>.<br>
-          This app is not authorized to run on this domain.</p>
-        </div>
-      </div>`;
-    throw new Error("Domain not authorized: " + host);
-  }
-})();
+// (disabled)
 
 /* ============================================================
    STORAGE KEYS
@@ -1502,16 +2653,36 @@ function speakSideOut(m){
 // misfire on any future wording change.
 function toast(msg, type){
   const root = document.getElementById('toast-root');
+  if(!root) return;
   const el = document.createElement('div');
-  el.className = 'toast';
+  el.className = 'toast' + (type ? ' toast-' + type : '');
 
-  const colorMap = { error: 'var(--loss)', warning: 'var(--court)', success: 'var(--win)' };
-  if(type && colorMap[type]) el.style.borderLeftColor = colorMap[type];
-  // 'info' and unspecified both keep the default var(--ball) accent from CSS.
+  const iconMap = {
+    success: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    error:   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+    warning: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    info:    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  };
+  const colorMap = {
+    success: 'var(--win)',
+    error: 'var(--loss)',
+    warning: 'var(--ball)',
+    info: 'var(--court)',
+  };
+  const borderColor = type && colorMap[type] ? colorMap[type] : 'var(--ball)';
+  el.style.borderLeftColor = borderColor;
 
-  el.textContent = msg;
+  const icon = type && iconMap[type] ? iconMap[type] : iconMap.info;
+  const iconColor = borderColor;
+  el.innerHTML = `<span style="color:${iconColor};flex:none;display:flex;align-items:center;">${icon}</span><span style="flex:1;line-height:1.4;">${msg}</span>`;
+
   root.appendChild(el);
-  setTimeout(()=>{ el.remove(); }, 2600);
+  // Limit toast stack to 4
+  const toasts = root.querySelectorAll('.toast');
+  if(toasts.length > 4) toasts[0].remove();
+
+  const DURATION = 2800;
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateX(12px)'; el.style.transition='opacity .2s ease,transform .2s ease'; setTimeout(()=>el.remove(), 220); }, DURATION);
 }
 
 function closeModal(){
@@ -3163,7 +4334,7 @@ function renderRotationCourtScoreboard(m) {
           <span class="sb-tag">Team A</span>
           <div class="sb-names">${nameTag('A', m.teamA[0])}<br>${duprChip(pA1)}<br>${nameTag('A', m.teamA[1])}<br>${duprChip(pA2)}</div>
           <div class="sb-rating">Avg ELO: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
-          ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rc-set-server" data-court="${m.id}" data-team="A">Make 1st server</button>` : '')}
+          ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe && !(m.scoreA||0) && !(m.scoreB||0) ? `<button type="button" class="serve-set-btn" data-action="rc-set-server" data-court="${m.id}" data-team="A">Make 1st server</button>` : '')}
           <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn csop-win-btn"
             data-action="rc-set-winner" data-court="${m.id}" data-team="A">
             ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
@@ -3174,7 +4345,7 @@ function renderRotationCourtScoreboard(m) {
           <span class="sb-tag">Team B</span>
           <div class="sb-names">${nameTag('B', m.teamB[0])}<br>${duprChip(pB1)}<br>${nameTag('B', m.teamB[1])}<br>${duprChip(pB2)}</div>
           <div class="sb-rating">Avg ELO: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
-          ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rc-set-server" data-court="${m.id}" data-team="B">Make 1st server</button>` : '')}
+          ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe && !(m.scoreA||0) && !(m.scoreB||0) ? `<button type="button" class="serve-set-btn" data-action="rc-set-server" data-court="${m.id}" data-team="B">Make 1st server</button>` : '')}
           <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn csop-win-btn"
             data-action="rc-set-winner" data-court="${m.id}" data-team="B">
             ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
@@ -6050,7 +7221,7 @@ function renderMatchView(el){
               <span class="sb-tag">Team A</span>
               <div class="sb-names">${nameTag(m.id,'A',m.teamA[0])}<br>${duprChip(getPlayer(m.teamA[0]))}<br>${nameTag(m.id,'A',m.teamA[1])}<br>${duprChip(getPlayer(m.teamA[1]))}</div>
               <div class="sb-rating">Avg ELO: ${Math.round(((getPlayer(m.teamA[0])?.rating||1000)+(getPlayer(m.teamA[1])?.rating||1000))/2)}</div>
-              ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rr-set-server" data-match="${m.id}" data-team="A">Make 1st server</button>` : '')}
+              ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe && !(m.scoreA||0) && !(m.scoreB||0) ? `<button type="button" class="serve-set-btn" data-action="rr-set-server" data-match="${m.id}" data-team="A">Make 1st server</button>` : '')}
               <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="A">
                 ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
               </button>
@@ -6062,7 +7233,7 @@ function renderMatchView(el){
               <span class="sb-tag">Team B</span>
               <div class="sb-names">${nameTag(m.id,'B',m.teamB[0])}<br>${duprChip(getPlayer(m.teamB[0]))}<br>${nameTag(m.id,'B',m.teamB[1])}<br>${duprChip(getPlayer(m.teamB[1]))}</div>
               <div class="sb-rating">Avg ELO: ${Math.round(((getPlayer(m.teamB[0])?.rating||1000)+(getPlayer(m.teamB[1])?.rating||1000))/2)}</div>
-              ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="rr-set-server" data-match="${m.id}" data-team="B">Make 1st server</button>` : '')}
+              ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe && !(m.scoreA||0) && !(m.scoreB||0) ? `<button type="button" class="serve-set-btn" data-action="rr-set-server" data-match="${m.id}" data-team="B">Make 1st server</button>` : '')}
               <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rr-winner" data-match="${m.id}" data-team="B">
                 ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
               </button>
@@ -6220,7 +7391,7 @@ function _renderMatchViewOriginalRotation(el) {
           <span class="sb-tag">Team A</span>
           <div class="sb-names">${curNameTag('A', c.teamA[0])}<br>${duprChip(pA1)}<br>${curNameTag('A', c.teamA[1])}<br>${duprChip(pA2)}</div>
           <div class="sb-rating">Avg ELO: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
-          ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="A">Make 1st server</button>` : '')}
+          ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe && !(c.scoreA||0) && !(c.scoreB||0) ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="A">Make 1st server</button>` : '')}
           <button id="rotationWinBtnA" class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rotation-winner" data-team="A">
             ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
           </button>
@@ -6232,7 +7403,7 @@ function _renderMatchViewOriginalRotation(el) {
           <span class="sb-tag">Team B</span>
           <div class="sb-names">${curNameTag('B', c.teamB[0])}<br>${duprChip(pB1)}<br>${curNameTag('B', c.teamB[1])}<br>${duprChip(pB2)}</div>
           <div class="sb-rating">Avg ELO: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
-          ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="B">Make 1st server</button>` : '')}
+          ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (c.firstServe && !(c.scoreA||0) && !(c.scoreB||0) ? `<button type="button" class="serve-set-btn" data-action="rotation-set-server" data-team="B">Make 1st server</button>` : '')}
           <button id="rotationWinBtnB" class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn" data-action="set-rotation-winner" data-team="B">
             ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
           </button>
@@ -7965,7 +9136,7 @@ function renderPaddleStackView(el) {
             <span class="sb-tag">Team A</span>
             <div class="sb-names">${nameTag('A', m.teamA[0])}<br>${duprChip(pA1)}<br>${nameTag('A', m.teamA[1])}<br>${duprChip(pA2)}</div>
             <div class="sb-rating">Avg ELO: ${Math.round(((pA1?.rating||1000)+(pA2?.rating||1000))/2)}</div>
-            ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="ps-set-server" data-court="${m.id}" data-team="A">Make 1st server</button>` : '')}
+            ${servingA ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe && !(m.scoreA||0) && !(m.scoreB||0) ? `<button type="button" class="serve-set-btn" data-action="ps-set-server" data-court="${m.id}" data-team="A">Make 1st server</button>` : '')}
             <button class="btn btn-sm ${activeA ? 'btn-primary' : 'btn-secondary'} sb-winbtn ps-win-btn"
               data-action="ps-set-winner" data-court="${m.id}" data-team="A">
               ${activeA ? '✓ Winner Selected' : 'Team A Wins'}
@@ -7976,7 +9147,7 @@ function renderPaddleStackView(el) {
             <span class="sb-tag">Team B</span>
             <div class="sb-names">${nameTag('B', m.teamB[0])}<br>${duprChip(pB1)}<br>${nameTag('B', m.teamB[1])}<br>${duprChip(pB2)}</div>
             <div class="sb-rating">Avg ELO: ${Math.round(((pB1?.rating||1000)+(pB2?.rating||1000))/2)}</div>
-            ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe ? `<button type="button" class="serve-set-btn" data-action="ps-set-server" data-court="${m.id}" data-team="B">Make 1st server</button>` : '')}
+            ${servingB ? `<span class="serve-badge">🎾 ${serveLabel}</span>` : (m.firstServe && !(m.scoreA||0) && !(m.scoreB||0) ? `<button type="button" class="serve-set-btn" data-action="ps-set-server" data-court="${m.id}" data-team="B">Make 1st server</button>` : '')}
             <button class="btn btn-sm ${activeB ? 'btn-primary' : 'btn-secondary'} sb-winbtn ps-win-btn"
               data-action="ps-set-winner" data-court="${m.id}" data-team="B">
               ${activeB ? '✓ Winner Selected' : 'Team B Wins'}
@@ -8589,6 +9760,387 @@ const _kitchenLadderSig = Object.freeze({
 });
 
 })();
+
+/* ================================================================
+   ENHANCED UI v2 — Theme Toggle · FAB · Ripple · Micro-interactions
+   ================================================================ */
+(function initEnhancedUI(){
+
+  /* ---- Theme toggle ---- */
+  const THEME_KEY = 'kl_theme';
+  const html = document.documentElement;
+  const themeToggleBtn = document.getElementById('theme-toggle-btn');
+  const iconDark = document.getElementById('theme-icon-dark');
+  const iconLight = document.getElementById('theme-icon-light');
+
+  function applyTheme(mode){
+    if(mode === 'light'){
+      html.classList.add('light-mode');
+      if(iconDark) iconDark.style.display = 'none';
+      if(iconLight) iconLight.style.display = '';
+      try { sessionStorage.setItem(THEME_KEY, 'light'); } catch(e){}
+    } else {
+      html.classList.remove('light-mode');
+      if(iconDark) iconDark.style.display = '';
+      if(iconLight) iconLight.style.display = 'none';
+      try { sessionStorage.setItem(THEME_KEY, 'dark'); } catch(e){}
+    }
+  }
+
+  // Restore saved theme
+  try {
+    const saved = sessionStorage.getItem(THEME_KEY);
+    if(saved === 'light') applyTheme('light');
+    else if(saved === 'dark') applyTheme('dark');
+    else {
+      // Respect system preference on first load
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      applyTheme(prefersDark ? 'dark' : 'light');
+    }
+  } catch(e){ applyTheme('dark'); }
+
+  if(themeToggleBtn){
+    themeToggleBtn.addEventListener('click', function(){
+      const isLight = html.classList.contains('light-mode');
+      applyTheme(isLight ? 'dark' : 'light');
+    });
+  }
+
+  /* ---- FAB: show on Players tab, hide elsewhere ---- */
+  const fab = document.getElementById('fab-add-player');
+  if(fab){
+    // Show/hide based on current tab via MutationObserver on the view
+    function updateFabVisibility(){
+      const tabNav = document.getElementById('tabNav');
+      if(!tabNav) return;
+      const active = tabNav.querySelector('.tab-btn.active');
+      const tab = active ? active.dataset.tab : '';
+      const shouldShow = tab === 'players' || tab === '';
+      if(shouldShow){
+        fab.style.display = 'flex';
+        fab.classList.remove('fab-hidden');
+      } else {
+        fab.classList.add('fab-hidden');
+        setTimeout(()=>{ if(fab.classList.contains('fab-hidden')) fab.style.display = 'none'; }, 300);
+      }
+    }
+
+    // Watch tab changes
+    const tabNav = document.getElementById('tabNav');
+    if(tabNav){
+      const obs = new MutationObserver(updateFabVisibility);
+      obs.observe(tabNav, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    }
+    // Initial check after app boots
+    setTimeout(updateFabVisibility, 600);
+
+    // FAB click — navigate to players tab and focus add input
+    fab.addEventListener('click', function(){
+      // Try to switch to players tab
+      const tabNav = document.getElementById('tabNav');
+      if(tabNav){
+        const playersTab = tabNav.querySelector('[data-tab="players"]');
+        if(playersTab) playersTab.click();
+      }
+      // Focus the player name input after a brief delay
+      setTimeout(()=>{
+        const nameInput = document.getElementById('newPlayerName') || document.querySelector('input[placeholder*="name"]') || document.querySelector('input[placeholder*="Name"]');
+        if(nameInput){ nameInput.focus(); nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      }, 250);
+    });
+  }
+
+  /* ---- Ripple effect on buttons ---- */
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('.btn-primary, .btn-court, .tab-btn');
+    if(!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const ripple = document.createElement('span');
+    ripple.style.cssText = `
+      position:absolute; border-radius:50%; pointer-events:none;
+      width:${Math.max(rect.width,rect.height)*2}px;
+      height:${Math.max(rect.width,rect.height)*2}px;
+      left:${x - Math.max(rect.width,rect.height)}px;
+      top:${y - Math.max(rect.width,rect.height)}px;
+      background:rgba(255,255,255,0.18);
+      transform:scale(0); animation: ripple 0.5s ease forwards;
+    `;
+    // Ensure btn is positioned
+    if(getComputedStyle(btn).position === 'static') btn.style.position = 'relative';
+    btn.appendChild(ripple);
+    setTimeout(()=>ripple.remove(), 600);
+  }, { passive: true });
+
+  /* ---- Smooth page scroll on tab switch ---- */
+  document.addEventListener('click', function(e){
+    const tab = e.target.closest('.tab-btn');
+    if(tab) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, { passive: true });
+
+  /* ---- Enhanced confirmation dialog helper ---- */
+  window.showConfirmDialog = function(opts){
+    // opts: { icon, title, message, confirmLabel, cancelLabel, confirmClass, onConfirm, onCancel }
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.innerHTML = `
+      <div class="confirm-dialog" role="dialog" aria-modal="true">
+        <div class="confirm-icon">${opts.icon || '⚠️'}</div>
+        <div class="confirm-title">${opts.title || 'Are you sure?'}</div>
+        <div class="confirm-msg">${opts.message || ''}</div>
+        <div class="confirm-actions">
+          <button class="btn btn-ghost" id="cd-cancel">${opts.cancelLabel || 'Cancel'}</button>
+          <button class="btn ${opts.confirmClass || 'btn-danger'}" id="cd-confirm">${opts.confirmLabel || 'Confirm'}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = ()=>{ overlay.style.opacity='0'; overlay.style.transition='opacity .15s ease'; setTimeout(()=>overlay.remove(), 160); };
+    overlay.querySelector('#cd-cancel').addEventListener('click', ()=>{ close(); opts.onCancel && opts.onCancel(); });
+    overlay.querySelector('#cd-confirm').addEventListener('click', ()=>{ close(); opts.onConfirm && opts.onConfirm(); });
+    overlay.addEventListener('click', e=>{ if(e.target===overlay){ close(); opts.onCancel && opts.onCancel(); } });
+    // Trap focus
+    overlay.querySelector('#cd-confirm').focus();
+  };
+
+  /* ---- Loading animation for data-heavy operations ---- */
+  window.showLoadingOverlay = function(msg){
+    let el = document.getElementById('kl-loading-overlay');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'kl-loading-overlay';
+      el.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);z-index:300;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s ease;`;
+      el.innerHTML = `<div style="background:var(--glass-bg);backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:18px;padding:28px 32px;text-align:center;box-shadow:var(--shadow-float);">
+        <div style="width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--ball);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px;"></div>
+        <div style="font-size:13.5px;font-weight:600;color:var(--text-dim);">${msg||'Loading…'}</div>
+      </div>`;
+      document.body.appendChild(el);
+    }
+    return el;
+  };
+  window.hideLoadingOverlay = function(){
+    const el = document.getElementById('kl-loading-overlay');
+    if(el){ el.style.opacity='0'; el.style.transition='opacity .15s ease'; setTimeout(()=>el.remove(),160); }
+  };
+
+  /* ---- Spin keyframe (for loading spinner above) ---- */
+  if(!document.getElementById('kl-spin-style')){
+    const s = document.createElement('style');
+    s.id = 'kl-spin-style';
+    s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(s);
+  }
+
+  /* ---- Intercept modal close button to add exit animation ---- */
+  document.addEventListener('click', function(e){
+    const closeBtn = e.target.closest('[data-action="modal-close"]');
+    if(!closeBtn) return;
+    const bg = document.querySelector('.modal-bg');
+    if(bg){
+      e.stopImmediatePropagation();
+      const sheet = bg.querySelector('.modal-sheet');
+      if(sheet){ sheet.style.transform='translateY(32px)'; sheet.style.opacity='0.6'; sheet.style.transition='transform .18s ease, opacity .18s ease'; }
+      bg.style.opacity='0'; bg.style.transition='opacity .18s ease';
+      setTimeout(()=>{ bg.remove(); }, 200);
+    }
+  }, true);
+
+})();
+
+
+/* ================================================================
+   KITCHEN LADDER — PROTECTION LAYER
+   Techniques: DevTools detection, right-click/copy disable,
+   authorship watermark in storage, console branding,
+   source obfuscation notice, mutation observer guard.
+   ================================================================ */
+(function klProtect(){
+
+  /* 1. ---- Console branding — anyone opening DevTools sees this ---- */
+  const S1 = 'font-size:22px;font-weight:900;color:#D7F23D;background:#11151A;padding:8px 18px;border-radius:8px;';
+  const S2 = 'font-size:13px;color:#9AA5B1;background:#11151A;padding:4px 18px 8px;';
+  const S3 = 'font-size:12px;color:#FF6B6B;background:#11151A;padding:2px 18px 6px;';
+  console.log('%c🏓 Kitchen Ladder', S1);
+  console.log('%c© 2026 Renzku · All Rights Reserved\nhttps://github.com/renzku · znerolodarbe@gmail.com', S2);
+  console.log('%c⚠️  This app is protected. Unauthorized copying is prohibited.', S3);
+
+  /* 2. ---- Burn authorship into every available storage layer ---- */
+  const SIG = {
+    app: 'Kitchen Ladder',
+    author: 'Renzku',
+    contact: 'znerolodarbe@gmail.com',
+    year: 2026,
+    fingerprint: 'KL-RENZKU-2026-ORIGINAL',
+    rights: 'All Rights Reserved',
+    built: new Date().toISOString(),
+  };
+  try { localStorage.setItem('_kl_author', JSON.stringify(SIG)); } catch(e){}
+  try { sessionStorage.setItem('_kl_author', JSON.stringify(SIG)); } catch(e){}
+  try {
+    const req = indexedDB.open('_kl_meta', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains('sig')) db.createObjectStore('sig');
+    };
+    req.onsuccess = e => {
+      const db = e.target.result;
+      const tx = db.transaction('sig','readwrite');
+      tx.objectStore('sig').put(SIG, 'authorship');
+    };
+  } catch(e){}
+
+  /* 3. ---- Right-click disable with polite message ---- */
+  document.addEventListener('contextmenu', function(e){
+    const tag = e.target.tagName;
+    if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return; // allow on form fields
+    e.preventDefault();
+    showCopyWarning();
+  });
+
+  /* 4. ---- Keyboard shortcut intercepts ---- */
+  document.addEventListener('keydown', function(e){
+    const ctrl = e.ctrlKey || e.metaKey;
+    // Block Ctrl+U (view-source), Ctrl+S (save), Ctrl+Shift+I/J/C (devtools)
+    if(ctrl && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); showCopyWarning(); return; }
+    if(ctrl && (e.key === 's' || e.key === 'S')) { e.preventDefault(); showSaveWarning(); return; }
+    if(ctrl && e.shiftKey && ['i','I','j','J','c','C'].includes(e.key)) { showDevToolsWarning(); return; }
+    if(e.key === 'F12') { showDevToolsWarning(); return; }
+    // Block Ctrl+A (select all) outside inputs
+    if(ctrl && (e.key === 'a' || e.key === 'A')){
+      const tag = document.activeElement && document.activeElement.tagName;
+      if(tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT'){ e.preventDefault(); return; }
+    }
+    // Block Ctrl+C copy on non-input elements
+    if(ctrl && (e.key === 'c' || e.key === 'C')){
+      const sel = window.getSelection();
+      if(sel && sel.toString().length > 0){
+        const tag = document.activeElement && document.activeElement.tagName;
+        if(tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT'){
+          e.preventDefault();
+          showCopyWarning();
+        }
+      }
+    }
+  });
+
+  /* 5. ---- DevTools size-change detection ---- */
+  let _devtoolsOpen = false;
+  const DT_THRESHOLD = 160;
+  function checkDevTools(){
+    const widthDiff  = window.outerWidth  - window.innerWidth;
+    const heightDiff = window.outerHeight - window.innerHeight;
+    const open = widthDiff > DT_THRESHOLD || heightDiff > DT_THRESHOLD;
+    if(open && !_devtoolsOpen){
+      _devtoolsOpen = true;
+      showDevToolsWarning();
+    } else if(!open && _devtoolsOpen){
+      _devtoolsOpen = false;
+      hideDevToolsWarning();
+    }
+  }
+  setInterval(checkDevTools, 1500);
+
+  /* 6. ---- Print intercept ---- */
+  window.addEventListener('beforeprint', function(){
+    const el = document.getElementById('kl-devtools-warning');
+    if(el){
+      el.querySelector('.dw-title').textContent = '🖨️ Printing Disabled';
+      el.querySelector('.dw-msg').textContent =
+        'Kitchen Ladder is proprietary software by Renzku. Printing or screenshotting this app for redistribution is not permitted.';
+      el.classList.add('show');
+    }
+    setTimeout(hideDevToolsWarning, 3000);
+  });
+
+  /* 7. ---- Drag intercept (prevent drag-saving images/elements) ---- */
+  document.addEventListener('dragstart', function(e){
+    if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA'){
+      e.preventDefault();
+    }
+  });
+
+  /* 8. ---- Clipboard intercept — append attribution on copy ---- */
+  document.addEventListener('copy', function(e){
+    const sel = window.getSelection();
+    if(!sel || !sel.toString().trim()) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+    const original = sel.toString();
+    const attribution = '\n\n— Kitchen Ladder © 2026 Renzku. All Rights Reserved.';
+    try {
+      e.clipboardData.setData('text/plain', original + attribution);
+      e.preventDefault();
+    } catch(err){}
+  });
+
+  /* 9. ---- Mutation observer: guard brand-name & copyright from removal ---- */
+  const brandObs = new MutationObserver(function(muts){
+    muts.forEach(function(m){
+      m.removedNodes.forEach(function(n){
+        if(n.nodeType === 1){
+          const cls = n.className || '';
+          if(typeof cls === 'string' && (cls.includes('brand') || cls.includes('topbar'))){
+            console.warn('[KL] Protected element removed — authorship guard triggered.');
+          }
+        }
+      });
+    });
+  });
+  brandObs.observe(document.body, { childList: true, subtree: true });
+
+  /* 10. ---- Hidden authorship element in DOM ---- */
+  const meta = document.createElement('meta');
+  meta.name = 'kl-author';
+  meta.content = 'Kitchen Ladder © 2026 Renzku. All Rights Reserved. Fingerprint: KL-RENZKU-2026-ORIGINAL';
+  document.head.appendChild(meta);
+
+  /* ---- UI helper: copy warning ---- */
+  function showCopyWarning(){
+    _showWarning(
+      '🔒',
+      'Content Protected',
+      'Kitchen Ladder is proprietary software by Renzku.\nUnauthorized copying or redistribution is prohibited.\n\n© 2026 Renzku · All Rights Reserved'
+    );
+  }
+  function showSaveWarning(){
+    _showWarning(
+      '💾',
+      'Saving Disabled',
+      'This app\'s source code is protected intellectual property.\nSaving or redistributing this file without permission is prohibited.\n\n© 2026 Renzku · All Rights Reserved'
+    );
+  }
+  function showDevToolsWarning(){
+    _showWarning(
+      '🛠️',
+      'Developer Tools Detected',
+      'Kitchen Ladder\'s source code is the intellectual property of Renzku.\nInspecting or copying this code without permission is prohibited.\n\n© 2026 Renzku · All Rights Reserved'
+    );
+  }
+  function _showWarning(icon, title, msg){
+    let el = document.getElementById('kl-devtools-warning');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'kl-devtools-warning';
+      el.innerHTML = `
+        <div class="dw-icon">${icon}</div>
+        <div class="dw-title">${title}</div>
+        <div class="dw-msg">${msg.replace(/\n/g,'<br>')}</div>
+        <button class="dw-close" onclick="document.getElementById('kl-devtools-warning').classList.remove('show')">I Understand</button>`;
+      document.body.appendChild(el);
+    } else {
+      el.querySelector('.dw-icon').textContent = icon;
+      el.querySelector('.dw-title').textContent = title;
+      el.querySelector('.dw-msg').innerHTML = msg.replace(/\n/g,'<br>');
+    }
+    el.classList.add('show');
+  }
+  function hideDevToolsWarning(){
+    const el = document.getElementById('kl-devtools-warning');
+    if(el) el.classList.remove('show');
+  }
+
+})();
+
 </script>
 </body>
 </html>
