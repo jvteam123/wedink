@@ -5770,8 +5770,14 @@ function liveMatchCtx(mode, matchId){
   };
 }
 
+// Holds the pending winner selection while the confirmation modal is open,
+// since the modal's "Confirm" button is rendered as HTML (via data-action
+// dispatch) and can't close over `ctx`/`winningTeam` directly.
+let _pendingWinnerConfirm = null;
+
 // Shows a confirmation modal before locking in a winner, to prevent mis-taps.
-// Calls selectMatchWinner after user confirms.
+// Calls selectMatchWinner after user confirms (see 'do-confirm-winner' in the
+// action dispatcher).
 function confirmSelectWinner(ctx, winningTeam) {
   const m = ctx.getMatch();
   if (!m || m.status === 'done') return;
@@ -5790,6 +5796,8 @@ function confirmSelectWinner(ctx, winningTeam) {
   const teamLabel = winningTeam === 'A' ? 'Team A' : 'Team B';
   const teamColor = winningTeam === 'A' ? 'var(--ball)' : 'var(--court)';
 
+  _pendingWinnerConfirm = { ctx, winningTeam };
+
   openModal(`
     <div class="modal-title">Confirm Winner?</div>
     <div class="modal-sub" style="line-height:1.6;">
@@ -5798,20 +5806,9 @@ function confirmSelectWinner(ctx, winningTeam) {
     </div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn btn-ghost" data-action="modal-close">Cancel</button>
-      <button class="btn btn-primary" data-action="modal-close" id="confirmWinnerBtn">🏆 Confirm Win</button>
+      <button class="btn btn-primary" data-action="do-confirm-winner">🏆 Confirm Win</button>
     </div>
-  `);
-
-  // Attach one-time click handler on the confirm button
-  requestAnimationFrame(() => {
-    const btn = document.getElementById('confirmWinnerBtn');
-    if (btn) {
-      btn.addEventListener('click', function handler() {
-        btn.removeEventListener('click', handler);
-        selectMatchWinner(ctx, winningTeam);
-      }, { once: true });
-    }
-  });
+  `, false);
 }
 
 // Tapping a "Team X Wins" button: locks in the winner, and snaps the
@@ -8242,6 +8239,15 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'do-close-rc-court': closeRotationCourt(t.dataset.court); break;
+    case 'do-confirm-winner': {
+      if (_pendingWinnerConfirm) {
+        const { ctx, winningTeam } = _pendingWinnerConfirm;
+        _pendingWinnerConfirm = null;
+        closeModal();
+        selectMatchWinner(ctx, winningTeam);
+      }
+      break;
+    }
     case 'rc-set-winner': confirmSelectWinner(liveRotationCourtCtx(t.dataset.court), t.dataset.team); break;
     case 'rc-score-adjust': adjustRotationCourtScore(t.dataset.court, t.dataset.team, parseInt(t.dataset.delta,10)); break;
     case 'rc-set-server': setRotationCourtServer(t.dataset.court, t.dataset.team); break;
@@ -8622,7 +8628,7 @@ document.addEventListener('click', function(e){
       break;
     }
     case 'do-import-data': importDataFromText(document.getElementById('importText').value); break;
-    case 'modal-close': closeModal(); break;
+    case 'modal-close': _pendingWinnerConfirm = null; closeModal(); break;
     case 'open-session-history': openSessionHistoryModal(); break;
     case 'restore-session': restoreArchivedSession(t.dataset.id); break;
     case 'delete-session': deleteArchivedSession(t.dataset.id); break;
