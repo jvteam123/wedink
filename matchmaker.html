@@ -1,15 +1,15 @@
 <!--
   ================================================================
-  Kitchen Ladder — Pickleball 2v2 Matchmaker
-  © 2026 Renzku. All Rights Reserved.
+  Maezku Ladder — Pickleball 2v2 Matchmaker
+  © 2026 Maezku. All Rights Reserved.
 
   This software and its source code are the intellectual property
-  of Renzku. Unauthorized copying, reproduction, modification,
+  of Maezku (Mae & Renzku). Unauthorized copying, reproduction, modification,
   distribution, or use of this software, in whole or in part,
   without the express written permission of the author is strictly
   prohibited and may result in civil and criminal penalties.
 
-  Original Author : Renzku
+  Original Authors : Mae & Renzku
   Created         : 2026
   Contact         : znerolodarbe@gmail.com
   ================================================================
@@ -23,10 +23,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Kitchen Ladder">
+<meta name="apple-mobile-web-app-title" content="Maezku Ladder">
 <meta name="format-detection" content="telephone=no">
 <link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Kitchen%20Ladder%22%2C%22short_name%22%3A%22KL%22%2C%22description%22%3A%22Pickleball%202v2%20Matchmaker%20by%20Renzku%22%2C%22start_url%22%3A%22.%2Fmatchmaker.html%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%2311151A%22%2C%22theme_color%22%3A%22%2311151A%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%3D%2527http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%2527%2520viewBox%3D%270%200%2024%2024%2527%253E%253Ccircle%2520cx%3D%252712%2527%2520cy%3D%252712%2527%2520r%3D%252712%2527%2520fill%3D%2527%252311151A%2527%2F%253E%253Ccircle%2520cx%3D%252712%2527%2520cy%3D%252712%2527%2520r%3D%25278%2527%2520stroke%3D%2527%2523D7F23D%2527%2520stroke-width%3D%25272%2527%2520fill%3D%2527none%2527%2F%253E%253C%2FSvg%253E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
-<title>Kitchen Ladder — Pickleball 2v2 Matchmaker</title>
+<title>Maezku Ladder — Pickleball 2v2 Matchmaker</title>
 <style>
 /* ============================================================
    KITCHEN LADDER — design tokens
@@ -1986,7 +1986,7 @@ td.namecell { font-size: clamp(11.5px, 3vw, 13px); }
    ================================================================ */
 /* Subtle watermark via CSS only — visible on screenshot/print */
 body::after {
-  content: "© 2026 Renzku · Kitchen Ladder · Unauthorized copy";
+  content: "© 2026 Renzku · Maezku Ladder · Unauthorized copy";
   position: fixed;
   bottom: 50%;
   left: 50%;
@@ -2009,7 +2009,7 @@ body::after {
   }
 }
 /* DevTools warning overlay (shown via JS class) */
-#kl-devtools-warning {
+#ml-devtools-warning {
   display: none;
   position: fixed;
   inset: 0;
@@ -2023,11 +2023,11 @@ body::after {
   gap: 14px;
   font-family: var(--font-ui);
 }
-#kl-devtools-warning.show { display: flex; }
-#kl-devtools-warning .dw-icon { font-size: 52px; }
-#kl-devtools-warning .dw-title { font-size: 22px; font-weight: 900; color: var(--ball); }
-#kl-devtools-warning .dw-msg { font-size: 14px; color: var(--text-dim); line-height: 1.6; max-width: 380px; }
-#kl-devtools-warning .dw-close { margin-top: 8px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text-dim); border-radius: 10px; padding: 10px 24px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+#ml-devtools-warning.show { display: flex; }
+#ml-devtools-warning .dw-icon { font-size: 52px; }
+#ml-devtools-warning .dw-title { font-size: 22px; font-weight: 900; color: var(--ball); }
+#ml-devtools-warning .dw-msg { font-size: 14px; color: var(--text-dim); line-height: 1.6; max-width: 380px; }
+#ml-devtools-warning .dw-close { margin-top: 8px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text-dim); border-radius: 10px; padding: 10px 24px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
 /* Disable text selection on game elements */
 .scoreboard, .controlbar-inner, .brand-name, .brand-sub, .topbar {
   -webkit-user-select: none;
@@ -2050,8 +2050,8 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#D7F23D" stroke-width="2"/><circle cx="9" cy="9" r="1" fill="#D7F23D"/><circle cx="14" cy="8.5" r="1" fill="#D7F23D"/><circle cx="15.5" cy="13" r="1" fill="#D7F23D"/><circle cx="10.5" cy="15" r="1" fill="#D7F23D"/></svg>
       </div>
       <div style="flex:1; min-width:0;">
-        <div class="brand-name">Kitchen <b>Ladder</b></div>
-        <div class="brand-sub">Made with ♥️ Lorens Christopher Ebrado</div>
+        <div class="brand-name">Maezku <b>Ladder</b></div>
+        <div class="brand-sub">Made with ♥️ by Mae &amp; Renzku</div>
       </div>
       <button class="topbar-icon-btn icon-badge-wrap" data-action="open-checkin" aria-label="Check-in" title="Check-in">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -5651,7 +5651,7 @@ function downloadFullSchedulePoster(customTitle, paperSize){
 
   const posterHtml = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
-<title>Kitchen Ladder — Full Schedule</title>
+<title>Maezku Ladder — Full Schedule</title>
 <style>
   @page{ size:${pageSize}; margin:0.5in; }
   *{box-sizing:border-box;}
@@ -5689,7 +5689,7 @@ function downloadFullSchedulePoster(customTitle, paperSize){
   <div class="pp-print-bar"><button onclick="window.print()">🖨️ Print / Save as PDF</button></div>
   <div class="pp-header">
     <h1>🏆 ${esc(customTitle)}</h1>
-    <div class="sub">Kitchen Ladder — Generated ${dateStr} · ${paperSize ? paperSize.toUpperCase() : 'LETTER'}</div>
+    <div class="sub">Maezku Ladder — Generated ${dateStr} · ${paperSize ? paperSize.toUpperCase() : 'LETTER'}</div>
     <div class="pp-meta">
       <div><b>${totalMatches}</b>Matches</div>
       <div><b>${allGens.length}</b>Round${allGens.length!==1?'s':''}</div>
@@ -5698,7 +5698,7 @@ function downloadFullSchedulePoster(customTitle, paperSize){
     </div>
   </div>
   ${roundsHtml}
-  <div class="pp-footer">Kitchen Ladder · Pickleball 2v2 Matchmaker</div>
+  <div class="pp-footer">Maezku Ladder · Pickleball 2v2 Matchmaker</div>
 </body></html>`;
 
   const blob = new Blob([posterHtml], { type: 'text/html' });
@@ -6811,7 +6811,7 @@ function exportData(filename){
 function importDataFromText(txt){
   try{
     const dump = JSON.parse(txt);
-    if(!dump || !Array.isArray(dump.players)) { toast("That file isn't a valid Kitchen Ladder backup.", 'error'); return; }
+    if(!dump || !Array.isArray(dump.players)) { toast("That file isn't a valid Maezku Ladder backup.", 'error'); return; }
     state.players = dump.players;
     state.players.forEach(pl => {
       if(typeof pl.isSub !== 'boolean') pl.isSub = false;
@@ -7061,7 +7061,7 @@ function updateTabsFade(){
 function openNavMenu(){
   openModal(`
     <div class="modal-title">Navigate</div>
-    <div class="modal-sub">Jump straight to any section of Kitchen Ladder.</div>
+    <div class="modal-sub">Jump straight to any section of Maezku Ladder.</div>
     <div class="nav-menu-list">
       ${NAV_SECTIONS.map(it=>`
         <button class="nav-menu-item ${state.tab===it.id?'active':''}" data-action="nav-menu-go" data-tab="${it.id}">
@@ -8780,7 +8780,7 @@ window.addEventListener('appinstalled', function(){
   const topBtn = document.getElementById('topbar-install-btn');
   if(topBtn) topBtn.style.display = 'none';
   _deferredInstallPrompt = null;
-  toast('Kitchen Ladder installed.', 'success');
+  toast('Maezku Ladder installed.', 'success');
 });
 
 function initInstallBanner(){
@@ -8803,7 +8803,7 @@ function initInstallBanner(){
         // Android / Chrome / Edge — native prompt
         _deferredInstallPrompt.prompt();
         const { outcome } = await _deferredInstallPrompt.userChoice;
-        if(outcome === 'accepted') toast('Installing Kitchen Ladder…', 'info');
+        if(outcome === 'accepted') toast('Installing Maezku Ladder…', 'info');
         _deferredInstallPrompt = null;
         topBtn.style.display = 'none';
       } else if(isIOS){
@@ -8813,7 +8813,7 @@ function initInstallBanner(){
           <div class="modal-sub" style="line-height:1.8; font-size:13.5px; color:var(--text-dim);">
             <div style="margin-bottom:10px;">1. Tap the <strong style="color:var(--text);">Share</strong> button ⬆️ in Safari's bottom toolbar</div>
             <div style="margin-bottom:10px;">2. Scroll and tap <strong style="color:var(--text);">"Add to Home Screen"</strong></div>
-            <div>3. Tap <strong style="color:var(--ball);">Add</strong> — Kitchen Ladder appears on your home screen like a native app!</div>
+            <div>3. Tap <strong style="color:var(--ball);">Add</strong> — Maezku Ladder appears on your home screen like a native app!</div>
           </div>
           <div class="modal-actions">
             <button class="btn btn-primary btn-block" data-action="modal-close">Got it</button>
@@ -9747,15 +9747,15 @@ function psConfirmStart() {
 })();
 
 /* ================================================================
-   © 2026 Renzku — Kitchen Ladder. All Rights Reserved.
+   © 2026 Renzku — Maezku Ladder. All Rights Reserved.
    Unauthorized use or reproduction is strictly prohibited.
-   Original Author: Renzku | Fingerprint: KL-RENZKU-2026-ORIGINAL
+   Original Authors: Mae & Renzku | Fingerprint: ML-MAEZKU-2026-ORIGINAL
    ================================================================ */
 const _kitchenLadderSig = Object.freeze({
-  app: "Kitchen Ladder",
-  author: "Renzku",
+  app: "Maezku Ladder",
+  author: "Mae & Renzku",
   year: 2026,
-  fingerprint: "KL-RENZKU-2026-ORIGINAL",
+  fingerprint: "ML-MAEZKU-2026-ORIGINAL",
   rights: "All Rights Reserved"
 });
 
@@ -9767,7 +9767,7 @@ const _kitchenLadderSig = Object.freeze({
 (function initEnhancedUI(){
 
   /* ---- Theme toggle ---- */
-  const THEME_KEY = 'kl_theme';
+  const THEME_KEY = 'ml_theme';
   const html = document.documentElement;
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
   const iconDark = document.getElementById('theme-icon-dark');
@@ -9905,10 +9905,10 @@ const _kitchenLadderSig = Object.freeze({
 
   /* ---- Loading animation for data-heavy operations ---- */
   window.showLoadingOverlay = function(msg){
-    let el = document.getElementById('kl-loading-overlay');
+    let el = document.getElementById('ml-loading-overlay');
     if(!el){
       el = document.createElement('div');
-      el.id = 'kl-loading-overlay';
+      el.id = 'ml-loading-overlay';
       el.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(6px);z-index:300;display:flex;align-items:center;justify-content:center;animation:fadeIn .15s ease;`;
       el.innerHTML = `<div style="background:var(--glass-bg);backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:18px;padding:28px 32px;text-align:center;box-shadow:var(--shadow-float);">
         <div style="width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--ball);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px;"></div>
@@ -9919,14 +9919,14 @@ const _kitchenLadderSig = Object.freeze({
     return el;
   };
   window.hideLoadingOverlay = function(){
-    const el = document.getElementById('kl-loading-overlay');
+    const el = document.getElementById('ml-loading-overlay');
     if(el){ el.style.opacity='0'; el.style.transition='opacity .15s ease'; setTimeout(()=>el.remove(),160); }
   };
 
   /* ---- Spin keyframe (for loading spinner above) ---- */
-  if(!document.getElementById('kl-spin-style')){
+  if(!document.getElementById('ml-spin-style')){
     const s = document.createElement('style');
-    s.id = 'kl-spin-style';
+    s.id = 'ml-spin-style';
     s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
     document.head.appendChild(s);
   }
@@ -9960,24 +9960,24 @@ const _kitchenLadderSig = Object.freeze({
   const S1 = 'font-size:22px;font-weight:900;color:#D7F23D;background:#11151A;padding:8px 18px;border-radius:8px;';
   const S2 = 'font-size:13px;color:#9AA5B1;background:#11151A;padding:4px 18px 8px;';
   const S3 = 'font-size:12px;color:#FF6B6B;background:#11151A;padding:2px 18px 6px;';
-  console.log('%c🏓 Kitchen Ladder', S1);
-  console.log('%c© 2026 Renzku · All Rights Reserved\nhttps://github.com/renzku · znerolodarbe@gmail.com', S2);
+  console.log('%c🏓 Maezku Ladder', S1);
+  console.log('%c© 2026 Maezku · All Rights Reserved\nhttps://github.com/renzku · znerolodarbe@gmail.com', S2);
   console.log('%c⚠️  This app is protected. Unauthorized copying is prohibited.', S3);
 
   /* 2. ---- Burn authorship into every available storage layer ---- */
   const SIG = {
-    app: 'Kitchen Ladder',
-    author: 'Renzku',
+    app: 'Maezku Ladder',
+    author: 'Mae & Renzku',
     contact: 'znerolodarbe@gmail.com',
     year: 2026,
-    fingerprint: 'KL-RENZKU-2026-ORIGINAL',
+    fingerprint: 'ML-MAEZKU-2026-ORIGINAL',
     rights: 'All Rights Reserved',
     built: new Date().toISOString(),
   };
-  try { localStorage.setItem('_kl_author', JSON.stringify(SIG)); } catch(e){}
-  try { sessionStorage.setItem('_kl_author', JSON.stringify(SIG)); } catch(e){}
+  try { localStorage.setItem('_ml_author', JSON.stringify(SIG)); } catch(e){}
+  try { sessionStorage.setItem('_ml_author', JSON.stringify(SIG)); } catch(e){}
   try {
-    const req = indexedDB.open('_kl_meta', 1);
+    const req = indexedDB.open('_ml_meta', 1);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if(!db.objectStoreNames.contains('sig')) db.createObjectStore('sig');
@@ -10042,11 +10042,11 @@ const _kitchenLadderSig = Object.freeze({
 
   /* 6. ---- Print intercept ---- */
   window.addEventListener('beforeprint', function(){
-    const el = document.getElementById('kl-devtools-warning');
+    const el = document.getElementById('ml-devtools-warning');
     if(el){
       el.querySelector('.dw-title').textContent = '🖨️ Printing Disabled';
       el.querySelector('.dw-msg').textContent =
-        'Kitchen Ladder is proprietary software by Renzku. Printing or screenshotting this app for redistribution is not permitted.';
+        'Maezku Ladder is proprietary software by Mae & Renzku. Printing or screenshotting this app for redistribution is not permitted.';
       el.classList.add('show');
     }
     setTimeout(hideDevToolsWarning, 3000);
@@ -10066,7 +10066,7 @@ const _kitchenLadderSig = Object.freeze({
     const tag = document.activeElement && document.activeElement.tagName;
     if(tag === 'INPUT' || tag === 'TEXTAREA') return;
     const original = sel.toString();
-    const attribution = '\n\n— Kitchen Ladder © 2026 Renzku. All Rights Reserved.';
+    const attribution = '\n\n— Maezku Ladder © 2026 Maezku. All Rights Reserved.';
     try {
       e.clipboardData.setData('text/plain', original + attribution);
       e.preventDefault();
@@ -10091,7 +10091,7 @@ const _kitchenLadderSig = Object.freeze({
   /* 10. ---- Hidden authorship element in DOM ---- */
   const meta = document.createElement('meta');
   meta.name = 'kl-author';
-  meta.content = 'Kitchen Ladder © 2026 Renzku. All Rights Reserved. Fingerprint: KL-RENZKU-2026-ORIGINAL';
+  meta.content = 'Maezku Ladder © 2026 Maezku. All Rights Reserved. Fingerprint: ML-MAEZKU-2026-ORIGINAL';
   document.head.appendChild(meta);
 
   /* ---- UI helper: copy warning ---- */
@@ -10099,33 +10099,33 @@ const _kitchenLadderSig = Object.freeze({
     _showWarning(
       '🔒',
       'Content Protected',
-      'Kitchen Ladder is proprietary software by Renzku.\nUnauthorized copying or redistribution is prohibited.\n\n© 2026 Renzku · All Rights Reserved'
+      'Maezku Ladder is proprietary software by Mae & Renzku.\nUnauthorized copying or redistribution is prohibited.\n\n© 2026 Maezku · All Rights Reserved'
     );
   }
   function showSaveWarning(){
     _showWarning(
       '💾',
       'Saving Disabled',
-      'This app\'s source code is protected intellectual property.\nSaving or redistributing this file without permission is prohibited.\n\n© 2026 Renzku · All Rights Reserved'
+      'This app\'s source code is protected intellectual property.\nSaving or redistributing this file without permission is prohibited.\n\n© 2026 Maezku · All Rights Reserved'
     );
   }
   function showDevToolsWarning(){
     _showWarning(
       '🛠️',
       'Developer Tools Detected',
-      'Kitchen Ladder\'s source code is the intellectual property of Renzku.\nInspecting or copying this code without permission is prohibited.\n\n© 2026 Renzku · All Rights Reserved'
+      'Maezku Ladder\'s source code is the intellectual property of Renzku.\nInspecting or copying this code without permission is prohibited.\n\n© 2026 Maezku · All Rights Reserved'
     );
   }
   function _showWarning(icon, title, msg){
-    let el = document.getElementById('kl-devtools-warning');
+    let el = document.getElementById('ml-devtools-warning');
     if(!el){
       el = document.createElement('div');
-      el.id = 'kl-devtools-warning';
+      el.id = 'ml-devtools-warning';
       el.innerHTML = `
         <div class="dw-icon">${icon}</div>
         <div class="dw-title">${title}</div>
         <div class="dw-msg">${msg.replace(/\n/g,'<br>')}</div>
-        <button class="dw-close" onclick="document.getElementById('kl-devtools-warning').classList.remove('show')">I Understand</button>`;
+        <button class="dw-close" onclick="document.getElementById('ml-devtools-warning').classList.remove('show')">I Understand</button>`;
       document.body.appendChild(el);
     } else {
       el.querySelector('.dw-icon').textContent = icon;
@@ -10135,7 +10135,7 @@ const _kitchenLadderSig = Object.freeze({
     el.classList.add('show');
   }
   function hideDevToolsWarning(){
-    const el = document.getElementById('kl-devtools-warning');
+    const el = document.getElementById('ml-devtools-warning');
     if(el) el.classList.remove('show');
   }
 
