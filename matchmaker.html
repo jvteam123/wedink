@@ -5479,22 +5479,22 @@ function openSchedReplaceModal(matchId, genNum, team, slot){
   // All 4 players currently in this match (to exclude from picker)
   const inMatchIds = new Set([...m.teamA, ...m.teamB]);
 
-  // Also exclude anyone already committed to another unfinished match
-  // anywhere in the schedule, so swapping someone in can't double-book them
-  // onto two courts/matches at once.
-  const busyElsewhereIds = new Set();
-  allGens.forEach(g => {
-    g.matches.forEach(other => {
-      if(other.id === m.id || other.status === 'done') return;
-      other.teamA.forEach(id => busyElsewhereIds.add(id));
-      other.teamB.forEach(id => busyElsewhereIds.add(id));
-    });
+  // Also exclude anyone else already playing in *this same round* (a player
+  // can't be on two courts at once within one generation) — but players
+  // scheduled in other rounds are fair game, since this tool is for freely
+  // customizing the whole schedule.
+  const busyThisRoundIds = new Set();
+  gen.matches.forEach(other => {
+    if(other.id === m.id || other.status === 'done') return;
+    other.teamA.forEach(id => busyThisRoundIds.add(id));
+    other.teamB.forEach(id => busyThisRoundIds.add(id));
   });
 
-  // Build candidate list: active, non-paused players not already in this
-  // match and not already busy in another unfinished match.
+  // Build candidate list: any checked-in player not already in this match
+  // and not already playing elsewhere this same round. Includes players
+  // sitting out this round and players assigned to other rounds.
   const candidates = state.players
-    .filter(p => p.active && !inMatchIds.has(p.id) && !busyElsewhereIds.has(p.id))
+    .filter(p => p.active && !inMatchIds.has(p.id) && !busyThisRoundIds.has(p.id))
     .sort((a,b) => a.name.localeCompare(b.name));
 
   if(!candidates.length){
