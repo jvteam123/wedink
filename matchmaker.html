@@ -79,7 +79,7 @@ body{
   min-height:100vh;
   min-height:100dvh;
   overflow-x:hidden;
-  overscroll-behavior-y:none;
+  overscroll-behavior-x:none;
 }
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
@@ -100,7 +100,7 @@ input,select,textarea{touch-action:manipulation; -webkit-tap-highlight-color:tra
 /* ---------- App shell ---------- */
 #app{
   max-width:560px; margin:0 auto; min-height:100vh; min-height:100dvh; position:relative;
-  display:flex; flex-direction:column; padding-bottom:96px;
+  display:flex; flex-direction:column; padding-bottom:96px; overflow-x:hidden;
 }
 
 /* ---------- Top bar ---------- */
@@ -205,7 +205,7 @@ input,select,textarea{touch-action:manipulation; -webkit-tap-highlight-color:tra
 }
 
 /* ---------- Content ---------- */
-.view{padding:14px 16px 12px; animation:fadeIn .22s ease;}
+.view{padding:14px 16px 12px; animation:fadeIn .22s ease; touch-action:pan-y;}
 @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
 .section-title{
   font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em;
@@ -216,7 +216,7 @@ input,select,textarea{touch-action:manipulation; -webkit-tap-highlight-color:tra
 /* ---------- Cards ---------- */
 .card{
   background:var(--surface); border:1px solid var(--line-soft); border-radius:var(--radius-lg);
-  padding:16px; box-shadow:var(--shadow-1);
+  padding:16px; box-shadow:var(--shadow-1); touch-action:pan-y;
 }
 .card + .card{margin-top:10px;}
 .card-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
@@ -1586,7 +1586,8 @@ html.light-mode .section-title::before { background: var(--ball); }
 
 /* ---- Global overflow prevention ---- */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { overflow-x: hidden; max-width: 100vw; }
+html { overflow-x: hidden; overflow-y: auto; max-width: 100vw; }
+body { overflow-x: hidden; overflow-y: auto; max-width: 100vw; }
 img, svg { max-width: 100%; }
 
 /* ---- App shell ---- */
@@ -2032,9 +2033,10 @@ body::after {
 .scoreboard, .controlbar-inner, .brand-name, .brand-sub, .topbar {
   -webkit-user-select: none;
   user-select: none;
+  touch-action: pan-y;
 }
 /* Allow selection on input/form fields */
-input, textarea, select { -webkit-user-select: text; user-select: text; }
+input, textarea, select { -webkit-user-select: text; user-select: text; touch-action: manipulation; }
 
 </style>
 </head>
@@ -10052,8 +10054,10 @@ const _kitchenLadderSig = Object.freeze({
     setTimeout(hideDevToolsWarning, 3000);
   });
 
-  /* 7. ---- Drag intercept (prevent drag-saving images/elements) ---- */
+  /* 7. ---- Drag intercept (prevent drag-saving images/elements, desktop only) ---- */
   document.addEventListener('dragstart', function(e){
+    // Only block on desktop pointer events, never block touch-initiated events
+    if(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
     if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA'){
       e.preventDefault();
     }
